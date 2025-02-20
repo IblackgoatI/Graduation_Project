@@ -120,7 +120,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
           // 🟢 가계부 설명 텍스트
           const Text(
-            '가계부가 처음인 당신께',
+            '가계부가 처음인 당신에게',
             style: TextStyle(
               fontSize: 16,
               color: Colors.black,
