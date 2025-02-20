@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "24911651038",
+    "project_id": "graduation-5caa0",
+    "storage_bucket": "graduation-5caa0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:24911651038:android:8bf6958b484083afd0224f",
+        "android_client_info": {
+          "package_name": "com.example.burini"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWl9e_RC-aBdAr9Cu4K0Jard5vKT-8Jr4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
