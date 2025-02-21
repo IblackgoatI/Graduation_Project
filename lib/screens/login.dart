@@ -1,18 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'regist.dart'; // 회원가입 화면 (예시)
-
-// 로그인 후 이동할 화면 예시 (필요에 따라 수정)
-class MainScreen extends StatelessWidget {
-  const MainScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(child: Text('로그인 성공! 메인 화면입니다.')),
-    );
-  }
-}
+import 'asset.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -53,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 로그인 성공 시 메인 화면으로 이동
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
+        MaterialPageRoute(builder: (context) => const AssetScreen()),
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = '';
