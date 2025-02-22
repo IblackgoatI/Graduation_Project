@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'main_screen_nologin.dart';
 
 class AssetScreen extends StatefulWidget {
   const AssetScreen({Key? key}) : super(key: key);
@@ -170,7 +171,12 @@ class _AssetScreenState extends State<AssetScreen> {
                       backgroundColor: Colors.red,
                       padding: EdgeInsets.symmetric(vertical: 15),
                     ),
-                    onPressed: () {},
+                    onPressed: () {
+                    Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MainScreenNotLogin()),
+                      );
+                    },
                     child: Text("나중에 하기", style: TextStyle(color: Colors.white)),
                   ),
                 ),
