@@ -97,6 +97,7 @@ flutter:
   # see https://flutter.dev/to/font-from-package
   assets:
     - assets/ # 이미지 경로 추가
+    - assets/banks/
 flutter_native_splash:
   color: "#FFFFFF"  # 스플래시 화면 배경색 (흰색)
   image: assets/piggy_bank.png  # 로고 이미지 (경로 확인!)
