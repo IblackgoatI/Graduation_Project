@@ -172,7 +172,7 @@ List<String> _getValidationErrorsForStep(int step) {
   } else if (step == 2) {
     // Step 3: 전화번호, 인증번호
     if (!phoneRegex.hasMatch(_phoneController.text.trim())) {
-      errors.add("전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678 또는 010-123-4567)");
+      errors.add("전화번호를 입력하세요.");
     }
     if (_verificationController.text.trim().isEmpty) {
       errors.add("인증번호를 입력하세요.");
@@ -268,20 +268,20 @@ Future<void> _sendVerificationCode() async {
       phoneNumber: phoneNumber,
       timeout: const Duration(seconds: 60),
       verificationCompleted: (PhoneAuthCredential credential) async {
-        // 자동 인증 완료 시 처리 (필요에 따라 구현)
+        // 자동 인증 완료 시 처리
       },
       verificationFailed: (FirebaseAuthException e) {
+        // 전화번호 형식 오류, 전송 불가 등
         _showError(e.message ?? '전화번호 인증 실패');
       },
       codeSent: (String verificationId, int? resendToken) {
         setState(() {
           _verificationId = verificationId;
-          _resendCountdown = 60; // 60초 대기 시작
+          _resendCountdown = 60;
         });
-        _startResendTimer(); // 타이머 시작
+        _startResendTimer();
         _showError('인증번호가 전송되었습니다.');
       },
-
       codeAutoRetrievalTimeout: (String verificationId) {
         setState(() {
           _verificationId = verificationId;
@@ -289,8 +289,10 @@ Future<void> _sendVerificationCode() async {
       },
     );
   } catch (e) {
+    // 여기서는 일반적인 try/catch로 전송 과정의 예외만 잡음
     _showError('전화번호 인증 요청 중 오류가 발생했습니다.');
   }
+
 }
 
 // 최종 단계에서 인증번호 확인 후 이메일/비밀번호 계정 생성,
@@ -356,10 +358,13 @@ Future<void> _verifyCodeAndRegister() async {
 
     if (e.code == 'email-already-in-use') {
       _showError('이미 아이디가 존재합니다.');
+      return;
     } else if (e.code == 'credential-already-in-use') {
       _showError('이미 해당 전화번호로 인증된 계정이 존재합니다.');
+      return;
     } else {
       _showError(e.message ?? '회원가입에 실패했습니다.');
+      return;
     }
   } catch (e) {
     print("Error in _verifyCodeAndRegister: $e");
@@ -371,6 +376,7 @@ Future<void> _verifyCodeAndRegister() async {
       }
     }
     _showError('회원가입에 실패했습니다.');
+    return;
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'regist.dart'; // 회원가입 화면 (예시)
 import 'asset.dart';
+import 'pwreset.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -19,6 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 비밀번호 표시 여부 상태
   bool _passwordVisible = false;
+
+  bool get _isLoginFormValid =>
+      _idController.text.trim().isNotEmpty && _passwordController.text.trim().isNotEmpty;
 
   @override
   void dispose() {
@@ -110,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: Column(
                     children: [
-                      // 아이디 입력 필드
+                      // 이메일 입력 필드
                       TextField(
                         controller: _idController,
                         decoration: InputDecoration(
@@ -121,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           prefixIcon: const Icon(Icons.person),
                         ),
+                        onChanged: (_) => setState(() {}), // 입력이 바뀔 때마다 setState 호출
                       ),
                       const SizedBox(height: 16),
 
@@ -148,6 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                         ),
+                        onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 24),
 
@@ -162,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(8.0),
                             ),
                           ),
-                          onPressed: _isLoading ? null : _login,
+                          onPressed: _isLoading || !_isLoginFormValid ? null : _login,
                           child: _isLoading
                               ? const CircularProgressIndicator(
                             color: Colors.white,
@@ -201,7 +207,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Text('  |  '),
                           GestureDetector(
                             onTap: () {
-                              // 비밀번호 찾기 화면 이동 (추후 구현)
+                              //비밀번호 찾기 화면으로 이동
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (context) => const PasswordResetScreen()),
+                              );
+
                             },
                             child: const Text(
                               '비밀번호 찾기',
