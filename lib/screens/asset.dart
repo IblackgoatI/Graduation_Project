@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart';
+import 'login.dart'; // LoginScreen 추가
 
 class AssetScreen extends StatefulWidget {
-  const AssetScreen({Key? key}) : super(key: key);
+  const AssetScreen({super.key});
 
   @override
-  _AssetScreenState createState() => _AssetScreenState();
+  State<AssetScreen> createState() => _AssetScreenState();
 }
 
 class _AssetScreenState extends State<AssetScreen> {
-  TextEditingController _accountController = TextEditingController();
+  final TextEditingController _accountController = TextEditingController();
   String? _selectedBank;
+  int _currentPage = 0; // 현재 페이지 상태 추가
+  final PageController _pageController = PageController(); // 페이지 컨트롤러 추가
 
   final List<Map<String, dynamic>> _banks = [
     {'name': 'KB국민은행', 'icon': 'assets/banks/KB_Square.png'},
@@ -36,6 +39,20 @@ class _AssetScreenState extends State<AssetScreen> {
     {'name': 'iM뱅크', 'icon': 'assets/banks/IM_Square.png'},
   ];
 
+  void _prevPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      setState(() {
+        _currentPage--;
+      });
+    } else {
+      // 첫 페이지일 때 login.dart로 이동
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (context) => LoginScreen()));
+    }
+  }
+
   void _showBankSelection() {
     showModalBottomSheet(
       context: context,
@@ -44,7 +61,7 @@ class _AssetScreenState extends State<AssetScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
       ),
       builder: (context) {
-        return Container(
+        return SizedBox(
           height: MediaQuery.of(context).size.height * 0.7, // 전체 화면의 70% 높이
           child: Column(
             children: [
@@ -114,8 +131,8 @@ class _AssetScreenState extends State<AssetScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {},
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: _prevPage,
         ),
       ),
       body: Padding(
@@ -172,9 +189,10 @@ class _AssetScreenState extends State<AssetScreen> {
                       padding: EdgeInsets.symmetric(vertical: 15),
                     ),
                     onPressed: () {
-                    Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MainScreenNotLogin()),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const MainScreenNotLogin()),
                       );
                     },
                     child: Text("나중에 하기", style: TextStyle(color: Colors.white)),
@@ -184,7 +202,8 @@ class _AssetScreenState extends State<AssetScreen> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _selectedBank != null ? Color(0xFF49AD13) : Colors.grey,
+                      backgroundColor:
+                      _selectedBank != null ? Color(0xFF49AD13) : Colors.grey,
                       padding: EdgeInsets.symmetric(vertical: 15),
                     ),
                     onPressed: _selectedBank != null ? () {} : null,
