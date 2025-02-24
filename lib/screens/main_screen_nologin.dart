@@ -1,9 +1,40 @@
-//로그인 안한 메인 화면
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'account_book_screen.dart'; // 가계부 화면 import
+import 'community_screen.dart'; // 커뮤니티 화면 import
+import 'all_screen.dart'; // 전체 화면 import
 
-class MainScreenNotLogin extends StatelessWidget {
+
+class MainScreenNotLogin extends StatefulWidget {
   const MainScreenNotLogin({super.key});
 
+  @override
+  State<MainScreenNotLogin> createState() => _MainScreenNotLoginState();
+}
+
+class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
+  int _selectedIndex = 0;
+
+  // late로 선언
+  late final List<Widget> _widgetOptions;
+
+  @override
+  void initState() {
+    super.initState();
+    // initState에서 초기화
+    _widgetOptions = [
+      _HomeScreen(), // 홈 화면
+      const AccountBookScreen(), // 가계부 화면
+      const CommunityScreen(), // 커뮤니티 화면
+      const AllScreen(), // 전체 화면
+    ];
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,20 +42,72 @@ class MainScreenNotLogin extends StatelessWidget {
       appBar: AppBar(
         title: const Text('금융 대시보드'),
       ),
-      backgroundColor: const Color(0xFFF8F8F8), //메인 화면 배경색
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildAccountCard(),
-            const SizedBox(height: 16.0),
-            _buildTotalAssetsCard(),
-            const SizedBox(height: 16.0),
-            _buildMonthlySpendingCard(),
-            const SizedBox(height: 16.0),
-            _buildMonthlyReportCard(),
-          ],
-        ),
+      body: _widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Colors.black,
+        unselectedItemColor: const Color(0xFFAAA1A1),
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/home.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 0 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
+              ),
+            ),
+            label: '홈',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/calendar.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 1 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
+              ),
+            ),
+            label: '가계부',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/Community.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 2 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
+              ),
+            ),
+            label: '커뮤니티',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/menu.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 3 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
+              ),
+            ),
+            label: '전체',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 홈 화면을 별도의 메서드로 정의
+  Widget _HomeScreen() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          _buildAccountCard(),
+          const SizedBox(height: 16.0),
+          _buildTotalAssetsCard(),
+          const SizedBox(height: 16.0),
+          _buildMonthlySpendingCard(),
+          const SizedBox(height: 16.0),
+          _buildMonthlyReportCard(),
+        ],
       ),
     );
   }
@@ -44,7 +127,7 @@ class MainScreenNotLogin extends StatelessWidget {
             const SizedBox(height: 8.0),
             const Text(
               "계좌 미연결",
-              style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey),
             ),
             const SizedBox(height: 8.0),
             const Text(
@@ -54,6 +137,9 @@ class MainScreenNotLogin extends StatelessWidget {
             const SizedBox(height: 16.0),
             Center(
               child: ElevatedButton(
+                onPressed: () {
+                  // 계좌 연결하기 버튼 동작
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
                   minimumSize: const Size(400, 50), // 버튼의 크기 지정
@@ -61,9 +147,6 @@ class MainScreenNotLogin extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
                   ),
                 ),
-                onPressed: () {
-                  // 계좌 연결하기 버튼 동작
-                },
                 child: const Text(
                   "계좌 연결하러 가기",
                   style: TextStyle(fontSize: 16, color: Colors.white),
@@ -91,7 +174,7 @@ class MainScreenNotLogin extends StatelessWidget {
             const SizedBox(height: 8.0),
             const Text(
               "자산 미연결",
-              style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold, color: Colors.grey),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey),
             ),
             const SizedBox(height: 8.0),
             const Text(
@@ -101,6 +184,9 @@ class MainScreenNotLogin extends StatelessWidget {
             const SizedBox(height: 16.0),
             Center(
               child: ElevatedButton(
+                onPressed: () {
+                  // 계좌 연결하기 버튼 동작
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
                   minimumSize: const Size(400, 50), // 버튼의 크기 지정
@@ -108,9 +194,6 @@ class MainScreenNotLogin extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
                   ),
                 ),
-                onPressed: () {
-                  // 계좌 연결하기 버튼 동작
-                },
                 child: const Text(
                   "계좌 연결하러 가기",
                   style: TextStyle(fontSize: 16, color: Colors.white),
@@ -158,7 +241,6 @@ class MainScreenNotLogin extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _buildMonthlyReportCard() {
     return SizedBox(
