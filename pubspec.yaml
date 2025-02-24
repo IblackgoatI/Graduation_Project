@@ -33,6 +33,7 @@ dependencies:
   firebase_core: ^3.11.0 # 최신 버전 사용 권장
   firebase_auth: ^5.4.2
   cloud_firestore: ^5.6.3
+  flutter_svg: ^2.0.0+1 #svg파일 사용 하기 위한 패키지
 
   smooth_page_indicator: ^1.1.0  # 최신 버전 확인 가능
 
@@ -98,6 +99,7 @@ flutter:
   assets:
     - assets/ # 이미지 경로 추가
     - assets/banks/
+    - assets/icons/
 flutter_native_splash:
   color: "#FFFFFF"  # 스플래시 화면 배경색 (흰색)
   image: assets/piggy_bank.png  # 로고 이미지 (경로 확인!)
