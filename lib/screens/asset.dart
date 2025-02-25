@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart';
 import 'login.dart'; // LoginScreen 추가
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AssetScreen extends StatefulWidget {
   const AssetScreen({super.key});
@@ -11,6 +12,7 @@ class AssetScreen extends StatefulWidget {
 
 class _AssetScreenState extends State<AssetScreen> {
   final TextEditingController _accountController = TextEditingController();
+  final TextEditingController _ownerController = TextEditingController();
   String? _selectedBank;
   int _currentPage = 0; // 현재 페이지 상태 추가
   final PageController _pageController = PageController(); // 페이지 컨트롤러 추가
@@ -38,6 +40,12 @@ class _AssetScreenState extends State<AssetScreen> {
     {'name': 'BNK경남은행', 'icon': 'assets/banks/Kyungnam_Square.png'},
     {'name': 'iM뱅크', 'icon': 'assets/banks/IM_Square.png'},
   ];
+
+  // 모든 필드가 입력되었는지 여부
+  bool get _isInputValid =>
+      _accountController.text.isNotEmpty &&
+          _ownerController.text.isNotEmpty &&
+          _selectedBank != null;
 
   void _prevPage() {
     if (_currentPage > 0) {
@@ -124,6 +132,37 @@ class _AssetScreenState extends State<AssetScreen> {
     );
   }
 
+  // Firestore에 데이터 저장하는 함수
+  Future<void> _saveData() async {
+    // context를 await 이전에 변수에 저장
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      await FirebaseFirestore.instance.collection('assets').add({
+        'account': _accountController.text.trim(),
+        'owner': _ownerController.text.trim(),
+        'bank': _selectedBank,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("데이터가 저장되었습니다.")),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("데이터 저장 실패: $e")),
+      );
+    }
+  }
+
+
+  @override
+  void dispose() {
+    _accountController.dispose();
+    _ownerController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,10 +185,11 @@ class _AssetScreenState extends State<AssetScreen> {
             ),
             SizedBox(height: 10),
             Text(
-              "자산을 연결하기위한 본인인증이에요.\n주로 사용하는 은행 계좌를 입력해주세요.",
+              "자산을 연결하기 위한 본인인증이에요.\n주로 사용하는 은행 계좌를 입력해주세요.",
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             SizedBox(height: 30),
+            // 계좌번호 입력 필드
             TextField(
               controller: _accountController,
               keyboardType: TextInputType.number,
@@ -157,8 +197,25 @@ class _AssetScreenState extends State<AssetScreen> {
                 border: OutlineInputBorder(),
                 hintText: "계좌번호를 입력 해주세요.",
               ),
+              onChanged: (_) {
+                setState(() {});
+              },
             ),
             SizedBox(height: 20),
+            // 예금주 입력 필드 추가
+            TextField(
+              controller: _ownerController,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "예금주를 입력 해주세요.",
+                labelText: "예금주",
+              ),
+              onChanged: (_) {
+                setState(() {});
+              },
+            ),
+            SizedBox(height: 20),
+            // 은행 선택 필드
             GestureDetector(
               onTap: _showBankSelection,
               child: Container(
@@ -202,11 +259,10 @@ class _AssetScreenState extends State<AssetScreen> {
                 Expanded(
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                      _selectedBank != null ? Color(0xFF49AD13) : Colors.grey,
+                      backgroundColor: _isInputValid ? Color(0xFF73AD13) : Colors.grey,
                       padding: EdgeInsets.symmetric(vertical: 15),
                     ),
-                    onPressed: _selectedBank != null ? () {} : null,
+                    onPressed: _isInputValid ? _saveData : null,
                     child: Text("확인하기", style: TextStyle(color: Colors.white)),
                   ),
                 ),
