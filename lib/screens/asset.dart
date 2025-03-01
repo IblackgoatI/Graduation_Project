@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'main_screen_nologin.dart';
 import 'package:logger/logger.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class AssetScreen extends StatefulWidget {
   const AssetScreen({Key? key}) : super(key: key);
@@ -134,7 +136,7 @@ class _AssetScreenState extends State<AssetScreen> {
     );
   }
 
-// 계좌정보 조회 후 1원 송금 시뮬레이션
+  // 계좌정보 조회 후 1원 송금 시뮬레이션 (API 호출 방식)
   Future<void> _checkAccountAndTransfer() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final accountInput = _accountController.text.trim();
@@ -149,91 +151,38 @@ class _AssetScreenState extends State<AssetScreen> {
     }
 
     try {
-      final userDoc = await FirebaseFirestore.instance // 전체 객체
-          .collection('Users')
-          .where('UserId', isEqualTo: user.email) // 로그인된 사용자의 이메일이있는 문서 꺼내기
-          .get();
-
-      if (userDoc.docs.isEmpty) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("사용자 정보를 찾을 수 없습니다.")),
-        );
-        return;
-      }
-
-      final userData = userDoc.docs.first.data();
-      final String currentUserName = userData['Name'] ?? "";
-      final String currentUserPhone = userData['PNum'] ?? "";
-
-      var logger = Logger();
-      logger.d("디버깅 - Firestore에서 가져온 이름: $currentUserName");
-      logger.d("디버깅 - Firestore에서 가져온 전화번호: $currentUserPhone");
-
-      // Firestore에서 해당 계좌 확인
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('assets')
-          .where('account', isEqualTo: accountInput)
-          .where('bank', isEqualTo: bankInput)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("해당 계좌번호가 존재하지 않습니다.")),
-        );
-        return;
-      }
-
-      // 입력받은 계좌번호로 데이터 가져오기
-      final accountData = querySnapshot.docs.first.data();
-      final String accountName = accountData['owner'] ?? "";
-      final String accountPhone = accountData['pnum'] ?? "";
-
-      logger.d("디버깅 - 계좌 예금주명: $accountName");
-      logger.d("디버깅 - 계좌 예금주 전화번호: $accountPhone");
-
-      // 예금주명 및 전화번호 비교
-      if (accountName != currentUserName || accountPhone != currentUserPhone) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("계좌의 예금주 정보가 로그인된 사용자와 일치하지 않습니다.")),
-        );
-        return;
-      }
-
-
-      // 계좌 문서 참조
-      final accountDoc = querySnapshot.docs.first.reference;
-
-      // 현재 계좌 잔액 가져오기
-      final currentBalance = querySnapshot.docs.first.get('balance') ?? 0;
-
-      // 새로운 입금 데이터 생성____________이부분을 파이어베이스 function으로 구현해야함.
-      String depositName = _generateDepositName();
-      int transferAmount = 1; // 1원 입금
-      int newBalance = currentBalance + transferAmount; // 새로운 잔액 계산
-
-      // Firestore에 거래 내역 저장 (transactions 하위 컬렉션)
-      await accountDoc.collection('transactions').add({
-        'prevbalance': currentBalance, // 이전 잔액
-        'spend': "+",  // 입금이므로 "+"
-        'transamount': transferAmount,  // 1원 송금
-        'transpartner': depositName,  // 거래 상대
-        'transtime': FieldValue.serverTimestamp(),  // 서버 시간
-      });
-
-      // Firestore에서 계좌 잔액 업데이트
-      await accountDoc.update({'balance': newBalance});
-
-      // 송금 결과 화면으로 이동
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AssetVerificationResultScreen(
-            bank: bankInput!,
-            account: accountInput,
-            depositName: depositName,
-          ),
-        ),
+      // API 호출을 위한 POST 요청
+      final url = 'https://transferonewon-ekqk2sqwxq-uc.a.run.app';
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          'userEmail': user.email,
+          'account': accountInput,
+          'bank': bankInput,
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final String depositName = responseData['depositName'];
+
+        // API 호출 성공 시, 결과 화면으로 이동
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AssetVerificationResultScreen(
+              bank: bankInput!,
+              account: accountInput,
+              depositName: depositName,
+            ),
+          ),
+        );
+      } else {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text("송금 실패: ${response.body}")),
+        );
+      }
     } catch (e) {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text("오류가 발생했습니다: $e")),
