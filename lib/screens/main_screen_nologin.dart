@@ -4,7 +4,6 @@ import 'account_book_screen.dart'; // 가계부 화면 import
 import 'community_screen.dart'; // 커뮤니티 화면 import
 import 'all_screen.dart'; // 전체 화면 import
 
-
 class MainScreenNotLogin extends StatefulWidget {
   const MainScreenNotLogin({super.key});
 
@@ -39,9 +38,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: _selectedIndex == 0
+          ? AppBar(
         title: const Text('금융 대시보드'),
-      ),
+      )
+          : null, // 메인 화면에서만 AppBar 표시
       body: _widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -115,6 +116,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   Widget _buildAccountCard() {
     return Card(
       color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -162,6 +166,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   Widget _buildTotalAssetsCard() {
     return Card(
       color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -211,6 +218,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
       width: double.infinity, // 부모 위젯의 너비에 맞춤
       child: Card(
         color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16.0), // 기존 카드뷰와 동일한 패딩 적용
           child: Column(
@@ -247,6 +257,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
       width: double.infinity, // 부모 위젯의 너비에 맞춤
       child: Card(
         color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -260,7 +273,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
               // 소비 그래프 영역
               Container(
                 height: 150, // 그래프 높이
-                color: Colors.grey[200], // 그래프 배경색 (임시)
+                decoration: BoxDecoration(
+                  color: Colors.grey[200], // 그래프 배경색 (임시)
+                  borderRadius: BorderRadius.circular(12.0), // 그래프 모서리 둥글기
+                ),
                 child: const Center(
                   child: Text(
                     "소비 그래프 영역",
