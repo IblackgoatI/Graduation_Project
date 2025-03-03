@@ -180,8 +180,23 @@ class _AssetScreenState extends State<AssetScreen> {
         );
       } else {
         scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text("송금 실패: ${response.body}")),
+          response.body == "Asset account not found."
+              ? const SnackBar(
+            content: Text("존재하지 않는 계좌입니다.\n다시 확인 해주세요."),
+            backgroundColor: Colors.red,
+          )
+              : response.body == "User not found."
+              ? const SnackBar(
+            content: Text("로그인 정보가 만료되었습니다.\n다시 로그인 해주세요."),
+            backgroundColor: Colors.red,
+          )
+              : SnackBar(
+            content: Text("송금 실패: ${response.body}"),
+            backgroundColor: Colors.red,
+          ),
         );
+
+
       }
     } catch (e) {
       scaffoldMessenger.showSnackBar(
@@ -612,14 +627,19 @@ class _AssetVerificationResultScreenState
                 if (userInput == widget.depositName) {
                   // 일치하는 경우: 다음 단계로 진행.
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("입금자명이 확인되었습니다.")),
+                    const SnackBar(content: Text("입금자명이 확인되었습니다."),
+                      backgroundColor: Colors.green,
+                    ),
                   );
                   // 다음 화면으로 이동하는 코드를 만들어야함. 코드가 길어지므로 새 dart파일로 작성하는게 좋을듯
                 } else {
                   // 일치하지 않는 경우: 오류 메시지 표시.
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("입금자명이 일치하지 않습니다. 다시 시도해주세요.")),
+                    const SnackBar(content: Text("입금자명이 일치하지 않습니다.\n확인 후, 다시 시도해주세요."),
+                      backgroundColor: Colors.red,
+                    ),
                   );
+
                 }
               },
 
