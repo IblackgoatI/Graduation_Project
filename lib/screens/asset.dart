@@ -219,6 +219,53 @@
           ),
         ),
         backgroundColor: Colors.white,
+        // bottomNavigationBar 추가
+        bottomNavigationBar: AnimatedPadding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          duration: const Duration(milliseconds: 10),
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Row(
+              children: [
+                // "나중에 하기" 버튼
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MainScreenNotLogin()),
+                      );
+                    },
+                    child: const Text(
+                      "나중에 하기",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // "확인하기" 버튼
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isInputValid ? const Color(0xFF73AD13) : Colors.grey,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                    ),
+                    onPressed: _isInputValid ? _checkAccountAndTransfer : null,
+                    child: const Text(
+                      "확인하기",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         body: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
           child: Column(
@@ -268,44 +315,7 @@
                 ),
               ),
               const Spacer(),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const MainScreenNotLogin()),
-                        );
-                      },
-                      child: const Text(
-                        "나중에 하기",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                        _isInputValid ? const Color(0xFF73AD13) : Colors.grey,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      onPressed: _isInputValid ? _checkAccountAndTransfer : null,
-                      child: const Text(
-                        "확인하기",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+
             ],
           ),
         ),
@@ -319,11 +329,11 @@
     final String depositName;
 
     const AssetVerificationResultScreen({
-      Key? key,
+      super.key,
       required this.bank,
       required this.account,
       required this.depositName,
-    }) : super(key: key);
+    });
 
     @override
     State<AssetVerificationResultScreen> createState() =>
