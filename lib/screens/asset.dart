@@ -417,7 +417,10 @@
     // 한글 필드
     // 첫 문자가 한글(가~힣)인 경우만 다음 필드로 포커스 이동
     void _onHangulChanged(String value) {
-      // 사용자가 입력하면 에러 상태 해제
+      // 포커스가 남아있으면 아직 입력이 완료되지 않았으므로 처리하지 않음, 완료버튼 누를시 이동
+      final currentValue = _hangulController.value;
+      if (!currentValue.composing.isCollapsed) return;
+
       if (_isError) {
         setState(() {
           _isError = false;
@@ -433,6 +436,8 @@
         }
       }
     }
+
+
 
 
     // 숫자 필드
@@ -516,15 +521,19 @@
                             textAlign: TextAlign.center,
                             style: const TextStyle(fontSize: 24),
                             decoration: InputDecoration(
-                              // 포커스가 없을 때(기본 상태) 테두리
                               enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
-                              // 포커스가 있을 때(선택 상태) 테두리
                               focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
                               border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
                               counterText: "",
                             ),
                             onChanged: _onHangulChanged,
-                          ),
+                            onEditingComplete: () {
+                              // 글자가 한 글자일 때만 다음 필드로 이동하기
+                              if (_hangulController.text.length == 1) {
+                                FocusScope.of(context).requestFocus(_numFocus1);
+                              }
+                            },
+                          )
                         ),
                         const SizedBox(width: 10),
                         // 숫자 입력 필드 1
