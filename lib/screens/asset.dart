@@ -1,542 +1,554 @@
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:flutter/material.dart';
-  import 'login.dart';
-  import 'main_screen_nologin.dart';
-  import 'dart:convert';
-  import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'login.dart';
+import 'main_screen_nologin.dart';
 
-  class AssetScreen extends StatefulWidget {
-    const AssetScreen({Key? key}) : super(key: key);
+class AssetScreen extends StatefulWidget {
+  const AssetScreen({Key? key}) : super(key: key);
 
-    @override
-    State<AssetScreen> createState() => _AssetScreenState();
-  }
+  @override
+  State<AssetScreen> createState() => _AssetScreenState();
+}
 
-  class _AssetScreenState extends State<AssetScreen> {
-    final TextEditingController _accountController = TextEditingController();
-    String? _selectedBank;
-    int _currentPage = 0;
-    final PageController _pageController = PageController();
+class _AssetScreenState extends State<AssetScreen> {
+  final TextEditingController _accountController = TextEditingController();
+  String? _selectedBank;
+  int _currentPage = 0;
+  final PageController _pageController = PageController();
 
-    final List<Map<String, dynamic>> _banks = [
-      {'name': 'KB국민은행', 'icon': 'assets/banks/KB_Square.png'},
-      {'name': 'NH농협은행', 'icon': 'assets/banks/NH_Square.png'},
-      {'name': '카카오뱅크', 'icon': 'assets/banks/Kakao_Square.png'},
-      {'name': '신한은행', 'icon': 'assets/banks/Shinhan_Square.png'},
-      {'name': '지역농협', 'icon': 'assets/banks/LocalNH_Square.png'},
-      {'name': '하나은행', 'icon': 'assets/banks/Hana_Square.png'},
-      {'name': '새마을금고', 'icon': 'assets/banks/MG_Square.png'},
-      {'name': '우리은행', 'icon': 'assets/banks/Woori_Square.png'},
-      {'name': 'IBK기업은행', 'icon': 'assets/banks/IBK_Square.png'},
-      {'name': '케이뱅크', 'icon': 'assets/banks/Kbank_Square.png'},
-      {'name': '신협은행', 'icon': 'assets/banks/Sinhyup_Square.png'},
-      {'name': 'SC제일은행', 'icon': 'assets/banks/SC_Square.png'},
-      {'name': '수협은행', 'icon': 'assets/banks/Sh_Square.png'},
-      {'name': '수협중앙회', 'icon': 'assets/banks/ShMid_Square.png'},
-      {'name': '광주은행', 'icon': 'assets/banks/Gwangju_Square.png'},
-      {'name': '전북은행', 'icon': 'assets/banks/Jeonbuk_Square.png'},
-      {'name': '제주은행', 'icon': 'assets/banks/Jeju_Square.png'},
-      {'name': '한국산업은행', 'icon': 'assets/banks/KDB_Square.png'},
-      {'name': 'BNK부산은행', 'icon': 'assets/banks/Busan_Square.png'},
-      {'name': 'BNK경남은행', 'icon': 'assets/banks/Kyungnam_Square.png'},
-      {'name': 'iM뱅크', 'icon': 'assets/banks/IM_Square.png'},
-    ];
+  final List<Map<String, dynamic>> _banks = [
+    {'name': 'KB국민은행', 'icon': 'assets/banks/KB_Square.png'},
+    {'name': 'NH농협은행', 'icon': 'assets/banks/NH_Square.png'},
+    {'name': '카카오뱅크', 'icon': 'assets/banks/Kakao_Square.png'},
+    {'name': '신한은행', 'icon': 'assets/banks/Shinhan_Square.png'},
+    {'name': '지역농협', 'icon': 'assets/banks/LocalNH_Square.png'},
+    {'name': '하나은행', 'icon': 'assets/banks/Hana_Square.png'},
+    {'name': '새마을금고', 'icon': 'assets/banks/MG_Square.png'},
+    {'name': '우리은행', 'icon': 'assets/banks/Woori_Square.png'},
+    {'name': 'IBK기업은행', 'icon': 'assets/banks/IBK_Square.png'},
+    {'name': '케이뱅크', 'icon': 'assets/banks/Kbank_Square.png'},
+    {'name': '신협은행', 'icon': 'assets/banks/Sinhyup_Square.png'},
+    {'name': 'SC제일은행', 'icon': 'assets/banks/SC_Square.png'},
+    {'name': '수협은행', 'icon': 'assets/banks/Sh_Square.png'},
+    {'name': '수협중앙회', 'icon': 'assets/banks/ShMid_Square.png'},
+    {'name': '광주은행', 'icon': 'assets/banks/Gwangju_Square.png'},
+    {'name': '전북은행', 'icon': 'assets/banks/Jeonbuk_Square.png'},
+    {'name': '제주은행', 'icon': 'assets/banks/Jeju_Square.png'},
+    {'name': '한국산업은행', 'icon': 'assets/banks/KDB_Square.png'},
+    {'name': 'BNK부산은행', 'icon': 'assets/banks/Busan_Square.png'},
+    {'name': 'BNK경남은행', 'icon': 'assets/banks/Kyungnam_Square.png'},
+    {'name': 'iM뱅크', 'icon': 'assets/banks/IM_Square.png'},
+  ];
 
-    /// 계좌번호와 은행이 입력되었는지 확인
-    bool get _isInputValid =>
-        _accountController.text.isNotEmpty && _selectedBank != null;
+  /// 계좌번호 입력과 은행 선택이 모두 되었는지 여부
+  bool get _isInputValid =>
+      _accountController.text.isNotEmpty && _selectedBank != null;
 
-    void _prevPage() {
-      if (_currentPage > 0) {
-        _pageController.previousPage(
-            duration: const Duration(milliseconds: 300), curve: Curves.ease);
-        setState(() {
-          _currentPage--;
-        });
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );    }
-    }
-
-    /// 은행 목록 BottomSheet
-    void _showBankSelection() {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true, // 높이 조절 가능
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
-        ),
-        builder: (context) {
-          return SizedBox(
-            height: MediaQuery.of(context).size.height * 0.7, // 전체 높이의 70%
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    "은행 목록",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const Divider(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 1 / 1.2,
-                        ),
-                        itemCount: _banks.length,
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedBank = _banks[index]['name'];
-                              });
-                              Navigator.pop(context);
-                            },
-                            child: Column(
-                              children: [
-                                Image.asset(
-                                  _banks[index]['icon'],
-                                  width: 40,
-                                  height: 40,
-                                  fit: BoxFit.contain,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _banks[index]['name'],
-                                  style: const TextStyle(fontSize: 12),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+  void _prevPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+          duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      setState(() {
+        _currentPage--;
+      });
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
+  }
 
-    // 계좌정보 조회 후 1원 송금 시뮬레이션 (API 호출 방식)
-    Future<void> _checkAccountAndTransfer() async {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      final accountInput = _accountController.text.trim();
-      final bankInput = _selectedBank;
-
-      final User? user = FirebaseAuth.instance.currentUser; // 현재 로그인된 유저 객체
-      if (user == null) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text("사용자가 로그인되어 있지 않습니다.")),
-        );
-        return;
-      }
-
-      try {
-        // API 호출을 위한 POST 요청
-        final url = 'https://transferonewon-ekqk2sqwxq-uc.a.run.app';
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({
-            'userEmail': user.email,
-            'account': accountInput,
-            'bank': bankInput,
-          }),
-        );
-
-        if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
-          final String depositName = responseData['depositName'];
-
-          // API 호출 성공 시, 결과 화면으로 이동
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AssetVerificationResultScreen(
-                bank: bankInput!,
-                account: accountInput,
-                depositName: depositName,
-              ),
-            ),
-          );
-        } else {
-          scaffoldMessenger.showSnackBar(
-            response.body == "Asset account not found."
-                ? const SnackBar(
-              content: Text("존재하지 않는 계좌입니다.\n다시 확인 해주세요."),
-              backgroundColor: Colors.red,
-            )
-                : response.body == "User not found."
-                ? const SnackBar(
-              content: Text("로그인 정보가 만료되었습니다.\n다시 로그인 해주세요."),
-              backgroundColor: Colors.red,
-            )
-                : SnackBar(
-              content: Text("송금 실패: ${response.body}"),
-              backgroundColor: Colors.red,
-            ),
-          );
-
-
-        }
-      } catch (e) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(content: Text("오류가 발생했습니다: $e")),
-        );
-      }
-    }
-    @override
-    void dispose() {
-      _accountController.dispose();
-      super.dispose();
-    }
-
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: _prevPage,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        // bottomNavigationBar 추가
-        bottomNavigationBar: AnimatedPadding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          duration: const Duration(milliseconds: 10),
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: Row(
-              children: [
-                // "나중에 하기" 버튼
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MainScreenNotLogin()),
-                      );
-                    },
-                    child: const Text(
-                      "나중에 하기",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // "확인하기" 버튼
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isInputValid ? const Color(0xFF73AD13) : Colors.grey,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                    onPressed: _isInputValid ? _checkAccountAndTransfer : null,
-                    child: const Text(
-                      "확인하기",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+  /// 은행 목록 BottomSheet
+  void _showBankSelection() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // 높이 조절 가능
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.0)),
+      ),
+      builder: (context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7, // 전체 높이의 70%
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "자산 본인인증",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "자산을 연결하기 위한 본인인증이에요.\n주로 사용하는 은행 계좌를 입력해주세요.",
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 30),
-              TextField(
-                controller: _accountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "계좌번호를 입력 해주세요.",
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "은행 목록",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                onChanged: (_) {
-                  setState(() {});
-                },
               ),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: _showBankSelection,
-                child: Container(
-                  padding:
-                  const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _selectedBank ?? "은행을 선택 해주세요.",
-                        style: const TextStyle(fontSize: 16, color: Colors.black),
+              const Divider(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1 / 1.2,
                       ),
-                      const Icon(Icons.keyboard_arrow_down),
-                    ],
+                      itemCount: _banks.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedBank = _banks[index]['name'];
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: Column(
+                            children: [
+                              Image.asset(
+                                _banks[index]['icon'],
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _banks[index]['name'],
+                                style: const TextStyle(fontSize: 12),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
-              const Spacer(),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
+  /// 계좌정보를 Firestore에 저장한 후 1원 송금 API 호출
+  Future<void> _checkAccountAndTransfer() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final accountInput = _accountController.text.trim();
+    final bankInput = _selectedBank;
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text("사용자가 로그인되어 있지 않습니다.")),
+      );
+      return;
+    }
+
+    // Firestore에 계좌 정보 저장
+    String formatPhone(String? phone) {
+      if (phone == null || phone.isEmpty) return "";
+      // 국제형식인 경우 +82를 0으로 변환
+      if (phone.startsWith('+82')) {
+        phone = '0' + phone.substring(3);
+      }
+      // 일반적으로 11자리면 010-1234-5678 형태로 변환
+      if (phone.length == 11) {
+        return '${phone.substring(0, 3)}-${phone.substring(3, 7)}-${phone.substring(7)}';
+      }
+      // 10자리인 경우 (지역번호 등) 처리: 0XX-XXX-XXXX
+      if (phone.length == 10) {
+        return '${phone.substring(0, 3)}-${phone.substring(3, 6)}-${phone.substring(6)}';
+      }
+      return phone;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('assets').add({
+        'account': accountInput,
+        'balance': 300000,
+        'bank': bankInput,
+        'owner': user.displayName, // 현재 로그인한 사용자의 이름 (displayName) 저장
+        'pnum': formatPhone(user.phoneNumber), // 전화번호를 010-1234-5678 형식으로 저장
+      });
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("데이터 저장 실패: $e")),
+      );
+      return;
+    }
+
+    // 기존 1원 송금 API 호출
+    try {
+      final url = 'https://transferonewon-ekqk2sqwxq-uc.a.run.app';
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          'userEmail': user.email,
+          'account': accountInput,
+          'bank': bankInput,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final String depositName = responseData['depositName'];
+
+        // API 호출 성공 시 결과 화면으로 이동
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AssetVerificationResultScreen(
+              bank: bankInput!,
+              account: accountInput,
+              depositName: depositName,
+            ),
+          ),
+        );
+      } else {
+        scaffoldMessenger.showSnackBar(
+          response.body == "Asset account not found."
+              ? const SnackBar(
+            content: Text("존재하지 않는 계좌입니다.\n다시 확인 해주세요."),
+            backgroundColor: Colors.red,
+          )
+              : response.body == "User not found."
+              ? const SnackBar(
+            content: Text(
+                "로그인 정보가 만료되었습니다.\n다시 로그인 해주세요."),
+            backgroundColor: Colors.red,
+          )
+              : SnackBar(
+            content: Text("송금 실패: ${response.body}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text("오류가 발생했습니다: $e")),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _accountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: _prevPage,
+        ),
+      ),
+      backgroundColor: Colors.white,
+      bottomNavigationBar: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        duration: const Duration(milliseconds: 10),
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const MainScreenNotLogin()),
+                    );
+                  },
+                  child: const Text(
+                    "나중에 하기",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    _isInputValid ? const Color(0xFF73AD13) : Colors.grey,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                  onPressed: _isInputValid ? _checkAccountAndTransfer : null,
+                  child: const Text(
+                    "확인하기",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      );
-    }
-  }
-
-  class AssetVerificationResultScreen extends StatefulWidget {
-    final String bank;
-    final String account;
-    final String depositName;
-
-    const AssetVerificationResultScreen({
-      super.key,
-      required this.bank,
-      required this.account,
-      required this.depositName,
-    });
-
-    @override
-    State<AssetVerificationResultScreen> createState() =>
-        _AssetVerificationResultScreenState();
-  }
-
-  class _AssetVerificationResultScreenState
-      extends State<AssetVerificationResultScreen>
-      with SingleTickerProviderStateMixin {
-
-    // 흔들림 애니메이션 관련 변수
-    late AnimationController _shakeController;
-    late Animation<double> _shakeAnimation;
-    bool _isError = false; // 에러 상태 여부
-
-    // 한글 입력 필드 (첫 칸)
-    final TextEditingController _hangulController = TextEditingController();
-    final FocusNode _hangulFocus = FocusNode();
-
-    // 숫자 입력 필드 3개 (나머지 칸)
-    final TextEditingController _numController1 = TextEditingController();
-    final FocusNode _numFocus1 = FocusNode();
-
-    final TextEditingController _numController2 = TextEditingController();
-    final FocusNode _numFocus2 = FocusNode();
-
-    final TextEditingController _numController3 = TextEditingController();
-    final FocusNode _numFocus3 = FocusNode();
-
-    final String maskedTime = "**** 11:59";
-    final String transferAmount = "+1원";
-    final String balance = "100,000원";
-
-    @override
-    void initState() {
-      super.initState();
-      _shakeController = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      );
-
-      // 왼쪽, 오른쪽으로 흔들리는 효과 (여러 단계로 튕기는 효과)
-      _shakeAnimation = TweenSequence<double>([
-        TweenSequenceItem(tween: Tween(begin: 0, end: -10), weight: 1),
-        TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: 10, end: -10), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
-        TweenSequenceItem(tween: Tween(begin: 10, end: 0), weight: 1),
-      ]).animate(_shakeController);
-    }
-
-    @override
-    void dispose() {
-      _hangulController.dispose();
-      _hangulFocus.dispose();
-      _numController1.dispose();
-      _numFocus1.dispose();
-      _numController2.dispose();
-      _numFocus2.dispose();
-      _numController3.dispose();
-      _numFocus3.dispose();
-      _shakeController.dispose();
-      super.dispose();
-    }
-
-    OutlineInputBorder _buildBorder(Color color) {
-      return OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: color),
-      );
-    }
-
-    void _triggerErrorAnimation() {
-      setState(() {
-        _isError = true;
-      });
-      _shakeController.forward(from: 0);
-    }
-
-
-    // 한글 필드
-    // 첫 문자가 한글(가~힣)인 경우만 다음 필드로 포커스 이동
-    void _onHangulChanged(String value) {
-      // 포커스가 남아있으면 아직 입력이 완료되지 않았으므로 처리하지 않음, 완료버튼 누를시 이동
-      final currentValue = _hangulController.value;
-      if (!currentValue.composing.isCollapsed) return;
-
-      if (_isError) {
-        setState(() {
-          _isError = false;
-        });
-      }
-      if (value.isNotEmpty) {
-        final lastChar = value.codeUnitAt(value.length - 1);
-        if (lastChar >= 0xAC00 && lastChar <= 0xD7A3) {
-          setState(() {
-            _hangulController.text = String.fromCharCode(lastChar);
-          });
-          FocusScope.of(context).requestFocus(_numFocus1);
-        }
-      }
-    }
-
-
-
-
-    // 숫자 필드
-    // 2~4번째 문자는 숫자로입력, 입력받을시 바로 다음 필드로 포커스 이동
-    void _onNumberChanged(String value, FocusNode currentFocus, FocusNode? nextFocus) {
-      // 사용자가 입력하면 에러 상태 해제
-      if (_isError) {
-        setState(() {
-          _isError = false;
-        });
-      }
-      if (value.length == 1) {
-        if (nextFocus != null) {
-          FocusScope.of(context).requestFocus(nextFocus);
-        } else {
-          currentFocus.unfocus();
-        }
-      }
-    }
-
-
-    @override
-    Widget build(BuildContext context) {
-      return Scaffold(
-        resizeToAvoidBottomInset: true,
-        appBar: AppBar(
-          elevation: 0,
-          backgroundColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
-            child: Column(
-              children: [
-                // 상단 문구 등 기존 내용...
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text("자산 본인인증", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
-                      Text("1원이 입금되었습니다.\n내역을 확인 후, 입금자명을 입력 해주세요.", style: TextStyle(fontSize: 14, color: Colors.grey)),
-                    ],
-                  ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "자산 본인인증",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "자산을 연결하기 위한 본인인증이에요.\n주로 사용하는 은행 계좌를 입력해주세요.",
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 30),
+            TextField(
+              controller: _accountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: "계좌번호를 입력 해주세요.",
+              ),
+              onChanged: (_) {
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 20),
+            GestureDetector(
+              onTap: _showBankSelection,
+              child: Container(
+                padding:
+                const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  borderRadius: BorderRadius.circular(8.0),
                 ),
-                const SizedBox(height: 50),
-                // 은행정보, 4칸 입력란, 힌트 등 나머지...
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "${widget.bank} ${widget.account}",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                      textAlign: TextAlign.center,
+                      _selectedBank ?? "은행을 선택 해주세요.",
+                      style:
+                      const TextStyle(fontSize: 16, color: Colors.black),
                     ),
-                    const SizedBox(height: 24),
-                    AnimatedBuilder(               // 입금자명이 틀릴 시, 텍스트박스가 흔들림
-                      animation: _shakeController, // animation 인자
-                      builder: (context, child) {   // builder 인자
-                        return Transform.translate(
-                          offset: Offset(_shakeAnimation.value, 0),
-                          child: child,
-                        );
-                      },
-                      child: Row(                 // child 인자
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                        // 한글 입력 필드
+                    const Icon(Icons.keyboard_arrow_down),
+                  ],
+                ),
+              ),
+            ),
+            const Spacer(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AssetVerificationResultScreen extends StatefulWidget {
+  final String bank;
+  final String account;
+  final String depositName;
+
+  const AssetVerificationResultScreen({
+    super.key,
+    required this.bank,
+    required this.account,
+    required this.depositName,
+  });
+
+  @override
+  State<AssetVerificationResultScreen> createState() =>
+      _AssetVerificationResultScreenState();
+}
+
+class _AssetVerificationResultScreenState
+    extends State<AssetVerificationResultScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+  bool _isError = false;
+
+  final TextEditingController _hangulController = TextEditingController();
+  final FocusNode _hangulFocus = FocusNode();
+
+  final TextEditingController _numController1 = TextEditingController();
+  final FocusNode _numFocus1 = FocusNode();
+
+  final TextEditingController _numController2 = TextEditingController();
+  final FocusNode _numFocus2 = FocusNode();
+
+  final TextEditingController _numController3 = TextEditingController();
+  final FocusNode _numFocus3 = FocusNode();
+
+  final String maskedTime = "**** 11:59";
+  final String transferAmount = "+1원";
+  final String balance = "100,000원";
+
+  @override
+  void initState() {
+    super.initState();
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -10), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10, end: -10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10, end: 0), weight: 1),
+    ]).animate(_shakeController);
+  }
+
+  @override
+  void dispose() {
+    _hangulController.dispose();
+    _hangulFocus.dispose();
+    _numController1.dispose();
+    _numFocus1.dispose();
+    _numController2.dispose();
+    _numFocus2.dispose();
+    _numController3.dispose();
+    _numFocus3.dispose();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  OutlineInputBorder _buildBorder(Color color) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: color),
+    );
+  }
+
+  void _triggerErrorAnimation() {
+    setState(() {
+      _isError = true;
+    });
+    _shakeController.forward(from: 0);
+  }
+
+  void _onHangulChanged(String value) {
+    final currentValue = _hangulController.value;
+    if (!currentValue.composing.isCollapsed) return;
+
+    if (_isError) {
+      setState(() {
+        _isError = false;
+      });
+    }
+    if (value.isNotEmpty) {
+      final lastChar = value.codeUnitAt(value.length - 1);
+      if (lastChar >= 0xAC00 && lastChar <= 0xD7A3) {
+        setState(() {
+          _hangulController.text = String.fromCharCode(lastChar);
+        });
+        FocusScope.of(context).requestFocus(_numFocus1);
+      }
+    }
+  }
+
+  void _onNumberChanged(String value, FocusNode currentFocus, FocusNode? nextFocus) {
+    if (_isError) {
+      setState(() {
+        _isError = false;
+      });
+    }
+    if (value.length == 1) {
+      if (nextFocus != null) {
+        FocusScope.of(context).requestFocus(nextFocus);
+      } else {
+        currentFocus.unfocus();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 20),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text("자산 본인인증", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 8),
+                    Text("1원이 입금되었습니다.\n내역을 확인 후, 입금자명을 입력 해주세요.", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 50),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    "${widget.bank} ${widget.account}",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  AnimatedBuilder(
+                    animation: _shakeController,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(_shakeAnimation.value, 0),
+                        child: child,
+                      );
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         SizedBox(
-                          width: 80,
-                          height: 80,
-                          child: TextField(
-                            controller: _hangulController,
-                            focusNode: _hangulFocus,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 24),
-                            decoration: InputDecoration(
-                              enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
-                              focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
-                              border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
-                              counterText: "",
-                            ),
-                            onChanged: _onHangulChanged,
-                            onEditingComplete: () {
-                              // 글자가 한 글자일 때만 다음 필드로 이동하기
-                              if (_hangulController.text.length == 1) {
-                                FocusScope.of(context).requestFocus(_numFocus1);
-                              }
-                            },
-                          )
+                            width: 80,
+                            height: 80,
+                            child: TextField(
+                              controller: _hangulController,
+                              focusNode: _hangulFocus,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 24),
+                              decoration: InputDecoration(
+                                enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
+                                focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
+                                border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
+                                counterText: "",
+                              ),
+                              onChanged: _onHangulChanged,
+                              onEditingComplete: () {
+                                if (_hangulController.text.length == 1) {
+                                  FocusScope.of(context).requestFocus(_numFocus1);
+                                }
+                              },
+                            )
                         ),
                         const SizedBox(width: 10),
-                        // 숫자 입력 필드 1
                         SizedBox(
                           width: 80,
                           height: 80,
@@ -548,9 +560,7 @@
                             style: const TextStyle(fontSize: 24),
                             maxLength: 1,
                             decoration: InputDecoration(
-                              // 포커스가 없을 때(기본 상태) 테두리
                               enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
-                              // 포커스가 있을 때(선택 상태) 테두리
                               focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
                               border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
                               counterText: "",
@@ -559,7 +569,6 @@
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // 숫자 입력 필드 2
                         SizedBox(
                           width: 80,
                           height: 80,
@@ -571,9 +580,7 @@
                             style: const TextStyle(fontSize: 24),
                             maxLength: 1,
                             decoration: InputDecoration(
-                              // 포커스가 없을 때(기본 상태) 테두리
                               enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
-                              // 포커스가 있을 때(선택 상태) 테두리
                               focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
                               border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
                               counterText: "",
@@ -582,7 +589,6 @@
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // 숫자 입력 필드 3
                         SizedBox(
                           width: 80,
                           height: 80,
@@ -594,9 +600,7 @@
                             style: const TextStyle(fontSize: 24),
                             maxLength: 1,
                             decoration: InputDecoration(
-                              // 포커스가 없을 때(기본 상태) 테두리
                               enabledBorder: _buildBorder(_isError ? Colors.red : Colors.black),
-                              // 포커스가 있을 때(선택 상태) 테두리
                               focusedBorder: _buildBorder(_isError ? Colors.red : Colors.blue),
                               border: _buildBorder(_isError ? Colors.red : Colors.grey.shade400),
                               counterText: "",
@@ -606,102 +610,99 @@
                         ),
                       ],
                     ),
-                    ),
-                    const SizedBox(height: 24),
-                    // 거래내역 박스
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                maskedTime,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.blue, // 파란색
-                                  fontWeight: FontWeight.bold, // 볼드체
-                                ),
-                              ),
-                              Text(
-                                transferAmount,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Text(balance, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 60),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        // 확인하기 버튼 (키보드 열리면 같이 올라감)
-        bottomNavigationBar: AnimatedPadding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          duration: const Duration(milliseconds: 10),
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                onPressed: () {
-                  // 사용자가 입력한 값 4개 텍스트를 모두 합치기.
-                  String userInput = _hangulController.text +
-                      _numController1.text +
-                      _numController2.text +
-                      _numController3.text;
-                  if (userInput == widget.depositName) {
-                    // 일치하는 경우: 다음 단계로 진행.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("입금자명이 확인되었습니다."),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    // 다음 화면으로 이동하는 코드를 만들어야함. 코드가 길어지므로 새 dart파일로 작성하는게 좋을듯
-                  } else {
-                    _triggerErrorAnimation();//에러 애니메이션
-                    // 일치하지 않는 경우: 오류 메시지 표시.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("입금자명이 일치하지 않습니다.\n확인 후, 다시 시도해주세요."),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text("확인하기", style: TextStyle(color: Colors.white)),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              maskedTime,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              transferAmount,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Text(balance, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 60),
+                ],
               ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: AnimatedPadding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        duration: const Duration(milliseconds: 10),
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF73AD13),
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                // 사용자가 입력한 값 4개 텍스트를 모두 합치기.
+                String userInput = _hangulController.text +
+                    _numController1.text +
+                    _numController2.text +
+                    _numController3.text;
+                if (userInput == widget.depositName) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("입금자명이 확인되었습니다."),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  // 다음 화면 이동 코드 작성
+                } else {
+                  _triggerErrorAnimation();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("입금자명이 일치하지 않습니다.\n확인 후, 다시 시도해주세요."),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text("확인하기", style: TextStyle(color: Colors.white)),
             ),
           ),
         ),
-      );
-    }
+      ),
+    );
   }
+}
