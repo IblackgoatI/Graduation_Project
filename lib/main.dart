@@ -3,12 +3,115 @@ import 'dart:async';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // 인디케이터 패키지 추가
 import 'screens/regist.dart'; // ✅ regist_login.dart에서 HomeScreen 가져오기
 import 'package:firebase_core/firebase_core.dart'; // firebase_core 임포트
+import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 패키지 추가
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // 로컬 알림 패키지 추가
 
+// FCM 백그라운드 메시지 핸들러
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("백그라운드 메시지 처리: ${message.messageId}");
+}
+
+// 로컬 알림 채널 설정을 위한 전역 객체
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+
+// main() 함수를 async로 변경하고 Firebase 초기화
 // main() 함수를 async로 변경하고 Firebase 초기화
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // Firebase 초기화
+
+  // FCM 백그라운드 핸들러 등록
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // FCM 권한 요청
+  await requestNotificationPermissions();
+
+  // 로컬 알림 초기화
+  await initializeLocalNotifications();
+
   runApp(const MyApp());
+}
+
+// 알림 권한 요청 함수
+Future<void> requestNotificationPermissions() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // iOS의 경우 별도 권한 요청 필요
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+    provisional: false,
+  );
+
+  debugPrint('사용자 알림 권한 상태: ${settings.authorizationStatus}');
+
+  // FCM 토큰 가져오기
+  String? token = await messaging.getToken();
+  debugPrint('FCM 토큰: $token');  // 실제 앱에서는 이 토큰을 서버에 저장해야 함
+}
+
+// 로컬 알림 초기화 함수
+Future<void> initializeLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const DarwinInitializationSettings initializationSettingsIOS =
+  DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse details) {
+      debugPrint('알림 실행: ${details.payload}');
+    },
+  );
+
+  // Android 채널 생성
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'deposit_notification_channel',
+    '입금 알림',
+    description: '1원 입금 확인에 대한 알림 채널입니다.',
+    importance: Importance.high,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  // FCM 포그라운드 메시지 처리 설정
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
+
+    if (notification != null && android != null) {
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            channel.id,
+            channel.name,
+            channelDescription: channel.description,
+            icon: '@mipmap/ic_launcher',
+          ),
+        ),
+        payload: message.data['screen'],
+      );
+    }
+  });
 }
 
 class MyApp extends StatelessWidget {

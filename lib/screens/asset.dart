@@ -1,3 +1,5 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -6,8 +8,74 @@ import 'package:http/http.dart' as http;
 import 'login.dart';
 import 'main_screen_nologin.dart';
 
+// 로컬 알림 표시 함수
+Future<void> _showLocalNotification(String title, String body) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  AndroidNotificationDetails(
+    'deposit_notification_channel',
+    '입금 알림',
+    channelDescription: '1원 입금 확인에 대한 알림 채널입니다.',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+  );
+
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+    iOS: DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    ),
+  );
+
+  await FlutterLocalNotificationsPlugin().show(
+    0,
+    title,
+    body,
+    platformChannelSpecifics,
+  );
+}
+
+// 이 함수를 사용하여 서버에 알림 전송 요청
+Future<void> _sendFcmNotification(String token, String depositName, String bank, String account) async {
+  try {
+    final String? token = await FirebaseMessaging.instance.getToken();
+    if (token == null) {
+      debugPrint('FCM 토큰을 가져올 수 없습니다.');
+      return;
+    }
+    final response = await http.post(
+      Uri.parse('https://transferonewon-ekqk2sqwxq-uc.a.run.app'), // 서버 엔드포인트 URL
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token, // 필요한 경우 인증 토큰 추가
+      },
+      body: jsonEncode({
+        'token': token,
+        'title': '1원 입금 확인',
+        'body': '$bank 계좌로 1원이 입금되었습니다. 입금자명: $depositName',
+        'data': {
+          'depositName': depositName,
+          'bank': bank,
+          'account': account,
+          'screen': 'asset_verification',
+        },
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      debugPrint('FCM 알림 전송 요청 성공');
+    } else {
+      debugPrint('FCM 알림 전송 요청 실패: ${response.statusCode}');
+    }
+  } catch (e) {
+    debugPrint('FCM 알림 전송 요청 오류: $e');
+  }
+}
+
 class AssetScreen extends StatefulWidget {
-  const AssetScreen({Key? key}) : super(key: key);
+  const AssetScreen({super.key});
 
   @override
   State<AssetScreen> createState() => _AssetScreenState();
@@ -135,7 +203,6 @@ class _AssetScreenState extends State<AssetScreen> {
     );
   }
 
-  /// 계좌정보를 Firestore에 저장한 후 1원 송금 API 호출
   Future<void> _checkAccountAndTransfer() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final accountInput = _accountController.text.trim();
@@ -153,7 +220,7 @@ class _AssetScreenState extends State<AssetScreen> {
       if (phone == null || phone.isEmpty) return "";
       // 국제형식인 경우 +82를 0으로 변환
       if (phone.startsWith('+82')) {
-        phone = '0' + phone.substring(3);
+        phone = '0${phone.substring(3)}';
       }
       // 일반적으로 11자리면 010-1234-5678 형태로 변환
       if (phone.length == 11) {
@@ -197,6 +264,26 @@ class _AssetScreenState extends State<AssetScreen> {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         final String depositName = responseData['depositName'];
+
+        // FCM 토큰 가져오기
+        final String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+        // 푸시 알림 보내기
+        if (fcmToken != null) {
+          try {
+            // FCM 알림 요청 먼저 전송
+            await _sendFcmNotification(fcmToken, depositName, bankInput!, accountInput);
+
+            // 로컬 알림 표시
+            await _showLocalNotification(
+                '1원 입금 확인',
+                '$bankInput 계좌로 1원이 입금되었습니다. 입금자명: $depositName'
+            );
+          } catch (notificationError) {
+            debugPrint('알림 전송 실패: $notificationError');
+            // 알림 실패해도 계속 진행
+          }
+        }
 
         // API 호출 성공 시 결과 화면으로 이동
         Navigator.push(
