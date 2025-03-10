@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // 인디케이터 패키지 추가
 import 'screens/regist.dart'; // ✅ regist_login.dart에서 HomeScreen 가져오기
 import 'package:firebase_core/firebase_core.dart'; // firebase_core 임포트
+import 'package:flutter_localizations/flutter_localizations.dart'; //한국어 추가
 
 // main() 함수를 async로 변경하고 Firebase 초기화
 Future<void> main() async {
@@ -18,6 +19,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // 로컬라이제이션 설정 추가
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ko', 'KR'), // 한국어
+      ],
+      // 기본 로케일 설정
+      locale: const Locale('ko', 'KR'),
       home: const SplashScreen(),
     );
   }
