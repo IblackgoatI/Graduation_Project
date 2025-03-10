@@ -774,7 +774,12 @@ class _AssetVerificationResultScreenState
                       backgroundColor: Colors.green,
                     ),
                   );
-                  // 다음 화면 이동 코드 작성
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const MainScreenNotLogin(),
+                    ),
+                        (route) => false, // 모든 이전 화면 제거
+                  );
                 } else {
                   _triggerErrorAnimation();
                   ScaffoldMessenger.of(context).showSnackBar(

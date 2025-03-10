@@ -22,7 +22,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
     super.initState();
     // initState에서 초기화
     _widgetOptions = [
-      _HomeScreen(), // 홈 화면
+      _homeScreen(), // 홈 화면
       const AccountBookScreen(), // 가계부 화면
       const CommunityScreen(), // 커뮤니티 화면
       const AllScreen(), // 전체 화면
@@ -96,7 +96,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   // 홈 화면을 별도의 메서드로 정의
-  Widget _HomeScreen() {
+  Widget _homeScreen() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
