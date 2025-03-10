@@ -1,3 +1,4 @@
+// account_book_screen.dart 수정 버전
 import 'package:flutter/material.dart';
 import 'notlogin_add_transaction_screen.dart';
 import 'notlogin_list_screen.dart';
@@ -150,9 +151,9 @@ class _AccountBookScreenState extends State<AccountBookScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
+              children: [
                 NotloginListScreen(), // 내역 화면
-                NotloginCalendarScreen(), // 달력 화면
+                NotloginCalendarScreen(selectedMonth: _selectedMonth), // 선택된 월을 전달
               ],
             ),
           ),
