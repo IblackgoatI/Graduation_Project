@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
 
 class NotloginCalendarScreen extends StatefulWidget {
-  const NotloginCalendarScreen({super.key});
+  final int selectedMonth; // 선택된 월을 받을 매개변수 추가
+
+  const NotloginCalendarScreen({
+    super.key,
+    this.selectedMonth = 0, // 기본값은 0으로 설정 (0이면 현재 월 사용)
+  });
 
   @override
   _NotloginCalendarScreenState createState() => _NotloginCalendarScreenState();
@@ -10,58 +16,46 @@ class NotloginCalendarScreen extends StatefulWidget {
 
 class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  DateTime _focusedDay = DateTime.now();
+  late DateTime _focusedDay;
   DateTime? _selectedDay;
 
   // 거래 내역 (임시)
-  final Map<DateTime, List<String>> _events = {
-    DateTime.utc(2023, 10, 12): ['+49,800원'],
-    DateTime.utc(2023, 10, 13): ['-50,000원'],
-    DateTime.utc(2023, 10, 14): ['-28,800원'],
-    DateTime.utc(2023, 10, 15): ['-29,800원'],
+  final Map<DateTime, List<Transaction>> _events = {
+    DateTime.utc(2023, 10, 12): [Transaction(amount: 49800, isIncome: true)],
+    DateTime.utc(2023, 10, 13): [Transaction(amount: 50000, isIncome: false)],
+    DateTime.utc(2023, 10, 14): [Transaction(amount: 28800, isIncome: false)],
+    DateTime.utc(2023, 10, 15): [Transaction(amount: 29800, isIncome: false)],
   };
 
-  List<String> _getEventsForDay(DateTime day) {
-    return _events[day] ?? [];
+  @override
+  void initState() {
+    super.initState();
+    // 부모 위젯에서 전달받은 월을 사용하거나 현재 월을 사용
+    if (widget.selectedMonth > 0) {
+      _focusedDay = DateTime(DateTime.now().year, widget.selectedMonth, 1);
+    } else {
+      _focusedDay = DateTime.now();
+    }
+  }
+
+  @override
+  void didUpdateWidget(NotloginCalendarScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 부모 위젯에서 전달한 월이 변경되었을 때 업데이트
+    if (widget.selectedMonth > 0 && widget.selectedMonth != oldWidget.selectedMonth) {
+      setState(() {
+        _focusedDay = DateTime(DateTime.now().year, widget.selectedMonth, 1);
+      });
+    }
+  }
+
+  List<Transaction> _getEventsForDay(DateTime day) {
+    return _events[DateTime.utc(day.year, day.month, day.day)] ?? [];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: null, // 뒤로가기 버튼 제거
-        automaticallyImplyLeading: false, // 자동으로 생성되는 leading 버튼 비활성화
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center, // 가운데 정렬
-          children: [
-            // 드롭다운 메뉴
-            DropdownButton<int>(
-              value: _focusedDay.month,
-              onChanged: (int? newValue) {
-                setState(() {
-                  _focusedDay = DateTime(_focusedDay.year, newValue!, 1);
-                });
-              },
-              items: List.generate(12, (index) => index + 1)
-                  .map<DropdownMenuItem<int>>((int value) {
-                return DropdownMenuItem<int>(
-                  value: value,
-                  child: Text(
-                    '$value월',
-                    style: TextStyle(
-                      color: Colors.white, // 텍스트 색상 변경
-                      fontSize: 18, // 텍스트 크기 조정
-                    ),
-                  ),
-                );
-              }).toList(),
-              underline: Container(), // 밑줄 제거
-              icon: Container(), // 화살표 제거
-              dropdownColor: Colors.blue, // 드롭다운 배경색
-            ),
-          ],
-        ),
-      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -71,6 +65,7 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
               lastDay: DateTime.utc(2030, 12, 31),
               focusedDay: _focusedDay,
               calendarFormat: _calendarFormat,
+              locale: 'ko_KR',
               selectedDayPredicate: (day) {
                 return isSameDay(_selectedDay, day);
               },
@@ -88,44 +83,189 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
               onPageChanged: (focusedDay) {
                 _focusedDay = focusedDay;
               },
-              eventLoader: _getEventsForDay,
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
-                  color: Colors.blue.withAlpha(77), // 불투명도 30%
+                  color: Colors.blue.withAlpha(77),
                   shape: BoxShape.circle,
                 ),
                 selectedDecoration: BoxDecoration(
                   color: Colors.blue,
                   shape: BoxShape.circle,
                 ),
-                markerDecoration: BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
+                // 마커 스타일 제거 (커스텀 빌더에서 처리)
+                markersMaxCount: 0,
               ),
               headerStyle: HeaderStyle(
-                formatButtonVisible: false, // 월/주 전환 버튼 숨기기
-                titleCentered: true, // 제목 가운데 정렬
+                formatButtonVisible: false,
+                titleCentered: true,
+              ),
+              calendarBuilders: CalendarBuilders(
+                // 날짜 셀 커스텀 빌더
+                defaultBuilder: (context, day, focusedDay) {
+                  final events = _getEventsForDay(day);
+
+                  return Container(
+                    margin: const EdgeInsets.all(4),
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 날짜 숫자
+                        Text(
+                          '${day.day}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+
+                        // 거래내역 표시 (최대 2개)
+                        ...events.take(2).map((transaction) {
+                          final formattedAmount = NumberFormat.currency(
+                            locale: 'ko_KR',
+                            symbol: '',
+                            decimalDigits: 0,
+                          ).format(transaction.amount);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '${transaction.isIncome ? '+' : '-'}$formattedAmount원',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: transaction.isIncome ? const Color(0xFF73AD13) : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  );
+                },
+
+                // 선택된 날짜 셀 커스텀 빌더
+                selectedBuilder: (context, day, focusedDay) {
+                  final events = _getEventsForDay(day);
+
+                  return Container(
+                    margin: const EdgeInsets.all(4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withAlpha(51),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 날짜 숫자
+                        Text(
+                          '${day.day}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        // 거래내역 표시 (최대 2개)
+                        ...events.take(2).map((transaction) {
+                          final formattedAmount = NumberFormat.currency(
+                            locale: 'ko_KR',
+                            symbol: '',
+                            decimalDigits: 0,
+                          ).format(transaction.amount);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '${transaction.isIncome ? '+' : '-'}$formattedAmount원',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: transaction.isIncome ? const Color(0xFF73AD13) : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  );
+                },
+
+                // 오늘 날짜 셀 커스텀 빌더
+                todayBuilder: (context, day, focusedDay) {
+                  final events = _getEventsForDay(day);
+
+                  return Container(
+                    margin: const EdgeInsets.all(4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withAlpha(26),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 날짜 숫자
+                        Text(
+                          '${day.day}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
+                        ),
+
+                        // 거래내역 표시 (최대 2개)
+                        ...events.take(2).map((transaction) {
+                          final formattedAmount = NumberFormat.currency(
+                            locale: 'ko_KR',
+                            symbol: '',
+                            decimalDigits: 0,
+                          ).format(transaction.amount);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              '${transaction.isIncome ? '+' : '-'}$formattedAmount원',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: transaction.isIncome ? const Color(0xFF73AD13) : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
 
-            // 선택된 날짜의 거래 내역
+            // 선택된 날짜의 거래 내역 상세
             if (_selectedDay != null)
               SizedBox(
-                height: 200, // 고정 높이 지정 (적절히 조절 가능)
+                height: 200,
                 child: ListView.builder(
                   itemCount: _getEventsForDay(_selectedDay!).length,
                   itemBuilder: (context, index) {
+                    final transaction = _getEventsForDay(_selectedDay!)[index];
+                    final formattedAmount = NumberFormat.currency(
+                      locale: 'ko_KR',
+                      symbol: '',
+                      decimalDigits: 0,
+                    ).format(transaction.amount);
+
                     return ListTile(
                       title: Text(
-                        _getEventsForDay(_selectedDay!)[index],
+                        '${transaction.isIncome ? '+' : '-'}$formattedAmount원',
                         style: TextStyle(
-                          color: _getEventsForDay(_selectedDay!)[index].startsWith('+')
-                              ? Colors.blue
-                              : Colors.red,
+                          color: transaction.isIncome ? const Color(0xFF73AD13) : Colors.red,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      // 여기에 거래 설명이나 카테고리 등 추가 정보 표시 가능
                     );
                   },
                 ),
@@ -135,4 +275,15 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
       ),
     );
   }
+}
+
+// 거래 내역을 저장하는 클래스
+class Transaction {
+  final double amount;
+  final bool isIncome;
+
+  Transaction({
+    required this.amount,
+    required this.isIncome,
+  });
 }
