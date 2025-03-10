@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+      sdk: flutter
   firebase_core: ^3.11.0 # 최신 버전 사용 권장
   firebase_auth: ^5.4.2
   cloud_firestore: ^5.6.3
