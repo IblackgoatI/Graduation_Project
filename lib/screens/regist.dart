@@ -314,16 +314,20 @@ Future<void> _verifyCodeAndRegister() async {
     user = userCredential.user;
 
     if (user != null) {
+      // ★ 추가: 사용자가 입력한 이름을 displayName으로 설정
+      await user.updateDisplayName(_nameController.text.trim());
+      await user.reload();
+      user = FirebaseAuth.instance.currentUser;
+
       // 2) 전화번호 인증번호로 PhoneAuthCredential 생성 후 계정에 연결
       PhoneAuthCredential phoneCredential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: _verificationController.text.trim(),
       );
-      await user.linkWithCredential(phoneCredential);
+      await user?.linkWithCredential(phoneCredential);
 
-      // 3) Firestore에 추가 사용자 정보 저장, 비번은 auth에 저장되고 관리자가 확인못함
-      // doc(  ) 안이 사용자 UID로 되있는데, 이걸로 키 접근해도되고, 이메일로 해도가능
-      await FirebaseFirestore.instance.collection('Users').doc(user.uid).set({
+      // 3) Firestore에 추가 사용자 정보 저장 (비밀번호는 auth에 저장되고, 관리자가 확인 못함)
+      await FirebaseFirestore.instance.collection('Users').doc(user?.uid).set({
         'UserId': _emailController.text.trim(),
         'Name': _nameController.text.trim(),
         'Age': int.tryParse(_ageController.text.trim()),
@@ -379,6 +383,7 @@ Future<void> _verifyCodeAndRegister() async {
     return;
   }
 }
+
 
 
 // 다음 단계 버튼 클릭
