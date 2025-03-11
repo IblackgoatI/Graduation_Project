@@ -6,6 +6,8 @@ import 'package:firebase_core/firebase_core.dart'; // firebase_core 임포트
 import 'package:flutter_localizations/flutter_localizations.dart'; //한국어 추가
 import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 패키지 추가
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // 로컬 알림 패키지 추가
+import 'package:provider/provider.dart'; // 🟢 Provider 추가
+import 'screens/transaction_provider.dart'; // 🟢 TransactionProvider 추가
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -32,7 +34,14 @@ Future<void> main() async {
   // 로컬 알림 초기화
   await initializeLocalNotifications();
 
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => TransactionProvider()), // 🟢 Provider 적용
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 // 알림 권한 요청 함수
@@ -51,7 +60,7 @@ Future<void> requestNotificationPermissions() async {
 
   // FCM 토큰 가져오기
   String? token = await messaging.getToken();
-  debugPrint('FCM 토큰: $token');  // 실제 앱에서는 이 토큰을 서버에 저장해야 함
+  debugPrint('FCM 토큰: $token'); // 실제 앱에서는 이 토큰을 서버에 저장해야 함
 }
 
 // 로컬 알림 초기화 함수
@@ -136,6 +145,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 
 // 🟢 스플래시 화면
 class SplashScreen extends StatefulWidget {
