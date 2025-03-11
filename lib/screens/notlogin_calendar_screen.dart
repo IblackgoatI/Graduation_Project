@@ -19,12 +19,12 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
   late DateTime _focusedDay;
   DateTime? _selectedDay;
 
-  // 거래 내역 (임시)
+  // 거래 내역 (임시) - 2025년으로 업데이트
   final Map<DateTime, List<Transaction>> _events = {
-    DateTime.utc(2023, 10, 12): [Transaction(amount: 49800, isIncome: true)],
-    DateTime.utc(2023, 10, 13): [Transaction(amount: 50000, isIncome: false)],
-    DateTime.utc(2023, 10, 14): [Transaction(amount: 28800, isIncome: false)],
-    DateTime.utc(2023, 10, 15): [Transaction(amount: 29800, isIncome: false)],
+    DateTime.utc(2025, 3, 12): [Transaction(amount: 49800, isIncome: true)],
+    DateTime.utc(2025, 3, 13): [Transaction(amount: 50000, isIncome: false)],
+    DateTime.utc(2025, 3, 14): [Transaction(amount: 28800, isIncome: false)],
+    DateTime.utc(2025, 3, 15): [Transaction(amount: 29800, isIncome: false)],
   };
 
   @override
@@ -36,6 +36,7 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
     } else {
       _focusedDay = DateTime.now();
     }
+    _selectedDay = _focusedDay; // 초기 선택 날짜 설정
   }
 
   @override
@@ -50,7 +51,16 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
   }
 
   List<Transaction> _getEventsForDay(DateTime day) {
-    return _events[DateTime.utc(day.year, day.month, day.day)] ?? [];
+    // 모든 키를 확인
+    for (final eventDate in _events.keys) {
+      // 년, 월, 일 비교
+      if (eventDate.year == day.year &&
+          eventDate.month == day.month &&
+          eventDate.day == day.day) {
+        return _events[eventDate]!;
+      }
+    }
+    return [];
   }
 
   @override
@@ -81,7 +91,9 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
                 });
               },
               onPageChanged: (focusedDay) {
-                _focusedDay = focusedDay;
+                setState(() {
+                  _focusedDay = focusedDay;
+                });
               },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
@@ -247,7 +259,14 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
             if (_selectedDay != null)
               SizedBox(
                 height: 200,
-                child: ListView.builder(
+                child: _getEventsForDay(_selectedDay!).isEmpty
+                    ? const Center(
+                  child: Text(
+                    '이 날짜에는 거래 내역이 없습니다.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+                    : ListView.builder(
                   itemCount: _getEventsForDay(_selectedDay!).length,
                   itemBuilder: (context, index) {
                     final transaction = _getEventsForDay(_selectedDay!)[index];
