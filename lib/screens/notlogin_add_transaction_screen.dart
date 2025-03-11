@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'transaction_provider.dart';
+import 'transaction.dart';
 
 class NotloginAddTransactionScreen extends StatefulWidget {
   const NotloginAddTransactionScreen({super.key});
@@ -13,58 +16,70 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
   String _selectedType = '지출';
   late DateTime _selectedDate;
   late String _formattedDate;
-  String _merchantName = '거래처'; // 거래처 이름을 저장할 변수 추가
-  final TextEditingController _merchantController = TextEditingController(); // 텍스트 컨트롤러 추가
+  String _merchantName = '거래처';
+  final TextEditingController _merchantController = TextEditingController();
+  final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _tagController = TextEditingController(); // 태그 입력을 위한 컨트롤러
+  List<String> _tags = []; // 태그 목록을 저장할 리스트
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now(); // 현재 날짜와 시간으로 초기화
-    _updateFormattedDate(); // 날짜 포맷 초기화
-
-    // 텍스트 컨트롤러에 리스너 추가
+    _selectedDate = DateTime.now();
+    _updateFormattedDate();
     _merchantController.addListener(_updateMerchantName);
   }
 
   @override
   void dispose() {
-    // 컨트롤러 메모리 해제
     _merchantController.removeListener(_updateMerchantName);
     _merchantController.dispose();
+    _amountController.dispose();
+    _tagController.dispose(); // 태그 컨트롤러 해제
     super.dispose();
   }
 
-  // 거래처 이름 업데이트 메서드
   void _updateMerchantName() {
     setState(() {
-      // 입력값이 비어있지 않으면 입력값으로 설정, 비어있으면 기본값 유지
-      _merchantName = _merchantController.text.isNotEmpty
-          ? _merchantController.text
-          : '거래처';
+      _merchantName = _merchantController.text.isNotEmpty ? _merchantController.text : '거래처';
     });
   }
 
-  // 날짜 포맷을 업데이트하는 메서드
   void _updateFormattedDate() {
-    // DateFormat 사용을 위해 intl 패키지를 pubspec.yaml에 추가
-    // 년, 월, 일, 오전/오후, 시간, 분 포맷으로 변환
     final DateFormat formatter = DateFormat('yyyy년 M월 d일 a h:mm', 'ko_KR');
     _formattedDate = formatter.format(_selectedDate)
         .replaceAll('AM', '오전')
         .replaceAll('PM', '오후');
   }
 
-  // 날짜 선택 다이얼로그를 표시하는 메서드
-  Future<void> _selectDateTime(BuildContext context) async {
+  // 태그 추가 메서드
+  void _addTag() {
+    final tag = _tagController.text.trim();
+    if (tag.isNotEmpty && !_tags.contains(tag)) {
+      setState(() {
+        _tags.add(tag);
+        _tagController.clear(); // 입력란 초기화
+      });
+    }
+  }
+
+  // 태그 삭제 메서드
+  void _removeTag(String tag) {
+    setState(() {
+      _tags.remove(tag);
+    });
+  }
+
+  // 날짜 및 시간 선택 메서드
+  void _selectDateTime(BuildContext context) async {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
     );
 
     if (pickedDate != null) {
-      // 시간 선택 다이얼로그 표시
       final TimeOfDay? pickedTime = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(_selectedDate),
@@ -85,6 +100,29 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
     }
   }
 
+  void _saveTransaction() {
+    final amount = double.tryParse(_amountController.text) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
+      );
+      return;
+    }
+
+    final transaction = Transaction(
+      id: DateTime.now().toString(),
+      type: _selectedType,
+      amount: amount,
+      date: _selectedDate,
+      merchant: _merchantController.text,
+      tags: _tags, // 태그 목록 저장
+    );
+
+    Provider.of<TransactionProvider>(context, listen: false).addTransaction(transaction);
+
+    Navigator.pop(context); // 저장 후 화면 닫기
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,7 +132,7 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 70.0), // 상단 여백 조정
+            const SizedBox(height: 70.0),
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -111,9 +149,8 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, // 이 부분이 컨테이너 크기를 내용에 맞게 조정
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 뒤로 가기 버튼만 포함된 Row (거래 추가 텍스트 제거)
                   Row(
                     children: [
                       IconButton(
@@ -129,17 +166,27 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _merchantName, // 거래처 이름을 동적으로 표시
+                        _merchantName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        '0원',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                      SizedBox(
+                        width: 150,
+                        child: TextField(
+                          controller: _amountController,
+                          textAlign: TextAlign.right,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            hintText: '0원',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(color: Colors.grey),
+                          ),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -149,7 +196,7 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
                   const SizedBox(height: 32.0),
                   _buildRowWithText('카테고리', '미분류'),
                   const SizedBox(height: 24.0),
-                  _buildRowWithInputController('거래처', '입력하세요', _merchantController), // 컨트롤러 전달
+                  _buildRowWithInputController('거래처', '입력하세요', _merchantController),
                   const SizedBox(height: 24.0),
                   _buildRowWithText('결제수단', '선택하세요'),
                   const SizedBox(height: 24.0),
@@ -157,11 +204,11 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
                   const SizedBox(height: 24.0),
                   _buildRowWithInput('메모', '입력하세요'),
                   const SizedBox(height: 24.0),
-                  _buildRowWithInput('태그', '입력하세요'),
+                  _buildTagInput(), // 태그 입력란 추가
                   const SizedBox(height: 40.0),
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _saveTransaction,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -179,13 +226,59 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8.0), // 저장 버튼 아래 약간의 여백 추가
+                  const SizedBox(height: 8.0),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // 태그 입력란 위젯
+  Widget _buildTagInput() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '태그',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(
+              width: 200,
+              child: TextField(
+                controller: _tagController,
+                textAlign: TextAlign.right,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  hintText: '입력하세요',
+                  border: InputBorder.none,
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: _addTag, // 태그 추가
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8.0),
+        Wrap(
+          spacing: 8.0,
+          children: _tags.map((tag) {
+            return Chip(
+              label: Text(tag),
+              onDeleted: () => _removeTag(tag), // 태그 삭제
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

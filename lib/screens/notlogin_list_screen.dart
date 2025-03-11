@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'transaction_provider.dart'; // TransactionProvider import
+import 'transaction.dart'; // Transaction 클래스 import
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart'; // 로케일 초기화를 위해 추가
 
 class NotloginListScreen extends StatefulWidget {
   const NotloginListScreen({super.key});
@@ -8,38 +13,30 @@ class NotloginListScreen extends StatefulWidget {
 }
 
 class _NotloginListScreenState extends State<NotloginListScreen> {
-  // 태그 표시 상태를 전체적으로 관리하는 변수
   bool _showTags = true;
 
   @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting('ko_KR', null); // 한국어 로케일 초기화
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 임시 데이터
-    final List<Map<String, dynamic>> transactions = [
-      {
-        'date': '15일 수요일',
-        'items': [
-          {'description': 'KFC 부천역', 'amount': -22000, 'tags': ['#KFC', '#차간', '#점심']},
-          {'description': '스타벅스 부천역점', 'amount': -7800, 'tags': ['#스벅', '#카페']},
-        ],
-      },
-      {
-        'date': '14일 화요일',
-        'items': [
-          {'description': '용돈', 'amount': 50000, 'tags': ['#1월말']},
-          {'description': '사나푸드 부천대점', 'amount': -5200, 'tags': []},
-        ],
-      },
-      {
-        'date': '13일 월요일',
-        'items': [
-          {'description': '교통카드', 'amount': -49800, 'tags': []},
-        ],
-      },
-    ];
+    final transactions = Provider.of<TransactionProvider>(context).transactions;
+
+    // 날짜별로 그룹화하기
+    Map<String, List<Transaction>> groupedTransactions = {};
+    for (var transaction in transactions) {
+      String formattedDate = DateFormat('d일 EEEE', 'ko_KR').format(transaction.date);
+      if (!groupedTransactions.containsKey(formattedDate)) {
+        groupedTransactions[formattedDate] = [];
+      }
+      groupedTransactions[formattedDate]!.add(transaction);
+    }
 
     return Column(
       children: [
-        // 상단 헤더 부분 (태그 표시 체크박스)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: Row(
@@ -80,23 +77,17 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
             ],
           ),
         ),
-        // 내역 목록
         Expanded(
-          child: ListView.builder(
+          child: ListView(
             padding: const EdgeInsets.all(16.0),
-            itemCount: transactions.length,
-            itemBuilder: (context, index) {
-              final date = transactions[index]['date'];
-              final items = transactions[index]['items'] as List<dynamic>;
-
+            children: groupedTransactions.entries.map((entry) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 날짜 표시
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8.0),
                     child: Text(
-                      date,
+                      entry.key, // 날짜 한 번만 출력
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -104,12 +95,7 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                       ),
                     ),
                   ),
-                  // 거래 내역
-                  ...items.map((item) {
-                    final description = item['description'];
-                    final amount = item['amount'];
-                    final tags = (item['tags'] as List<dynamic>).cast<String>();
-
+                  ...entry.value.map((transaction) {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8.0),
                       padding: const EdgeInsets.all(12.0),
@@ -128,7 +114,6 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 거래 설명과 금액
                           Container(
                             height: 40,
                             alignment: Alignment.center,
@@ -136,7 +121,7 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  description,
+                                  transaction.merchant,
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -144,52 +129,28 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '${amount >= 0 ? '+' : ''}${amount.toString()}원',
+                                  '${transaction.type == '수입' ? '+' : '-'}${transaction.amount.toString()}원',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: amount >= 0 ? Color(0xFF73AD13) : Colors.red,
+                                    color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          // 태그 - 전체 태그 표시 설정에 따라 표시하고 애니메이션 적용
-                          if (tags.isNotEmpty)
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeInOut,
-                              child: _showTags
-                                  ? Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: AnimatedOpacity(
-                                  opacity: _showTags ? 1.0 : 0.0,
-                                  duration: const Duration(milliseconds: 300),
-                                  child: Wrap(
-                                    spacing: 4.0,
-                                    children: tags.map((tag) {
-                                      return Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8.0,
-                                          vertical: 4.0,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey[200],
-                                          borderRadius: BorderRadius.circular(12.0),
-                                        ),
-                                        child: Text(
-                                          tag,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              )
-                                  : Container(),
+                          // 태그 표시
+                          if (_showTags && transaction.tags.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Wrap(
+                                spacing: 8.0,
+                                children: transaction.tags.map((tag) {
+                                  return Chip(
+                                    label: Text(tag),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                         ],
                       ),
@@ -197,7 +158,7 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                   }).toList(),
                 ],
               );
-            },
+            }).toList(),
           ),
         ),
       ],
