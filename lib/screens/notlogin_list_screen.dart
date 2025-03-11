@@ -139,19 +139,29 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                               ],
                             ),
                           ),
-                          // 태그 표시
-                          if (_showTags && transaction.tags.isNotEmpty)
-                            Padding(
+                          // 태그 표시 애니메이션
+                          AnimatedCrossFade(
+                            duration: const Duration(milliseconds: 300),
+                            crossFadeState: _showTags && transaction.tags.isNotEmpty
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            firstChild: Padding(
                               padding: const EdgeInsets.only(top: 8.0),
-                              child: Wrap(
-                                spacing: 8.0,
-                                children: transaction.tags.map((tag) {
-                                  return Chip(
-                                    label: Text(tag),
-                                  );
-                                }).toList(),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 300),
+                                opacity: _showTags ? 1 : 0,
+                                child: Wrap(
+                                  spacing: 8.0,
+                                  children: transaction.tags.map((tag) {
+                                    return Chip(
+                                      label: Text(tag),
+                                    );
+                                  }).toList(),
+                                ),
                               ),
                             ),
+                            secondChild: const SizedBox.shrink(), // 빈 공간으로 대체
+                          ),
                         ],
                       ),
                     );
