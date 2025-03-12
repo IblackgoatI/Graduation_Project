@@ -99,9 +99,9 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8.0),
                       padding: const EdgeInsets.all(12.0),
-                      decoration: BoxDecoration(
+                      decoration: BoxDecoration( //내역 박스 디자인
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: BorderRadius.circular(24.0),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.grey.withAlpha(26),
