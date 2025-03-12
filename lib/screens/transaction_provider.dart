@@ -21,6 +21,11 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners(); // 상태 변경 알림
   }
 
+  void removeTransaction(String id) {
+    _transactions.removeWhere((transaction) => transaction.id == id);
+    notifyListeners();
+  }
+
   // 특정 날짜의 거래 내역 가져오기
   List<Transaction> getTransactionsForDay(DateTime day) {
     return _transactions.where((transaction) {
