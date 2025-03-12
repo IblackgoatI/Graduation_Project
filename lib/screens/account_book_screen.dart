@@ -1,8 +1,9 @@
-// account_book_screen.dart 수정 버전
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'notlogin_add_transaction_screen.dart';
 import 'notlogin_list_screen.dart';
 import 'notlogin_calendar_screen.dart';
+import 'transaction_provider.dart';
 
 class AccountBookScreen extends StatefulWidget {
   const AccountBookScreen({super.key});
@@ -15,8 +16,6 @@ class _AccountBookScreenState extends State<AccountBookScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedMonth = DateTime.now().month; // 현재 월로 초기화
-  int _income = 700000; // 임시 수입 데이터
-  int _expense = 200000; // 임시 지출 데이터
 
   @override
   void initState() {
@@ -32,6 +31,25 @@ class _AccountBookScreenState extends State<AccountBookScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Provider로부터 데이터 가져오기
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+
+    // 선택된 월의 수입과 지출 계산
+    final transactions = transactionProvider.transactions;
+    int income = 0;
+    int expense = 0;
+
+    for (var transaction in transactions) {
+      // 선택된 월과 같은 월의 트랜잭션만 필터링
+      if (transaction.date.month == _selectedMonth) {
+        if (transaction.type == '수입') {
+          income += transaction.amount.toInt();
+        } else {
+          expense += transaction.amount.toInt();
+        }
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('가계부'), // AppBar 제목
@@ -93,7 +111,7 @@ class _AccountBookScreenState extends State<AccountBookScreen>
                         ),
                       ),
                       TextSpan(
-                        text: '${_income.toString()}원',
+                        text: '${income.toString()}원',
                         style: TextStyle(
                           color: Color(0xFF73AD13), // 가격 색상 (#73AD13)
                           fontSize: 20,
@@ -116,7 +134,7 @@ class _AccountBookScreenState extends State<AccountBookScreen>
                         ),
                       ),
                       TextSpan(
-                        text: '${_expense.toString()}원',
+                        text: '${expense.toString()}원',
                         style: TextStyle(
                           color: Colors.red, // 가격 색상
                           fontSize: 20,
