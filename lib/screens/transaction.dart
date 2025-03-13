@@ -1,4 +1,4 @@
-class Transaction {
+class FinancialTransaction  {
   final String id;
   final String type; // '수입' 또는 '지출'
   final double amount;
@@ -9,7 +9,7 @@ class Transaction {
   final String memo;
   final List<String> tags;
 
-  Transaction({
+  FinancialTransaction ({
     required this.id,
     required this.type,
     required this.amount,

@@ -3,16 +3,18 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
 import 'transaction.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore 사용
+import 'package:firebase_auth/firebase_auth.dart';
 
 class NotloginAddTransactionScreen extends StatefulWidget {
   const NotloginAddTransactionScreen({super.key});
 
   @override
-  _NotloginAddTransactionScreenState createState() =>
-      _NotloginAddTransactionScreenState();
+  NotloginAddTransactionScreenState createState() =>
+      NotloginAddTransactionScreenState();
 }
 
-class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScreen> {
+class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScreen> {
   String _selectedType = '지출';
   late DateTime _selectedDate;
   late String _formattedDate;
@@ -20,7 +22,11 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
   final TextEditingController _merchantController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _tagController = TextEditingController(); // 태그 입력을 위한 컨트롤러
-  List<String> _tags = []; // 태그 목록을 저장할 리스트
+  final TextEditingController _memoController = TextEditingController(); // 메모 입력을 위한 컨트롤러
+  final List<String> _tags = []; // 태그 목록을 저장할 리스트
+
+  // Firestore 인스턴스
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -35,7 +41,8 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
     _merchantController.removeListener(_updateMerchantName);
     _merchantController.dispose();
     _amountController.dispose();
-    _tagController.dispose(); // 태그 컨트롤러 해제
+    _tagController.dispose();
+    _memoController.dispose();
     super.dispose();
   }
 
@@ -100,137 +107,177 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
     }
   }
 
-  void _saveTransaction() {
-    final amount = double.tryParse(_amountController.text) ?? 0;
-    if (amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
+  // Firestore에 데이터 저장 메서드
+  Future<void> _saveTransactionToFirestore() async {
+    try {
+      // 금액 변환 (쉼표나 '원' 단위 제거)
+      final amount = double.tryParse(_amountController.text.replaceAll(",", "").replaceAll("원", "")) ?? 0;
+      if (amount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
+        );
+        return;
+      }
+
+      // 현재 로그인된 사용자 정보 (없으면 "anonymous" 사용)
+      String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+      // Transaction 객체 생성
+      final transaction = FinancialTransaction (
+        id: DateTime.now().toString(),
+        type: _selectedType,
+        amount: amount,
+        date: _selectedDate,
+        merchant: _merchantController.text,
+        memo: _memoController.text,
+        tags: _tags,
       );
-      return;
+
+      // Transaction 객체에서 Firestore 데이터 형식 생성
+      Map<String, dynamic> transactionData = {
+        'userId': userId,
+        'type': transaction.type,
+        'amount': transaction.amount,
+        'date': Timestamp.fromDate(transaction.date),
+        'merchant': transaction.merchant,
+        'category': transaction.category,
+        'paymentMethod': transaction.paymentMethod,
+        'memo': transaction.memo,
+        'tags': transaction.tags,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      // Firestore의 ledger 컬렉션에 데이터 추가
+      await _firestore.collection('ledger').add(transactionData);
+
+      // Provider에 Transaction 추가
+      Provider.of<TransactionProvider>(context, listen: false).addTransaction(transaction);
+
+      // 성공 메시지 표시
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('거래 내역이 성공적으로 저장되었습니다.')),
+      );
+
+      // 저장 후 화면 닫기
+      Navigator.pop(context);
+    } catch (e) {
+      // 오류 메시지 표시
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+      );
     }
-
-    final transaction = Transaction(
-      id: DateTime.now().toString(),
-      type: _selectedType,
-      amount: amount,
-      date: _selectedDate,
-      merchant: _merchantController.text,
-      tags: _tags, // 태그 목록 저장
-    );
-
-    Provider.of<TransactionProvider>(context, listen: false).addTransaction(transaction);
-
-    Navigator.pop(context); // 저장 후 화면 닫기
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.all(16.0),
-        color: Colors.grey[100],
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 70.0),
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withAlpha(51),
-                    spreadRadius: 2,
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _merchantName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+      body: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(16.0),
+          color: Colors.grey[100],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 70.0),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withAlpha(51),
+                      spreadRadius: 2,
+                      blurRadius: 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
                         ),
-                      ),
-                      SizedBox(
-                        width: 150,
-                        child: TextField(
-                          controller: _amountController,
-                          textAlign: TextAlign.right,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            hintText: '0원',
-                            border: InputBorder.none,
-                            hintStyle: TextStyle(color: Colors.grey),
-                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16.0),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _merchantName,
                           style: const TextStyle(
-                            fontSize: 24,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 150,
+                          child: TextField(
+                            controller: _amountController,
+                            textAlign: TextAlign.right,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              hintText: '0원',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(color: Colors.grey),
+                            ),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32.0),
+                    _buildRowWithButtons('분류', ['수입', '지출']),
+                    const SizedBox(height: 32.0),
+                    _buildRowWithText('카테고리', '미분류'),
+                    const SizedBox(height: 24.0),
+                    _buildRowWithInputController('거래처', '입력하세요', _merchantController),
+                    const SizedBox(height: 24.0),
+                    _buildRowWithText('결제수단', '선택하세요'),
+                    const SizedBox(height: 24.0),
+                    _buildDateSelector('날짜', _formattedDate),
+                    const SizedBox(height: 24.0),
+                    _buildRowWithInput('메모', '입력하세요'),
+                    const SizedBox(height: 24.0),
+                    _buildTagInput(), // 태그 입력란 추가
+                    const SizedBox(height: 40.0),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _saveTransactionToFirestore,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 55),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                        ),
+                        child: const Text(
+                          '저장',
+                          style: TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 32.0),
-                  _buildRowWithButtons('분류', ['수입', '지출']),
-                  const SizedBox(height: 32.0),
-                  _buildRowWithText('카테고리', '미분류'),
-                  const SizedBox(height: 24.0),
-                  _buildRowWithInputController('거래처', '입력하세요', _merchantController),
-                  const SizedBox(height: 24.0),
-                  _buildRowWithText('결제수단', '선택하세요'),
-                  const SizedBox(height: 24.0),
-                  _buildDateSelector('날짜', _formattedDate),
-                  const SizedBox(height: 24.0),
-                  _buildRowWithInput('메모', '입력하세요'),
-                  const SizedBox(height: 24.0),
-                  _buildTagInput(), // 태그 입력란 추가
-                  const SizedBox(height: 40.0),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _saveTransaction,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 55),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
-                      child: const Text(
-                        '저장',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8.0),
-                ],
+                    const SizedBox(height: 8.0),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -366,7 +413,7 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
     );
   }
 
-  /// 컨트롤러가 있는 입력 필드 생성 (새로운 메서드)
+  /// 컨트롤러가 있는 입력 필드 생성
   Widget _buildRowWithInputController(String title, String hintText, TextEditingController controller) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -378,7 +425,7 @@ class _NotloginAddTransactionScreenState extends State<NotloginAddTransactionScr
         SizedBox(
           width: 200,
           child: TextField(
-            controller: controller, // 컨트롤러 설정
+            controller: controller,
             textAlign: TextAlign.right,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.done,

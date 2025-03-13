@@ -9,10 +9,10 @@ class NotloginListScreen extends StatefulWidget {
   const NotloginListScreen({super.key});
 
   @override
-  _NotloginListScreenState createState() => _NotloginListScreenState();
+  NotloginListScreenState createState() => NotloginListScreenState();
 }
 
-class _NotloginListScreenState extends State<NotloginListScreen> {
+class NotloginListScreenState extends State<NotloginListScreen> {
   bool _showTags = true;
 
   @override
@@ -26,7 +26,7 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
     final transactions = Provider.of<TransactionProvider>(context).transactions;
 
     // 날짜별로 그룹화하기
-    Map<String, List<Transaction>> groupedTransactions = {};
+    Map<String, List<FinancialTransaction>> groupedTransactions = {};
     for (var transaction in transactions) {
       String formattedDate = DateFormat('d일 EEEE', 'ko_KR').format(transaction.date);
       if (!groupedTransactions.containsKey(formattedDate)) {
@@ -165,7 +165,7 @@ class _NotloginListScreenState extends State<NotloginListScreen> {
                         ],
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               );
             }).toList(),

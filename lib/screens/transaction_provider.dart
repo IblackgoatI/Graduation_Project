@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'transaction.dart';
 
 class TransactionProvider with ChangeNotifier {
-  List<Transaction> _transactions = [];
+  final List<FinancialTransaction> _transactions = [];
 
-  List<Transaction> get transactions => _transactions;
+  List<FinancialTransaction> get transactions => _transactions;
 
   // 수입과 지출의 총합 계산
   double get totalIncome => _transactions
@@ -16,13 +16,13 @@ class TransactionProvider with ChangeNotifier {
       .fold(0, (sum, transaction) => sum + transaction.amount);
 
   // 거래 추가
-  void addTransaction(Transaction transaction) {
+  void addTransaction(FinancialTransaction transaction) {
     _transactions.add(transaction);
     notifyListeners(); // 상태 변경 알림
   }
 
   // 특정 날짜의 거래 내역 가져오기
-  List<Transaction> getTransactionsForDay(DateTime day) {
+  List<FinancialTransaction> getTransactionsForDay(DateTime day) {
     return _transactions.where((transaction) {
       return transaction.date.year == day.year &&
           transaction.date.month == day.month &&
