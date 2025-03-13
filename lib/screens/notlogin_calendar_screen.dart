@@ -14,10 +14,10 @@ class NotloginCalendarScreen extends StatefulWidget {
   });
 
   @override
-  _NotloginCalendarScreenState createState() => _NotloginCalendarScreenState();
+  NotloginCalendarScreenState createState() => NotloginCalendarScreenState();
 }
 
-class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
+class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   late DateTime _focusedDay;
   DateTime? _selectedDay;
@@ -46,7 +46,7 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
   }
 
   // Provider에서 특정 날짜의 거래 내역 가져오기
-  List<Transaction> _getEventsForDay(DateTime day, TransactionProvider provider) {
+  List<FinancialTransaction> _getEventsForDay(DateTime day, TransactionProvider provider) {
     return provider.transactions.where((transaction) {
       return transaction.date.year == day.year &&
           transaction.date.month == day.month &&
@@ -88,7 +88,7 @@ class _NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
       body: Column(
         children: [
           // 달력 표시 (높이 제한)
-          Container(
+          SizedBox(
             height: MediaQuery.of(context).size.height * 0.55, // 화면 높이의 55%로 제한
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
