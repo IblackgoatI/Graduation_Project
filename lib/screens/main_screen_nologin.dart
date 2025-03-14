@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'account_book_screen.dart'; // 가계부 화면 import
 import 'community_screen.dart'; // 커뮤니티 화면 import
 import 'all_screen.dart'; // 전체 화면 import
+import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 
 class MainScreenNotLogin extends StatefulWidget {
   const MainScreenNotLogin({super.key});
@@ -13,6 +16,9 @@ class MainScreenNotLogin extends StatefulWidget {
 
 class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   int _selectedIndex = 0;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _userAccounts = [];
+  int _totalBalance = 0;
 
   // late로 선언
   late final List<Widget> _widgetOptions;
@@ -27,6 +33,61 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
       const CommunityScreen(), // 커뮤니티 화면
       const AllScreen(), // 전체 화면
     ];
+
+    // 사용자 계좌 정보 로드
+    _loadUserAccounts();
+  }
+
+  // 사용자의 계좌 정보를 로드하는 메서드
+  Future<void> _loadUserAccounts() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // 현재 로그인한 사용자 정보 가져오기
+      User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // Firestore에서 현재 사용자의 계좌 정보 가져오기
+        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+            .collection('assets')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        List<Map<String, dynamic>> accounts = [];
+        int totalBalance = 0;
+
+        // 결과를 리스트로 변환
+        for (var doc in querySnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          accounts.add({
+            'id': doc.id,
+            'bank': data['bank'],
+            'account': data['account'],
+            'balance': data['balance'],
+          });
+
+          // 총 자산 계산
+          totalBalance += (data['balance'] as num).toInt();
+        }
+
+        setState(() {
+          _userAccounts = accounts;
+          _totalBalance = totalBalance;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('계좌 정보 로드 오류: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _onItemTapped(int index) {
@@ -97,23 +158,37 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
 
   // 홈 화면을 별도의 메서드로 정의
   Widget _homeScreen() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          _buildAccountCard(),
-          const SizedBox(height: 16.0),
-          _buildTotalAssetsCard(),
-          const SizedBox(height: 16.0),
-          _buildMonthlySpendingCard(),
-          const SizedBox(height: 16.0),
-          _buildMonthlyReportCard(),
-        ],
+    return RefreshIndicator(
+      onRefresh: _loadUserAccounts,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildAccountCard(),
+            const SizedBox(height: 16.0),
+            _buildTotalAssetsCard(),
+            const SizedBox(height: 16.0),
+            _buildMonthlySpendingCard(),
+            const SizedBox(height: 16.0),
+            _buildMonthlyReportCard(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAccountCard() {
+    if (_isLoading) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -128,21 +203,79 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
               "입출금 계좌",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8.0),
-            const Text(
-              "계좌 미연결",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            const SizedBox(height: 8.0),
-            const Text(
-              "아직 자산이 연결되지 않았습니다.",
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
             const SizedBox(height: 16.0),
+            // 계좌 목록 또는 계좌 연결 버튼
+            _userAccounts.isNotEmpty
+                ? Column(
+              children: _userAccounts.map((account) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "${account['bank']}",
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              "${account['account']}",
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        "${numberFormat(account['balance'])}원",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            )
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "계좌 미연결",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 8.0),
+                const Text(
+                  "아직 자산이 연결되지 않았습니다.",
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                const SizedBox(height: 16.0),
+              ],
+            ),
             Center(
               child: ElevatedButton(
                 onPressed: () {
                   // 계좌 연결하기 버튼 동작
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AssetScreen()),
+                  ).then((_) {
+                    // 화면 복귀 시 계좌 정보 다시 로드
+                    _loadUserAccounts();
+                  });
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
@@ -151,9 +284,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                     borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
                   ),
                 ),
-                child: const Text(
-                  "계좌 연결하러 가기",
-                  style: TextStyle(fontSize: 16, color: Colors.white),
+                child: Text(
+                  _userAccounts.isNotEmpty ? "계좌 추가하기" : "계좌 연결하러 가기",
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
                 ),
               ),
             ),
@@ -164,6 +297,17 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   Widget _buildTotalAssetsCard() {
+    if (_isLoading) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
+
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -178,35 +322,60 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
               "총 자산",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8.0),
-            const Text(
-              "자산 미연결",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey),
-            ),
-            const SizedBox(height: 8.0),
-            const Text(
-              "아직 자산이 연결되지 않았습니다.",
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
             const SizedBox(height: 16.0),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  // 계좌 연결하기 버튼 동작
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
-                  minimumSize: const Size(400, 50), // 버튼의 크기 지정
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
+            _userAccounts.isNotEmpty
+                ? Text(
+              "${numberFormat(_totalBalance)}원",
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+                : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "자산 미연결",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
                   ),
                 ),
-                child: const Text(
-                  "계좌 연결하러 가기",
-                  style: TextStyle(fontSize: 16, color: Colors.white),
+                const SizedBox(height: 8.0),
+                const Text(
+                  "아직 자산이 연결되지 않았습니다.",
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                const SizedBox(height: 16.0),
+              ],
+            ),
+            if (_userAccounts.isEmpty)
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    // 계좌 연결하기 버튼 동작
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const AssetScreen()),
+                    ).then((_) {
+                      // 화면 복귀 시 계좌 정보 다시 로드
+                      _loadUserAccounts();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
+                    minimumSize: const Size(400, 50), // 버튼의 크기 지정
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
+                    ),
+                  ),
+                  child: const Text(
+                    "계좌 연결하러 가기",
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -309,6 +478,14 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
           ),
         ),
       ),
+    );
+  }
+
+  // 숫자 포맷 함수 (천 단위 콤마 추가)
+  String numberFormat(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
     );
   }
 }

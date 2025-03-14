@@ -382,32 +382,6 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     );
   }
 
-  /// 컨트롤러가 없는 입력 필드 생성 (기존 메서드)
-  Widget _buildRowWithInput(String title, String hintText) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(
-          width: 200,
-          child: TextField(
-            textAlign: TextAlign.right,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: hintText,
-              border: InputBorder.none,
-              hintStyle: const TextStyle(color: Colors.grey),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   /// 컨트롤러가 있는 입력 필드 생성
   Widget _buildRowWithInputController(String title, String hintText, TextEditingController controller) {
     return Row(

@@ -240,6 +240,7 @@ class _AssetScreenState extends State<AssetScreen> {
         'bank': bankInput,
         'owner': user.displayName, // 현재 로그인한 사용자의 이름 (displayName) 저장
         'pnum': formatPhone(user.phoneNumber), // 전화번호를 010-1234-5678 형식으로 저장
+        'userId': user.uid, // 현재 로그인한 사용자의 userId 추가
       });
     } catch (e) {
       scaffoldMessenger.showSnackBar(
