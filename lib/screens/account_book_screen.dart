@@ -9,13 +9,16 @@ class AccountBookScreen extends StatefulWidget {
   const AccountBookScreen({super.key});
 
   @override
-  _AccountBookScreenState createState() => _AccountBookScreenState();
+  AccountBookScreenState createState() => AccountBookScreenState();
 }
 
-class _AccountBookScreenState extends State<AccountBookScreen>
+class AccountBookScreenState extends State<AccountBookScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedMonth = DateTime.now().month; // 현재 월로 초기화
+
+  // NotloginListScreen에 접근하기 위한 키 생성
+  final GlobalKey<NotloginListScreenState> listScreenKey = GlobalKey<NotloginListScreenState>();
 
   @override
   void initState() {
@@ -170,7 +173,7 @@ class _AccountBookScreenState extends State<AccountBookScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                NotloginListScreen(), // 내역 화면
+                NotloginListScreen(key: listScreenKey), // GlobalKey를 전달하여 state에 접근할 수 있게 함
                 NotloginCalendarScreen(selectedMonth: _selectedMonth), // 선택된 월을 전달
               ],
             ),
@@ -178,12 +181,15 @@ class _AccountBookScreenState extends State<AccountBookScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
+        onPressed: () async {
+          final result = await Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (context) => const NotloginAddTransactionScreen()),
+            MaterialPageRoute(builder: (context) => const NotloginAddTransactionScreen()),
           );
+
+          if (result == true) {
+            listScreenKey.currentState?.loadTransactions();
+          }
         },
         child: const Icon(Icons.add),
       ),

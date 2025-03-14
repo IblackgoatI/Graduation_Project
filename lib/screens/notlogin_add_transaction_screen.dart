@@ -153,13 +153,8 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       // Provider에 Transaction 추가
       Provider.of<TransactionProvider>(context, listen: false).addTransaction(transaction);
 
-      // 성공 메시지 표시
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('거래 내역이 성공적으로 저장되었습니다.')),
-      );
-
-      // 저장 후 화면 닫기
-      Navigator.pop(context);
+      // 저장 후 화면 닫기 (true를 반환하여 저장이 성공했음을 알림)
+      Navigator.pop(context, true);
     } catch (e) {
       // 오류 메시지 표시
       ScaffoldMessenger.of(context).showSnackBar(
@@ -248,7 +243,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                     const SizedBox(height: 24.0),
                     _buildDateSelector('날짜', _formattedDate),
                     const SizedBox(height: 24.0),
-                    _buildRowWithInput('메모', '입력하세요'),
+                    _buildRowWithInputController('메모', '입력하세요',_memoController),
                     const SizedBox(height: 24.0),
                     _buildTagInput(), // 태그 입력란 추가
                     const SizedBox(height: 40.0),

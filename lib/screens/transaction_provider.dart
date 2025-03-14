@@ -21,6 +21,12 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners(); // 상태 변경 알림
   }
 
+  void setTransactions(List<FinancialTransaction> newTransactions) {
+    transactions.clear();  // 기존 리스트를 비움
+    transactions.addAll(newTransactions);  // 새 트랜잭션을 추가
+    notifyListeners();
+  }
+
   void removeTransaction(String id) {
     _transactions.removeWhere((transaction) => transaction.id == id);
     notifyListeners();
