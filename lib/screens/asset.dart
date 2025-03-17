@@ -46,7 +46,7 @@ Future<void> _sendFcmNotification(String token, String depositName, String bank,
       return;
     }
     final response = await http.post(
-      Uri.parse('https://transferonewon-ekqk2sqwxq-uc.a.run.app'), // 서버 엔드포인트 URL
+      Uri.parse('https://transferonewon-ekqk2sqwxq-du.a.run.app'), // 서버 엔드포인트 URL
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token, // 필요한 경우 인증 토큰 추가
@@ -251,7 +251,7 @@ class _AssetScreenState extends State<AssetScreen> {
 
     // 기존 1원 송금 API 호출
     try {
-      final url = 'https://transferonewon-ekqk2sqwxq-uc.a.run.app';
+      final url = 'https://transferonewon-ekqk2sqwxq-du.a.run.app';
       final response = await http.post(
         Uri.parse(url),
         headers: {"Content-Type": "application/json"},

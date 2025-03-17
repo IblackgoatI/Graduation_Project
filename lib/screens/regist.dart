@@ -261,7 +261,7 @@ Future<void> _sendVerificationCode() async {
     digits = digits.substring(1);
   }
   // 한국 전화번호의 경우 +82를 접두어로 붙임
-  String phoneNumber = '+82' + digits;
+  String phoneNumber = '+82$digits';
 
   try {
     await FirebaseAuth.instance.verifyPhoneNumber(
@@ -328,7 +328,8 @@ Future<void> _verifyCodeAndRegister() async {
 
       // 3) Firestore에 추가 사용자 정보 저장 (비밀번호는 auth에 저장되고, 관리자가 확인 못함)
       await FirebaseFirestore.instance.collection('Users').doc(user?.uid).set({
-        'UserId': _emailController.text.trim(),
+        'userId': user?.uid,
+        'email': _emailController.text.trim(),
         'Name': _nameController.text.trim(),
         'Age': int.tryParse(_ageController.text.trim()),
         'Sex': _genderValue,
@@ -350,13 +351,13 @@ Future<void> _verifyCodeAndRegister() async {
       );
     }
   } on FirebaseAuthException catch (e) {
-    print("Error in _verifyCodeAndRegister: $e");
+    debugPrint("Error in _verifyCodeAndRegister: $e");
     // 전화번호 연결에 실패하면, 생성된 계정을 삭제
     if (user != null) {
       try {
         await user.delete();
       } catch (deleteError) {
-        print("계정 삭제 실패: $deleteError");
+        debugPrint("계정 삭제 실패: $deleteError");
       }
     }
 
@@ -371,12 +372,12 @@ Future<void> _verifyCodeAndRegister() async {
       return;
     }
   } catch (e) {
-    print("Error in _verifyCodeAndRegister: $e");
+    debugPrint("Error in _verifyCodeAndRegister: $e");
     if (user != null) {
       try {
         await user.delete();
       } catch (deleteError) {
-        print("계정 삭제 실패: $deleteError");
+        debugPrint("계정 삭제 실패: $deleteError");
       }
     }
     _showError('회원가입에 실패했습니다.');
@@ -662,7 +663,7 @@ Widget buildStep3() {
           onPressed: _resendCountdown > 0 ? null : _sendVerificationCode,
           child: _resendCountdown > 0
               ? Text(
-            "재전송 대기: ${_resendCountdown}초",
+            "재전송 대기: $_resendCountdown초",
             style: const TextStyle(color: Colors.red),
           )
               : const Text("인증번호 전송", style: TextStyle(color: Colors.white)),
