@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertest/screens/transaction_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
 import 'transaction.dart';
@@ -175,74 +176,85 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                       ),
                     ),
                     ...entry.value.map((transaction) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8.0),
-                        padding: const EdgeInsets.all(12.0),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24.0),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withAlpha(26),
-                              spreadRadius: 1,
-                              blurRadius: 3,
-                              offset: const Offset(0, 1),
+                      return InkWell(
+                        onTap: () {
+                          // 거래 내역 상세 화면으로 이동
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TransactionDetailScreen(transaction: transaction),
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 40,
-                              alignment: Alignment.center,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    transaction.merchant,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.grey[800],
-                                    ),
-                                  ),
-                                  Text(
-                                    '${transaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(transaction.amount)}원',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
-                                    ),
-                                  ),
-                                ],
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8.0),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withAlpha(26),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
                               ),
-                            ),
-
-                            // 태그 표시 애니메이션
-                            AnimatedCrossFade(
-                              duration: const Duration(milliseconds: 300),
-                              crossFadeState: _showTags && transaction.tags.isNotEmpty
-                                  ? CrossFadeState.showFirst
-                                  : CrossFadeState.showSecond,
-                              firstChild: Padding(
-                                padding: const EdgeInsets.only(top: 8.0),
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 300),
-                                  opacity: _showTags ? 1 : 0,
-                                  child: Wrap(
-                                    spacing: 8.0,
-                                    children: transaction.tags.map((tag) {
-                                      return Chip(
-                                        label: Text(tag),
-                                      );
-                                    }).toList(),
-                                  ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                height: 40,
+                                alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      transaction.merchant,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[800],
+                                      ),
+                                    ),
+                                    Text(
+                                      '${transaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(transaction.amount)}원',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              secondChild: const SizedBox.shrink(),
-                            ),
-                          ],
+
+                              // 태그 표시 애니메이션
+                              AnimatedCrossFade(
+                                duration: const Duration(milliseconds: 300),
+                                crossFadeState: _showTags && transaction.tags.isNotEmpty
+                                    ? CrossFadeState.showFirst
+                                    : CrossFadeState.showSecond,
+                                firstChild: Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 300),
+                                    opacity: _showTags ? 1 : 0,
+                                    child: Wrap(
+                                      spacing: 8.0,
+                                      children: transaction.tags.map((tag) {
+                                        return Chip(
+                                          label: Text(tag),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                                secondChild: const SizedBox.shrink(),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }),
