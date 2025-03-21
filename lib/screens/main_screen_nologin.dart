@@ -19,27 +19,22 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _userAccounts = [];
   int _totalBalance = 0;
+  bool _isLoading = true; // 로딩 상태 변수 추가
 
-  // late로 선언
-  late final List<Widget> _widgetOptions;
 
   @override
   void initState() {
     super.initState();
-    // initState에서 초기화
-    _widgetOptions = [
-      _homeScreen(), // 홈 화면
-      const AccountBookScreen(), // 가계부 화면
-      const CommunityScreen(), // 커뮤니티 화면
-      const AllScreen(), // 전체 화면
-    ];
-
-    // 사용자 계좌 정보 로드
     _loadUserAccounts();
   }
 
   // 사용자의 계좌 정보를 로드하는 메서드
   Future<void> _loadUserAccounts() async {
+    // 로딩 시작
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       // 전달받은 사용자 정보가 있으면 사용하고, 없으면 현재 로그인한 사용자 정보 가져오기
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
@@ -76,11 +71,26 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
           setState(() {
             _userAccounts = accounts;
             _totalBalance = totalBalance;
+            _isLoading = false; // 로딩 완료
           });
         }
+        debugPrint('_userAccounts.isNotEmpty: ${_userAccounts.isNotEmpty}');
+        debugPrint('_userAccounts 내용: $_userAccounts');
+        debugPrint('_isLoading 내용: $_isLoading');
+      } else {
+        // 사용자가 없는 경우 로딩 완료 처리
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       debugPrint('계좌 정보 로드 오류: $e');
+      // 오류 발생 시에도 로딩 완료 처리
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -92,13 +102,21 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
 
   @override
   Widget build(BuildContext context) {
+    // _widgetOptions를 build 메서드 내에서 생성하여 상태 변화 반영
+    final List<Widget> widgetOptions = [
+      _homeScreen(), // 홈 화면 - 현재 상태가 반영됨
+      const AccountBookScreen(),
+      const CommunityScreen(),
+      const AllScreen(),
+    ];
+
     return Scaffold(
       appBar: _selectedIndex == 0
           ? AppBar(
         title: const Text('금융 대시보드'),
       )
           : null, // 메인 화면에서만 AppBar 표시
-      body: _widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
+      body: widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -187,10 +205,18 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16.0),
-            // 계좌 목록 또는 계좌 연결 버튼
-            _userAccounts.isNotEmpty
+            // 로딩 상태에 따라 다른 위젯 표시
+            _isLoading
+                ? const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF73AD13),
+              ),
+            )
+                : _userAccounts.isNotEmpty
                 ? Column(
               children: _userAccounts.map((account) {
+                debugPrint(account['bank'].toString());
+                debugPrint(account['account'].toString());
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
                   child: Row(
@@ -248,35 +274,38 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                 const SizedBox(height: 16.0),
               ],
             ),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  // 계좌 연결하기 버튼 동작
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AssetScreen(
-                        user: widget.user ?? FirebaseAuth.instance.currentUser,
+            const SizedBox(height: 16.0),
+            // 로딩 중이 아닐 때만 버튼 표시
+            if (!_isLoading)
+              Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    // 계좌 연결하기 버튼 동작
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetScreen(
+                          user: widget.user ?? FirebaseAuth.instance.currentUser,
+                        ),
                       ),
+                    ).then((returnedUser) {
+                      // 화면 복귀 시 계좌 정보 다시 로드
+                      _loadUserAccounts();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF73AD13),
+                    minimumSize: const Size(400, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ).then((returnedUser) {
-                    // 화면 복귀 시 계좌 정보 다시 로드
-                    _loadUserAccounts();
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13),
-                  minimumSize: const Size(400, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _userAccounts.isNotEmpty ? "계좌 추가하기" : "계좌 연결하러 가기",
+                    style: const TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
-                child: Text(
-                  _userAccounts.isNotEmpty ? "계좌 추가하기" : "계좌 연결하러 가기",
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                ),
               ),
-            ),
           ],
         ),
       ),
@@ -299,7 +328,14 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16.0),
-            _userAccounts.isNotEmpty
+            // 로딩 상태에 따라 다른 위젯 표시
+            _isLoading
+                ? const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF73AD13),
+              ),
+            )
+                : _userAccounts.isNotEmpty
                 ? Text(
               "${numberFormat(_totalBalance)}원",
               style: const TextStyle(
@@ -326,7 +362,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                 const SizedBox(height: 16.0),
               ],
             ),
-            if (_userAccounts.isEmpty)
+            const SizedBox(height: 16.0),
+            // 로딩 중이 아니고 계좌가 없을 때만 버튼 표시
+            if (!_isLoading && _userAccounts.isEmpty)
               Center(
                 child: ElevatedButton(
                   onPressed: () {
