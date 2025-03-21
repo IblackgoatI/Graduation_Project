@@ -23,7 +23,14 @@ FlutterLocalNotificationsPlugin();
 // main() 함수를 async로 변경하고 Firebase 초기화
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // Firebase 초기화
+  await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: "AIzaSyBWl9e_RC-aBdAr9Cu4K0Jard5vKT-8Jr4",
+        appId: "1:24911651038:android:8bf6958b484083afd0224f",
+        messagingSenderId: "24911651038",
+        projectId: "graduation-5caa0",
+      ),
+  ); // Firebase 초기화
 
   // FCM 백그라운드 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

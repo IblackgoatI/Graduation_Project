@@ -8,7 +8,8 @@ import 'all_screen.dart'; // 전체 화면 import
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 
 class MainScreenNotLogin extends StatefulWidget {
-  const MainScreenNotLogin({super.key});
+  final User? user;
+  const MainScreenNotLogin({super.key, this.user});
 
   @override
   State<MainScreenNotLogin> createState() => _MainScreenNotLoginState();
@@ -16,7 +17,6 @@ class MainScreenNotLogin extends StatefulWidget {
 
 class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   int _selectedIndex = 0;
-  bool _isLoading = true;
   List<Map<String, dynamic>> _userAccounts = [];
   int _totalBalance = 0;
 
@@ -40,16 +40,12 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
 
   // 사용자의 계좌 정보를 로드하는 메서드
   Future<void> _loadUserAccounts() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
-      // 현재 로그인한 사용자 정보 가져오기
-      User? currentUser = FirebaseAuth.instance.currentUser;
+      // 전달받은 사용자 정보가 있으면 사용하고, 없으면 현재 로그인한 사용자 정보 가져오기
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
 
       if (currentUser != null) {
-        // Firestore에서 현재 사용자의 계좌 정보 가져오기
+        // Firestore에서 전달받은 사용자의 계좌 정보 가져오기
         QuerySnapshot querySnapshot = await FirebaseFirestore.instance
             .collection('assets')
             .where('userId', isEqualTo: currentUser.uid)
@@ -70,23 +66,21 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
 
           // 총 자산 계산
           totalBalance += (data['balance'] as num).toInt();
+          debugPrint('사용자 계좌 정보: ${data['bank']} - ${data['account']}');
         }
+        debugPrint('총 계좌 수: ${accounts.length}');
+        debugPrint('총 잔액: $totalBalance');
 
-        setState(() {
-          _userAccounts = accounts;
-          _totalBalance = totalBalance;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
+        // 상태 업데이트
+        if (mounted) {
+          setState(() {
+            _userAccounts = accounts;
+            _totalBalance = totalBalance;
+          });
+        }
       }
     } catch (e) {
       debugPrint('계좌 정보 로드 오류: $e');
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -178,17 +172,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   Widget _buildAccountCard() {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      );
-    }
-
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -271,17 +254,21 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                   // 계좌 연결하기 버튼 동작
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const AssetScreen()),
-                  ).then((_) {
+                    MaterialPageRoute(
+                      builder: (context) => AssetScreen(
+                        user: widget.user ?? FirebaseAuth.instance.currentUser,
+                      ),
+                    ),
+                  ).then((returnedUser) {
                     // 화면 복귀 시 계좌 정보 다시 로드
                     _loadUserAccounts();
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
-                  minimumSize: const Size(400, 50), // 버튼의 크기 지정
+                  backgroundColor: const Color(0xFF73AD13),
+                  minimumSize: const Size(400, 50),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 child: Text(
@@ -297,17 +284,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   Widget _buildTotalAssetsCard() {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      );
-    }
-
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -357,17 +333,21 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                     // 계좌 연결하기 버튼 동작
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const AssetScreen()),
-                    ).then((_) {
+                      MaterialPageRoute(
+                        builder: (context) => AssetScreen(
+                          user: widget.user ?? FirebaseAuth.instance.currentUser,
+                        ),
+                      ),
+                    ).then((returnedUser) {
                       // 화면 복귀 시 계좌 정보 다시 로드
                       _loadUserAccounts();
                     });
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF73AD13), // 버튼 색상을 73AD13으로 설정
-                    minimumSize: const Size(400, 50), // 버튼의 크기 지정
+                    backgroundColor: const Color(0xFF73AD13),
+                    minimumSize: const Size(400, 50),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // 버튼 모서리 둥글기
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   child: const Text(

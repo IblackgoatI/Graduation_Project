@@ -1,11 +1,13 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    id "org.jetbrains.kotlin.android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    id "kotlin-parcelize"
 }
 
-apply plugin : 'com.google.gms.google-services' ///////////////////////////
+apply plugin : 'com.google.gms.google-services' //
 
 
 android {
@@ -40,10 +42,32 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 flutter {
     source = "../.."
 }
-//////////////////////
-apply plugin: 'com.google.gms.google-services'
+dependencies {
+    // Google Play 서비스 Auth 최신 버전
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+
+    // Google Play 서비스 기본 패키지 (ProviderInstaller 포함)
+    implementation 'com.google.android.gms:play-services-base:18.2.0'
+    implementation 'com.google.android.gms:play-services-safetynet:18.0.1'
+    implementation 'com.google.android.gms:play-services-basement:18.2.0'
+
+    // SecurityProvider 및 ProviderInstaller 관련
+    implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
+
+    // Firebase BOM (Bill of Materials)
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+
+    // Firebase 기본 라이브러리들 (필요한 모듈만 추가)
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+    implementation 'com.google.firebase:firebase-analytics'
+}

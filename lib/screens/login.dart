@@ -5,7 +5,7 @@ import 'asset.dart';
 import 'pwreset.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -44,9 +44,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // 로그인 성공 시 메인 화면으로 이동
+      debugPrint('User ID: ${userCredential.user?.uid}');
+      debugPrint('User Email: ${userCredential.user?.email}');
+      debugPrint('User Display Name: ${userCredential.user?.displayName}');
+
+      // 로그인 성공 시 자산 화면으로 이동
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const AssetScreen()),
+        MaterialPageRoute(builder: (context) => AssetScreen(user: userCredential.user)),
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = '';

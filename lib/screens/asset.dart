@@ -75,7 +75,8 @@ Future<void> _sendFcmNotification(String token, String depositName, String bank,
 }
 
 class AssetScreen extends StatefulWidget {
-  const AssetScreen({super.key});
+  final User? user;
+  const AssetScreen({super.key, this.user});
 
   @override
   State<AssetScreen> createState() => _AssetScreenState();
@@ -207,7 +208,7 @@ class _AssetScreenState extends State<AssetScreen> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final accountInput = _accountController.text.trim();
     final bankInput = _selectedBank;
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user = widget.user ?? FirebaseAuth.instance.currentUser;
     if (user == null) {
       scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text("사용자가 로그인되어 있지 않습니다.")),
@@ -356,10 +357,13 @@ class _AssetScreenState extends State<AssetScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                   onPressed: () {
+                    final User? user = widget.user ?? FirebaseAuth.instance.currentUser;
+
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const MainScreenNotLogin()),
+                        builder: (context) => MainScreenNotLogin(user: user),
+                    ),
                     );
                   },
                   child: const Text(
@@ -775,9 +779,12 @@ class _AssetVerificationResultScreenState
                       backgroundColor: Colors.green,
                     ),
                   );
+                  // 현재 로그인한 사용자 정보 가져오기
+                  final User? currentUser = FirebaseAuth.instance.currentUser;
+
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (context) => const MainScreenNotLogin(),
+                      builder: (context) => MainScreenNotLogin(user: currentUser), // 사용자 정보 전달
                     ),
                         (route) => false, // 모든 이전 화면 제거
                   );
