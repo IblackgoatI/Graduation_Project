@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
 import 'transaction.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore 사용
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class NotloginAddTransactionScreen extends StatefulWidget {
@@ -19,11 +19,18 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   late DateTime _selectedDate;
   late String _formattedDate;
   String _merchantName = '거래처';
+  String _selectedCategory = '미분류';
   final TextEditingController _merchantController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
-  final TextEditingController _tagController = TextEditingController(); // 태그 입력을 위한 컨트롤러
-  final TextEditingController _memoController = TextEditingController(); // 메모 입력을 위한 컨트롤러
-  final List<String> _tags = []; // 태그 목록을 저장할 리스트
+  final TextEditingController _tagController = TextEditingController();
+  final TextEditingController _memoController = TextEditingController();
+  final List<String> _tags = [];
+
+  // 수입 카테고리 목록
+  final List<String> _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
+
+  // 지출 카테고리 목록
+  final List<String> _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남'];
 
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -65,7 +72,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     if (tag.isNotEmpty && !_tags.contains(tag)) {
       setState(() {
         _tags.add(tag);
-        _tagController.clear(); // 입력란 초기화
+        _tagController.clear();
       });
     }
   }
@@ -75,6 +82,132 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     setState(() {
       _tags.remove(tag);
     });
+  }
+
+  // 카테고리 선택 다이얼로그 표시 메서드
+  void _showCategoryDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedType = '수입';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _selectedType == '수입' ? Colors.black : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '수입',
+                                style: TextStyle(
+                                  fontWeight: _selectedType == '수입' ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedType = '지출';
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _selectedType == '지출' ? Colors.black : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '지출',
+                                style: TextStyle(
+                                  fontWeight: _selectedType == '지출' ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: GridView.count(
+                      crossAxisCount: 4,
+                      childAspectRatio: 1.0,
+                      padding: const EdgeInsets.all(4.0),
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      shrinkWrap: true,
+                      children: _selectedType == '수입'
+                          ? _buildCategoryWidgets(_incomeCategories)
+                          : _buildCategoryWidgets(_expenseCategories),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((value) {
+      // 바텀시트가 닫힌 후 메인 화면의 상태 업데이트
+      setState(() {});
+    });
+  }
+
+  // 카테고리 위젯 목록 생성
+  List<Widget> _buildCategoryWidgets(List<String> categories) {
+    return categories.map((category) {
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedCategory = category;
+          });
+          Navigator.pop(context);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Center(
+            child: Text(category),
+          ),
+        ),
+      );
+    }).toList();
   }
 
   // 날짜 및 시간 선택 메서드
@@ -123,7 +256,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
       // Transaction 객체 생성
-      final transaction = FinancialTransaction (
+      final transaction = FinancialTransaction(
         id: DateTime.now().toString(),
         type: _selectedType,
         amount: amount,
@@ -131,6 +264,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         merchant: _merchantController.text,
         memo: _memoController.text,
         tags: _tags,
+        category: _selectedCategory, // 카테고리 정보 추가
       );
 
       // Transaction 객체에서 Firestore 데이터 형식 생성
@@ -235,7 +369,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                     const SizedBox(height: 32.0),
                     _buildRowWithButtons('분류', ['수입', '지출']),
                     const SizedBox(height: 32.0),
-                    _buildRowWithText('카테고리', '미분류'),
+                    _buildRowWithTextButton('카테고리', _selectedCategory),
                     const SizedBox(height: 24.0),
                     _buildRowWithInputController('거래처', '입력하세요', _merchantController),
                     const SizedBox(height: 24.0),
@@ -243,9 +377,9 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                     const SizedBox(height: 24.0),
                     _buildDateSelector('날짜', _formattedDate),
                     const SizedBox(height: 24.0),
-                    _buildRowWithInputController('메모', '입력하세요',_memoController),
+                    _buildRowWithInputController('메모', '입력하세요', _memoController),
                     const SizedBox(height: 24.0),
-                    _buildTagInput(), // 태그 입력란 추가
+                    _buildTagInput(),
                     const SizedBox(height: 40.0),
                     Center(
                       child: ElevatedButton(
@@ -303,7 +437,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                   hintStyle: const TextStyle(color: Colors.grey),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.add),
-                    onPressed: _addTag, // 태그 추가
+                    onPressed: _addTag,
                   ),
                 ),
               ),
@@ -316,7 +450,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
           children: _tags.map((tag) {
             return Chip(
               label: Text(tag),
-              onDeleted: () => _removeTag(tag), // 태그 삭제
+              onDeleted: () => _removeTag(tag),
             );
           }).toList(),
         ),
@@ -357,6 +491,26 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         Text(
           text,
           style: const TextStyle(color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  /// 클릭 가능한 텍스트 버튼이 있는 행 생성 (카테고리용)
+  Widget _buildRowWithTextButton(String title, String text) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        TextButton(
+          onPressed: _showCategoryDialog,
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.grey),
+          ),
         ),
       ],
     );
@@ -415,6 +569,8 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       onPressed: () {
         setState(() {
           _selectedType = text;
+          // 타입이 변경되면 기본 카테고리를 미분류로 설정
+          _selectedCategory = '미분류';
         });
       },
       style: OutlinedButton.styleFrom(
