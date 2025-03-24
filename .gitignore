@@ -46,3 +46,8 @@ app.*.map.json
 
 # FCM related
 /assets/data
+
+# Ohter OS
+/linux
+/macos
+/windows

@@ -39,7 +39,6 @@ dependencies:
   table_calendar:       #달력 패키지
   intl:
   provider: ^6.0.0
-
   smooth_page_indicator: ^1.1.0  # 최신 버전 확인 가능
 
 
@@ -53,6 +52,7 @@ dependencies:
   googleapis_auth: ^1.6.0
   flutter_local_notifications: ^18.0.1
   #ex) logger.d("디버깅 - 예시: $테스트값");
+  shared_preferences: ^2.3.4
 
 dev_dependencies:
   flutter_native_splash: ^2.3.4
