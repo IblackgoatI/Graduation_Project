@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'regist.dart'; // 회원가입 화면 (예시)
 import 'asset.dart';
 import 'pwreset.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 자동 로그인 상태 저장을 위한 패키지 추가
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,8 +22,59 @@ class _LoginScreenState extends State<LoginScreen> {
   // 비밀번호 표시 여부 상태
   bool _passwordVisible = false;
 
+  // 자동 로그인 상태 추가
+  bool _autoLogin = false;
+
   bool get _isLoginFormValid =>
       _idController.text.trim().isNotEmpty && _passwordController.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    // 저장된 자동 로그인 상태 확인
+    _loadAutoLoginPreference();
+  }
+
+  // 자동 로그인 상태 불러오기
+  Future<void> _loadAutoLoginPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _autoLogin = prefs.getBool('auto_login') ?? false;
+    });
+
+    // 자동 로그인이 활성화되어 있고 저장된 로그인 정보가 있다면 자동 로그인 시도
+    if (_autoLogin) {
+      final savedEmail = prefs.getString('saved_email');
+      final savedPassword = prefs.getString('saved_password');
+
+      if (savedEmail != null && savedPassword != null) {
+        _idController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        // 앱 시작 시 자동 로그인 시도를 위해 지연 실행
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _login();
+          }
+        });
+      }
+    }
+  }
+
+  // 자동 로그인 상태 저장
+  Future<void> _saveAutoLoginPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('auto_login', _autoLogin);
+
+    // 자동 로그인이 활성화된 경우에만 로그인 정보 저장
+    if (_autoLogin) {
+      await prefs.setString('saved_email', _idController.text.trim());
+      await prefs.setString('saved_password', _passwordController.text.trim());
+    } else {
+      // 자동 로그인 비활성화 시 저장된 정보 삭제
+      await prefs.remove('saved_email');
+      await prefs.remove('saved_password');
+    }
+  }
 
   @override
   void dispose() {
@@ -37,16 +89,15 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 자동 로그인 상태 저장
+      await _saveAutoLoginPreference();
+
       // FirebaseAuth를 통한 이메일/비밀번호 로그인 (아이디→가짜 이메일 기법 가능)
       final UserCredential userCredential =
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _idController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      debugPrint('User ID: ${userCredential.user?.uid}');
-      debugPrint('User Email: ${userCredential.user?.email}');
-      debugPrint('User Display Name: ${userCredential.user?.displayName}');
 
       // 로그인 성공 시 자산 화면으로 이동
       Navigator.of(context).pushReplacement(
@@ -161,7 +212,28 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         onChanged: (_) => setState(() {}),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+
+                      // 자동 로그인 체크박스 추가
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _autoLogin,
+                            activeColor: const Color(0xFF69B23F),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                _autoLogin = value ?? false;
+                              });
+                            },
+                          ),
+                          const Text(
+                            '자동 로그인',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          const Spacer(),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
 
                       // 로그인 버튼
                       SizedBox(
