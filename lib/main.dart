@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart'; // 인디케이터 패키지 추가
-import 'screens/regist.dart'; // ✅ regist_login.dart에서 HomeScreen 가져오기
-import 'package:firebase_core/firebase_core.dart'; // firebase_core 임포트
-import 'package:flutter_localizations/flutter_localizations.dart'; //한국어 추가
-import 'package:firebase_messaging/firebase_messaging.dart'; // FCM 패키지 추가
-import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // 로컬 알림 패키지 추가
-import 'package:provider/provider.dart'; // 🟢 Provider 추가
-import 'screens/transaction_provider.dart'; // 🟢 TransactionProvider 추가
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'screens/regist.dart';
+import 'screens/main_screen_nologin.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:provider/provider.dart';
+import 'screens/transaction_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 임포트
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -24,13 +26,13 @@ FlutterLocalNotificationsPlugin();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-      options: FirebaseOptions(
-        apiKey: "AIzaSyBWl9e_RC-aBdAr9Cu4K0Jard5vKT-8Jr4",
-        appId: "1:24911651038:android:8bf6958b484083afd0224f",
-        messagingSenderId: "24911651038",
-        projectId: "graduation-5caa0",
-      ),
-  ); // Firebase 초기화
+    options: FirebaseOptions(
+      apiKey: "AIzaSyBWl9e_RC-aBdAr9Cu4K0Jard5vKT-8Jr4",
+      appId: "1:24911651038:android:8bf6958b484083afd0224f",
+      messagingSenderId: "24911651038",
+      projectId: "graduation-5caa0",
+    ),
+  );
 
   // FCM 백그라운드 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -44,7 +46,7 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => TransactionProvider()), // 🟢 Provider 적용
+        ChangeNotifierProvider(create: (context) => TransactionProvider()),
       ],
       child: const MyApp(),
     ),
@@ -148,13 +150,69 @@ class MyApp extends StatelessWidget {
       ],
       // 기본 로케일 설정
       locale: const Locale('ko', 'KR'),
-      home: const SplashScreen(),
+      home: const AuthStateCheck(),
     );
   }
 }
 
+// 인증 상태 확인 위젯
+class AuthStateCheck extends StatefulWidget {
+  const AuthStateCheck({super.key});
 
-// 🟢 스플래시 화면
+  @override
+  State<AuthStateCheck> createState() => _AuthStateCheckState();
+}
+
+class _AuthStateCheckState extends State<AuthStateCheck> {
+  @override
+  void initState() {
+    super.initState();
+    // 인증 상태 확인 후 적절한 화면으로 리다이렉트
+    _checkAuthState();
+  }
+
+  Future<void> _checkAuthState() async {
+    // 현재 로그인된 사용자 정보 가져오기
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    // 잠시 로딩 화면을 보여주기 위한 딜레이
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      if (currentUser != null) {
+        // 로그인한 사용자가 있으면 메인 화면으로 이동
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => MainScreenNotLogin(user: currentUser)),
+        );
+      } else {
+        // 로그인한 사용자가 없으면 스플래시 화면으로 이동
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const SplashScreen()),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 로딩 화면
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: Colors.green),
+            SizedBox(height: 20),
+            Text('잠시만 기다려주세요...', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// 스플래시 화면
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -183,7 +241,7 @@ class _SplashScreenState extends State<SplashScreen> {
         children: [
           const Spacer(flex: 2), // 상단 여백
 
-          // 🟢 메인 텍스트
+          // 메인 텍스트
           Center(
             child: RichText(
               textAlign: TextAlign.center,
@@ -226,7 +284,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
           const SizedBox(height: 40),
 
-          // 🟢 로고 이미지
+          // 로고 이미지
           Center(
             child: Image.asset(
               'assets/piggy_bank.png',
@@ -236,7 +294,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
           const SizedBox(height: 20),
 
-          // 🟢 부린이 텍스트
+          // 부린이 텍스트
           const Text(
             '부린이',
             style: TextStyle(
@@ -249,7 +307,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
           const SizedBox(height: 10),
 
-          // 🟢 가계부 설명 텍스트
+          // 가계부 설명 텍스트
           const Text(
             '가계부가 처음인 당신에게',
             style: TextStyle(
@@ -266,7 +324,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// 🟢 온보딩 화면
+// 온보딩 화면
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -330,7 +388,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const Spacer(),
 
-          // 🔹 온보딩 콘텐츠를 위한 PageView
+          // 온보딩 콘텐츠를 위한 PageView
           Expanded(
             flex: 7,
             child: PageView.builder(
@@ -371,7 +429,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
 
-          // 🔹 인디케이터 추가
+          // 인디케이터 추가
           SmoothPageIndicator(
             controller: _pageController,
             count: onboardingData.length,
@@ -406,4 +464,3 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
-
