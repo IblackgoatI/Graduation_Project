@@ -150,64 +150,7 @@ class MyApp extends StatelessWidget {
       ],
       // 기본 로케일 설정
       locale: const Locale('ko', 'KR'),
-      home: const AuthStateCheck(),
-    );
-  }
-}
-
-// 인증 상태 확인 위젯
-class AuthStateCheck extends StatefulWidget {
-  const AuthStateCheck({super.key});
-
-  @override
-  State<AuthStateCheck> createState() => _AuthStateCheckState();
-}
-
-class _AuthStateCheckState extends State<AuthStateCheck> {
-  @override
-  void initState() {
-    super.initState();
-    // 인증 상태 확인 후 적절한 화면으로 리다이렉트
-    _checkAuthState();
-  }
-
-  Future<void> _checkAuthState() async {
-    // 현재 로그인된 사용자 정보 가져오기
-    User? currentUser = FirebaseAuth.instance.currentUser;
-
-    // 잠시 로딩 화면을 보여주기 위한 딜레이
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      if (currentUser != null) {
-        // 로그인한 사용자가 있으면 메인 화면으로 이동
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => MainScreenNotLogin(user: currentUser)),
-        );
-      } else {
-        // 로그인한 사용자가 없으면 스플래시 화면으로 이동
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const SplashScreen()),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // 로딩 화면
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Colors.green),
-            SizedBox(height: 20),
-            Text('잠시만 기다려주세요...', style: TextStyle(fontSize: 16)),
-          ],
-        ),
-      ),
+      home: const SplashScreen(),
     );
   }
 }
@@ -224,11 +167,32 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-      );
-    });
+
+    // 스플래시 화면을 보여주면서 동시에 인증 상태 확인
+    _checkAuthState();
+  }
+
+  // 인증 상태 확인 함수
+  Future<void> _checkAuthState() async {
+    // 최소 스플래시 화면 노출 시간 (1초)
+    await Future.delayed(const Duration(seconds: 1));
+
+    // 현재 로그인된 사용자 정보 가져오기
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (mounted) {
+      if (currentUser != null) {
+        // 로그인한 사용자가 있으면 메인 화면으로 이동
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => MainScreenNotLogin(user: currentUser)),
+        );
+      } else {
+        // 로그인한 사용자가 없으면 온보딩 화면으로 이동
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
+    }
   }
 
   @override
