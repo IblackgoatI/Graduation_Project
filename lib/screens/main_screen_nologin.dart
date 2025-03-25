@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'asset_detail_screen.dart'; // 자산 detail화면 import
 import 'account_book_screen.dart'; // 가계부 화면 import
 import 'community_screen.dart'; // 커뮤니티 화면 import
 import 'all_screen.dart'; // 전체 화면 import
@@ -313,92 +314,113 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   Widget _buildTotalAssetsCard() {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "총 자산",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AssetDetailScreen(
+              user: widget.user ?? FirebaseAuth.instance.currentUser,
             ),
-            const SizedBox(height: 16.0),
-            // 로딩 상태에 따라 다른 위젯 표시
-            _isLoading
-                ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF73AD13),
-              ),
-            )
-                : _userAccounts.isNotEmpty
-                ? Text(
-              "${numberFormat(_totalBalance)}원",
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-                : Column(
+          ),
+        ).then((_) => _loadUserAccounts());
+      },
+      child: SizedBox(
+        width: double.infinity, // 부모 위젯의 너비에 맞춤
+        child: Card(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "자산 미연결",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8.0),
-                const Text(
-                  "아직 자산이 연결되지 않았습니다.",
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                  "총 자산 >",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16.0),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            // 로딩 중이 아니고 계좌가 없을 때만 버튼 표시
-            if (!_isLoading && _userAccounts.isEmpty)
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // 계좌 연결하기 버튼 동작
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AssetScreen(
-                          user: widget.user ?? FirebaseAuth.instance.currentUser,
+                // 로딩 상태에 따라 다른 위젯 표시
+                _isLoading
+                    ? const Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF73AD13),
+                  ),
+                )
+                    : _userAccounts.isNotEmpty
+                    ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "${numberFormat(_totalBalance)}원",
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16.0),
+                  ],
+                )
+                    : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "자산 미연결",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 8.0),
+                    const Text(
+                      "아직 자산이 연결되지 않았습니다.",
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // 로딩 중이 아니고 계좌가 없을 때만 버튼 표시
+                if (!_isLoading && _userAccounts.isEmpty)
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // 계좌 연결하기 버튼 동작
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AssetScreen(
+                              user: widget.user ?? FirebaseAuth.instance.currentUser,
+                            ),
+                          ),
+                        ).then((returnedUser) {
+                          // 화면 복귀 시 계좌 정보 다시 로드
+                          _loadUserAccounts();
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF73AD13),
+                        minimumSize: const Size(400, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                    ).then((returnedUser) {
-                      // 화면 복귀 시 계좌 정보 다시 로드
-                      _loadUserAccounts();
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF73AD13),
-                    minimumSize: const Size(400, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      child: const Text(
+                        "계좌 연결하러 가기",
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
                     ),
                   ),
-                  child: const Text(
-                    "계좌 연결하러 가기",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+
 
   Widget _buildMonthlySpendingCard() {
     return SizedBox(
