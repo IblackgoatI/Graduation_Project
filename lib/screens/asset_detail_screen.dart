@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -168,15 +169,19 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // 자산 추가 화면으로 이동
-          // Navigator.push(
-          //   context,
-          //   MaterialPageRoute(builder: (context) => AddAssetScreen(user: widget.user))
-          // ).then((_) => _loadAssetData());
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AssetScreen(
+                user: widget.user ?? FirebaseAuth.instance.currentUser,
+              ),
+            ),
+          );
 
           // 임시로 스낵바 표시
-          ScaffoldMessenger.of(context).showSnackBar(
+          /*ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('자산 추가 기능 개발 중입니다')),
-          );
+          );*/
         },
         backgroundColor: const Color(0xFF73AD13),
         child: const Icon(Icons.add, color: Colors.white),
@@ -728,7 +733,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         const SizedBox(height: 16.0),
 
         // 계좌 목록
-        ...accounts.map((account) => _buildAccountItem(account)).toList(),
+        ...accounts.map((account) => _buildAccountItem(account)),
 
         const SizedBox(height: 8.0),
         const Divider(),

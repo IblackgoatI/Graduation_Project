@@ -214,27 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 자동 로그인 체크박스 추가
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _autoLogin,
-                            activeColor: const Color(0xFF69B23F),
-                            onChanged: (bool? value) {
-                              setState(() {
-                                _autoLogin = value ?? false;
-                              });
-                            },
-                          ),
-                          const Text(
-                            '자동 로그인',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          const Spacer(),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
                       // 로그인 버튼
                       SizedBox(
                         width: double.infinity,

@@ -273,40 +273,37 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                   style: TextStyle(fontSize: 18, color: Colors.grey),
                 ),
                 const SizedBox(height: 16.0),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            // 로딩 중이 아닐 때만 버튼 표시
-            if (!_isLoading)
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // 계좌 연결하기 버튼 동작
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AssetScreen(
-                          user: widget.user ?? FirebaseAuth.instance.currentUser,
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // 계좌 연결하기 버튼 동작
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AssetScreen(
+                            user: widget.user ?? FirebaseAuth.instance.currentUser,
+                          ),
                         ),
+                      ).then((returnedUser) {
+                        // 화면 복귀 시 계좌 정보 다시 로드
+                        _loadUserAccounts();
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF73AD13),
+                      minimumSize: const Size(400, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ).then((returnedUser) {
-                      // 화면 복귀 시 계좌 정보 다시 로드
-                      _loadUserAccounts();
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF73AD13),
-                    minimumSize: const Size(400, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      "계좌 연결하러 가기",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
-                  child: Text(
-                    _userAccounts.isNotEmpty ? "계좌 추가하기" : "계좌 연결하러 가기",
-                    style: const TextStyle(fontSize: 16, color: Colors.white),
-                  ),
                 ),
-              ),
+              ],
+            ),
           ],
         ),
       ),
