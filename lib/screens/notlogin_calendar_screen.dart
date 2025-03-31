@@ -6,43 +6,57 @@ import 'transaction_provider.dart';
 import 'transaction.dart';
 
 class NotloginCalendarScreen extends StatefulWidget {
-  final int selectedMonth; // 선택된 월을 받을 매개변수 추가
+  final int selectedMonth;
 
   const NotloginCalendarScreen({
     super.key,
-    this.selectedMonth = 0, // 기본값은 0으로 설정 (0이면 현재 월 사용)
+    this.selectedMonth = 0,
   });
 
   @override
   NotloginCalendarScreenState createState() => NotloginCalendarScreenState();
 }
 
-class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
+class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with SingleTickerProviderStateMixin {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   late DateTime _focusedDay;
   DateTime? _selectedDay;
 
+  // 하단 시트용 애니메이션 컨트롤러
+  late AnimationController _bottomSheetController;
+  late Animation<double> _bottomSheetAnimation;
+
   @override
   void initState() {
     super.initState();
-    // 부모 위젯에서 전달받은 월을 사용하거나 현재 월을 사용
+    // 애니메이션 컨트롤러 초기화
+    _bottomSheetController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    // 슬라이드 애니메이션 생성
+    _bottomSheetAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _bottomSheetController,
+        curve: Curves.easeOutQuad,
+      ),
+    );
+
+    // 포커스된 날짜 설정
     if (widget.selectedMonth > 0) {
       _focusedDay = DateTime(DateTime.now().year, widget.selectedMonth, 1);
     } else {
       _focusedDay = DateTime.now();
     }
-    _selectedDay = _focusedDay; // 초기 선택 날짜 설정
+    _selectedDay = _focusedDay;
   }
 
   @override
-  void didUpdateWidget(NotloginCalendarScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 부모 위젯에서 전달한 월이 변경되었을 때 업데이트
-    if (widget.selectedMonth > 0 && widget.selectedMonth != oldWidget.selectedMonth) {
-      setState(() {
-        _focusedDay = DateTime(DateTime.now().year, widget.selectedMonth, 1);
-      });
-    }
+  void dispose() {
+    // 애니메이션 컨트롤러 해제
+    _bottomSheetController.dispose();
+    super.dispose();
   }
 
   // Provider에서 특정 날짜의 거래 내역 가져오기
@@ -79,17 +93,137 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
     ).format(amount);
   }
 
+  // 새로운 메서드: 애니메이션이 있는 하단 시트로 거래 내역 표시
+  void _showTransactionBottomSheet(BuildContext context, DateTime selectedDay, TransactionProvider transactionProvider) {
+    final transactions = _getEventsForDay(selectedDay, transactionProvider);
+
+    if (transactions.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (BuildContext context) {
+        return GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          behavior: HitTestBehavior.opaque,
+          child: GestureDetector(
+            onTap: () {},
+            child: AnimatedBuilder(
+              animation: _bottomSheetController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, MediaQuery.of(context).size.height * _bottomSheetAnimation.value),
+                  child: child,
+                );
+              },
+              child: DraggableScrollableSheet(
+                initialChildSize: 0.5,
+                minChildSize: 0.25,
+                maxChildSize: 0.9,
+                builder: (_, controller) {
+                  return Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 6,
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Text(
+                            '${DateFormat('M월 d일').format(selectedDay)} 거래 내역',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            controller: controller,
+                            itemCount: transactions.length,
+                            itemBuilder: (context, index) {
+                              final transaction = transactions[index];
+                              final formattedAmount = _formatAmount(transaction.amount.toInt());
+
+                              return ListTile(
+                                title: Text(
+                                  '${transaction.type == '수입' ? '+' : '-'}$formattedAmount원',
+                                  style: TextStyle(
+                                    color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: transaction.merchant.isNotEmpty
+                                    ? Text(transaction.merchant)
+                                    : null,
+                                trailing: transaction.tags.isNotEmpty
+                                    ? Wrap(
+                                  children: transaction.tags.take(2).map((tag) =>
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 4.0),
+                                        child: Chip(
+                                          label: Text(tag, style: const TextStyle(fontSize: 10)),
+                                          padding: EdgeInsets.zero,
+                                          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                                        ),
+                                      )
+                                  ).toList(),
+                                )
+                                    : null,
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      _bottomSheetController.reset();
+    });
+
+    _bottomSheetController.forward();
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Provider로부터 트랜잭션 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
 
     return Scaffold(
       body: Column(
         children: [
-          // 달력 표시 (높이 제한)
+          // 캘린더
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.55, // 화면 높이의 55%로 제한
+            height: MediaQuery.of(context).size.height * 0.55,
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
@@ -104,6 +238,9 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
                   _selectedDay = selectedDay;
                   _focusedDay = focusedDay;
                 });
+
+                // 날짜 선택 시 하단 시트 표시
+                _showTransactionBottomSheet(context, selectedDay, transactionProvider);
               },
               onFormatChanged: (format) {
                 setState(() {
@@ -115,7 +252,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
                   _focusedDay = focusedDay;
                 });
               },
-              rowHeight: 55, //달력 셀의 높이 설정
+              rowHeight: 55, // 달력 셀의 높이 설정
               calendarStyle: const CalendarStyle(
                 todayDecoration: BoxDecoration(
                   color: Colors.blue,
@@ -280,53 +417,6 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> {
               ),
             ),
           ),
-
-          // 선택된 날짜의 거래 내역 상세
-          if (_selectedDay != null)
-            Expanded(
-              child: _getEventsForDay(_selectedDay!, transactionProvider).isEmpty
-                  ? const Center(
-                child: Text(
-                  '이 날짜에는 거래 내역이 없습니다.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              )
-                  : ListView.builder(
-                itemCount: _getEventsForDay(_selectedDay!, transactionProvider).length,
-                itemBuilder: (context, index) {
-                  final transaction = _getEventsForDay(_selectedDay!, transactionProvider)[index];
-                  final formattedAmount = _formatAmount(transaction.amount.toInt());
-
-                  return ListTile(
-                    title: Text(
-                      '${transaction.type == '수입' ? '+' : '-'}$formattedAmount원',
-                      style: TextStyle(
-                        color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: transaction.merchant.isNotEmpty
-                        ? Text(transaction.merchant)
-                        : null,
-                    // 태그 표시
-                    trailing: transaction.tags.isNotEmpty
-                        ? Wrap(
-                      children: transaction.tags.take(2).map((tag) =>
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4.0),
-                            child: Chip(
-                              label: Text(tag, style: const TextStyle(fontSize: 10)),
-                              padding: EdgeInsets.zero,
-                              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                            ),
-                          )
-                      ).toList(),
-                    )
-                        : null,
-                  );
-                },
-              ),
-            ),
         ],
       ),
     );
