@@ -20,9 +20,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   bool _isLoading = true;
   List<FinancialTransaction> _transactions = [];
 
-  // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // Firebase Auth 인스턴스
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
@@ -32,24 +30,20 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     loadTransactions();
   }
 
-  // Firestore에서 현재 로그인한 사용자의 거래 내역을 불러오는 메서드
   Future<void> loadTransactions() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 현재 로그인된 사용자 정보 (없으면 "anonymous" 사용)
       String userId = _auth.currentUser?.uid ?? 'anonymous';
 
-      // userId가 일치하는 문서만 조회
       QuerySnapshot querySnapshot = await _firestore
           .collection('ledger')
           .where('userId', isEqualTo: userId)
           .orderBy('date', descending: true)
           .get();
 
-      // 트랜잭션 리스트 생성
       List<FinancialTransaction> transactions = querySnapshot.docs.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
@@ -71,7 +65,6 @@ class NotloginListScreenState extends State<NotloginListScreen> {
         _isLoading = false;
       });
 
-      // Provider에도 트랜잭션 목록 업데이트
       Provider.of<TransactionProvider>(context, listen: false)
           .setTransactions(transactions);
 
@@ -81,6 +74,13 @@ class NotloginListScreenState extends State<NotloginListScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // 트랜잭션 삭제 메서드 추가
+  void _deleteTransaction(String transactionId) {
+    setState(() {
+      _transactions.removeWhere((transaction) => transaction.id == transactionId);
+    });
   }
 
   @override
@@ -167,7 +167,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
                       child: Text(
-                        entry.key, // 날짜 한 번만 출력
+                        entry.key,
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -178,11 +178,14 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                     ...entry.value.map((transaction) {
                       return InkWell(
                         onTap: () {
-                          // 거래 내역 상세 화면으로 이동
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => TransactionDetailScreen(transaction: transaction),
+                              builder: (context) => TransactionDetailScreen(
+                                transaction: transaction,
+                                // 삭제 콜백 전달
+                                onTransactionDeleted: _deleteTransaction,
+                              ),
                             ),
                           );
                         },

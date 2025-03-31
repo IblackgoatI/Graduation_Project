@@ -5,8 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final FinancialTransaction transaction;
+  final Function(String)? onTransactionDeleted; // 콜백 추가
 
-  const TransactionDetailScreen({Key? key, required this.transaction}) : super(key: key);
+  const TransactionDetailScreen({
+    Key? key,
+    required this.transaction,
+    this.onTransactionDeleted
+  }) : super(key: key);
 
   @override
   TransactionDetailScreenState createState() => TransactionDetailScreenState();
@@ -210,12 +215,15 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
       // Firestore에서 해당 문서 삭제
       await _firestore.collection('ledger').doc(widget.transaction.id).delete();
 
+      // 콜백 함수 호출 (삭제된 트랜잭션의 ID 전달)
+      widget.onTransactionDeleted?.call(widget.transaction.id);
+
       // 화면 닫기
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('거래 내역이 삭제되었습니다.')),
         );
-        Navigator.pop(context, true); // true를 반환하여 목록 화면에서 새로고침을 트리거
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
