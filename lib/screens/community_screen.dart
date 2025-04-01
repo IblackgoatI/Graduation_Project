@@ -29,24 +29,6 @@ class _CommunityScreenState extends State<CommunityScreen>
       appBar: AppBar(
         title: const Text('부린이님',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          Row(
-            children: [
-              Text('5:13 PM', style: TextStyle(fontSize: 14)),
-              SizedBox(width: 8),
-              Icon(Icons.access_time, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.bluetooth, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.wifi, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.signal_cellular_4_bar, size: 16),
-              SizedBox(width: 4),
-              Icon(Icons.battery_full, size: 16),
-              SizedBox(width: 16),
-            ],
-          ),
-        ],
       ),
       body: Column(
         children: [
