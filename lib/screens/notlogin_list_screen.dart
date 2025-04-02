@@ -95,179 +95,186 @@ class NotloginListScreenState extends State<NotloginListScreen> {
       groupedTransactions[formattedDate]!.add(transaction);
     }
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: [
-              const Text(
-                '태그 표시',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 8.0),
-              Container(
-                decoration: BoxDecoration(
-                  color: _showTags ? Colors.green : Colors.white,
-                  borderRadius: BorderRadius.circular(4.0),
-                  border: Border.all(
-                    color: _showTags ? Colors.green : Colors.grey,
-                    width: 1.0,
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                const Text(
+                  '태그 표시',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _showTags = !_showTags;
-                    });
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: Icon(
-                      Icons.check,
-                      size: 18.0,
-                      color: _showTags ? Colors.white : Colors.transparent,
+                const SizedBox(width: 8.0),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _showTags ? Colors.green : Colors.white,
+                    borderRadius: BorderRadius.circular(4.0),
+                    border: Border.all(
+                      color: _showTags ? Colors.green : Colors.grey,
+                      width: 1.0,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        _isLoading
-            ? const Expanded(
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        )
-            : _transactions.isEmpty
-            ? const Expanded(
-          child: Center(
-            child: Text(
-              '거래 내역이 없습니다.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-        )
-            : Expanded(
-          child: RefreshIndicator(
-            onRefresh: loadTransactions,
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: groupedTransactions.entries.map((entry) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Text(
-                        entry.key,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showTags = !_showTags;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(2.0),
+                      child: Icon(
+                        Icons.check,
+                        size: 18.0,
+                        color: _showTags ? Colors.white : Colors.transparent,
                       ),
                     ),
-                    ...entry.value.map((transaction) {
-                      return InkWell(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TransactionDetailScreen(
-                                transaction: transaction,
-                                // 삭제 콜백 전달
-                                onTransactionDeleted: _deleteTransaction,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8.0),
-                          padding: const EdgeInsets.all(12.0),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withAlpha(26),
-                                spreadRadius: 1,
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                height: 40,
-                                alignment: Alignment.center,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      transaction.merchant,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey[800],
-                                      ),
-                                    ),
-                                    Text(
-                                      '${transaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(transaction.amount)}원',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // 태그 표시 애니메이션
-                              AnimatedCrossFade(
-                                duration: const Duration(milliseconds: 300),
-                                crossFadeState: _showTags && transaction.tags.isNotEmpty
-                                    ? CrossFadeState.showFirst
-                                    : CrossFadeState.showSecond,
-                                firstChild: Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 300),
-                                    opacity: _showTags ? 1 : 0,
-                                    child: Wrap(
-                                      spacing: 8.0,
-                                      children: transaction.tags.map((tag) {
-                                        return Chip(
-                                          label: Text(tag),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ),
-                                ),
-                                secondChild: const SizedBox.shrink(),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ],
-                );
-              }).toList(),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+          _isLoading
+              ? const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+              : _transactions.isEmpty
+              ? const Expanded(
+            child: Center(
+              child: Text(
+                '거래 내역이 없습니다.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+              : Expanded(
+            child: RefreshIndicator(
+              onRefresh: loadTransactions,
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: groupedTransactions.entries.map((entry) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Text(
+                          entry.key,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                      ),
+                      ...entry.value.map((transaction) {
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TransactionDetailScreen(
+                                  transaction: transaction,
+                                  // 삭제 콜백 전달
+                                  onTransactionDeleted: _deleteTransaction,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8.0),
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24.0),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withAlpha(26),
+                                  spreadRadius: 1,
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  height: 40,
+                                  alignment: Alignment.center,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        transaction.merchant,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.grey[800],
+                                        ),
+                                      ),
+                                      Text(
+                                        '${transaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(transaction.amount)}원',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: transaction.type == '수입' ? const Color(0xFF73AD13) : Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // 태그 표시 애니메이션
+                                AnimatedCrossFade(
+                                  duration: const Duration(milliseconds: 300),
+                                  crossFadeState: _showTags && transaction.tags.isNotEmpty
+                                      ? CrossFadeState.showFirst
+                                      : CrossFadeState.showSecond,
+                                  firstChild: Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: AnimatedOpacity(
+                                      duration: const Duration(milliseconds: 300),
+                                      opacity: _showTags ? 1 : 0,
+                                      child: Wrap(
+                                        spacing: 8.0,
+                                        children: transaction.tags.map((tag) {
+                                          return Text(
+                                            '#$tag',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                  secondChild: const SizedBox.shrink(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
