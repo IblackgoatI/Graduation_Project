@@ -26,7 +26,9 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        backgroundColor: Colors.grey[50],
         title: const Text('부린이님',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),

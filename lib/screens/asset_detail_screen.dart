@@ -121,7 +121,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        backgroundColor: Colors.grey[50],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.of(context).pop(),

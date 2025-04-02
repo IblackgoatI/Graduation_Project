@@ -112,9 +112,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
     ];
 
     return Scaffold(
+      backgroundColor: Colors.grey[50], // 연한 회색 배경 추가
       appBar: _selectedIndex == 0
           ? AppBar(
         title: const Text('금융 대시보드'),
+        backgroundColor: Colors.grey[50], // AppBar도 동일한 배경색 적용
       )
           : null, // 메인 화면에서만 AppBar 표시
       body: widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
@@ -459,6 +461,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   Widget _buildMonthlyReportCard() {
+    // 현재 월 가져오기
+    final currentMonth = DateTime.now().month;
+    final monthInKorean = '$currentMonth월';
+
     return SizedBox(
       width: double.infinity, // 부모 위젯의 너비에 맞춤
       child: Card(
@@ -471,9 +477,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "부린이님의 1월 소비 리포트",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                "부린이님의 $monthInKorean 소비 리포트",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20.0),
               // 소비 그래프 영역
@@ -491,11 +497,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                 ),
               ),
               const SizedBox(height: 20.0),
-              // 1월 총 소비 (부드러운 밑줄 추가)
-              const Center(
+              // 현재 월 총 소비
+              Center(
                 child: Text(
-                  "1월 총 소비 0원",
-                  style: TextStyle(
+                  "$monthInKorean 총 소비 0원",
+                  style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
                     decoration: TextDecoration.underline, // 밑줄 추가

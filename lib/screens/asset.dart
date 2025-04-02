@@ -333,15 +333,15 @@ class _AssetScreenState extends State<AssetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.grey[50],
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: _prevPage,
         ),
       ),
-      backgroundColor: Colors.white,
       bottomNavigationBar: AnimatedPadding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         duration: const Duration(milliseconds: 10),

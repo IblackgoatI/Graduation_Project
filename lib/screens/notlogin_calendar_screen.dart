@@ -219,6 +219,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with Sin
     final transactionProvider = Provider.of<TransactionProvider>(context);
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: Column(
         children: [
           // 캘린더

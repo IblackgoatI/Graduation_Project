@@ -431,7 +431,9 @@ void dispose() {
 @override
 Widget build(BuildContext context) {
   return Scaffold(
+    backgroundColor: Colors.grey[50],
     appBar: AppBar(
+      backgroundColor: Colors.grey[50],
       leading: _currentPage > 0
           ? IconButton(
         icon: const Icon(Icons.arrow_back),

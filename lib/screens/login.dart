@@ -133,8 +133,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 회원가입 화면처럼 AppBar를 둬서 상단 위치를 동일하게 맞춤
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        backgroundColor: Colors.grey[50],
         elevation: 0,
       ),
       body: GestureDetector(
