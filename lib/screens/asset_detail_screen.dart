@@ -286,17 +286,51 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 공통 카드 스타일 - 모든 카드에 일관된 높이와 그림자 적용
+// 공통 카드 스타일
   Widget _buildStandardCard({required Widget child}) {
     return Card(
-      elevation: 4, // 그림자 강화
+      elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),
       child: Container(
-        height: 200, // 모든 카드의 높이를 고정값으로 설정
+        height: 180,
         padding: const EdgeInsets.all(16.0),
         child: child,
+      ),
+    );
+  }
+
+// 막대 그래프 위젯
+  Widget _buildBarGraph(String month, double amount, Color color, double heightPercent) {
+    return SizedBox(
+      width: 28, // 전체 너비 제한
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 20, // 막대 너비 감소
+            height: heightPercent,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+                bottom: Radius.circular(10),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4), // 간격 축소
+          FittedBox( // 텍스트 오버플로우 방지
+            fit: BoxFit.scaleDown,
+            child: Text(
+              month,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -316,15 +350,23 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             ),
           ),
           const Spacer(),
-
-          // 월별 표시
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildMonthCircle('11월', Colors.grey.shade300, Colors.grey),
-              _buildMonthCircle('12월', Colors.grey.shade300, Colors.grey),
-              _buildMonthCircle('1월', Colors.blue, Colors.white),
-            ],
+          
+          // 막대 그래프와 월 표시를 포함하는 컨테이너
+          SizedBox(
+            height: 100,
+            child: Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _buildBarGraph('11월', 150, Color.fromRGBO(158, 158, 158, 0.3), 50),
+                  const SizedBox(width: 12),
+                  _buildBarGraph('12월', 180, Color.fromRGBO(158, 158, 158, 0.3), 65),
+                  const SizedBox(width: 12),
+                  _buildBarGraph('1월', 200, const Color(0xFF73AD13), 80),
+                ],
+              ),
+            ),
           ),
 
           const Spacer(),
@@ -332,41 +374,18 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '200만원',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ),
-          const Spacer(),
         ],
       ),
     );
   }
 
-// 월 원형 표시 위젯
-  Widget _buildMonthCircle(String month, Color bgColor, Color textColor) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: bgColor,
-        shape: BoxShape.circle,
-      ),
-      child: Center(
-        child: Text(
-          month,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
-// 이번 달 지출 카드 (파이 차트)
+// 이번 달 지출 카드 (도넛 차트)
   Widget _buildMonthlyExpenseCard() {
     return _buildStandardCard(
       child: Column(
@@ -380,39 +399,74 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               color: Colors.black87,
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
 
-          // 파이 차트
-          Center(
-            child: SizedBox(
-              height: 100,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CustomPaint(
-                    size: const Size(100, 100),
-                    painter: PieChartPainter(),
+          // 도넛 차트와 범례
+          Expanded(
+            child: Row(
+              children: [
+                // 도넛 차트
+                Expanded(
+                  child: CustomPaint(
+                    painter: DonutChartPainter(),
                   ),
-                ],
-              ),
+                ),
+                // 범례
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLegendItem('식비', '33%', Colors.blue),
+                      const SizedBox(height: 4),
+                      _buildLegendItem('여행', '25%', Colors.green),
+                      const SizedBox(height: 4),
+                      _buildLegendItem('쇼핑', '25%', Colors.orange),
+                      const SizedBox(height: 4),
+                      _buildLegendItem('기타', '17%', Colors.red),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
 
-          // 지출 합계
-          const Spacer(),
           Center(
             child: Text(
               '70만원',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
             ),
           ),
-          const Spacer(),
         ],
       ),
+    );
+  }
+
+  // 범례 아이템 위젯
+  Widget _buildLegendItem(String label, String percentage, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$label $percentage',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -454,7 +508,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '고정지출 추가',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 13,
               ),
             ),
           ),
@@ -501,7 +555,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '월 예산 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 13,
               ),
             ),
           ),
@@ -529,7 +583,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '0원',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -550,7 +604,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '월 목표 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 13,
               ),
             ),
           ),
@@ -578,7 +632,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '0원',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -599,7 +653,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '계좌 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 13,
               ),
             ),
           ),
@@ -833,23 +887,24 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   }
 }
 
-class PieChartPainter extends CustomPainter {
+class DonutChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    final double strokeWidth = size.width * 0.2;
     Paint paint = Paint()
-      ..style = PaintingStyle.fill
-      ..strokeWidth = 1;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
 
-    double radius = size.width / 2;
+    double radius = (size.width - strokeWidth) / 2;
     Offset center = Offset(size.width / 2, size.height / 2);
 
     // 식비 33%
     paint.color = Colors.blue;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      0,
+      -0.5 * 3.14,
       0.33 * 2 * 3.14,
-      true,
+      false,
       paint,
     );
 
@@ -857,9 +912,9 @@ class PieChartPainter extends CustomPainter {
     paint.color = Colors.green;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      0.33 * 2 * 3.14,
+      0.33 * 2 * 3.14 - 0.5 * 3.14,
       0.25 * 2 * 3.14,
-      true,
+      false,
       paint,
     );
 
@@ -867,9 +922,9 @@ class PieChartPainter extends CustomPainter {
     paint.color = Colors.orange;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      (0.33 + 0.25) * 2 * 3.14,
+      (0.33 + 0.25) * 2 * 3.14 - 0.5 * 3.14,
       0.25 * 2 * 3.14,
-      true,
+      false,
       paint,
     );
 
@@ -877,9 +932,9 @@ class PieChartPainter extends CustomPainter {
     paint.color = Colors.red;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
-      (0.33 + 0.25 + 0.25) * 2 * 3.14,
+      (0.33 + 0.25 + 0.25) * 2 * 3.14 - 0.5 * 3.14,
       0.17 * 2 * 3.14,
-      true,
+      false,
       paint,
     );
   }
