@@ -27,6 +27,14 @@ class TransactionProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateTransaction(FinancialTransaction updatedTransaction) {
+    final index = _transactions.indexWhere((t) => t.id == updatedTransaction.id);
+    if (index != -1) {
+      _transactions[index] = updatedTransaction;
+      notifyListeners();
+    }
+  }
+
   void removeTransaction(String id) {
     _transactions.removeWhere((transaction) => transaction.id == id);
     notifyListeners();

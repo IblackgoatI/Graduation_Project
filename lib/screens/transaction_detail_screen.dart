@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'transaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'transaction_provider.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final FinancialTransaction transaction;
@@ -19,13 +21,58 @@ class TransactionDetailScreen extends StatefulWidget {
 
 class TransactionDetailScreenState extends State<TransactionDetailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isEditing = false;
+  late String _type;
+  late String _category;
+  late String _merchant;
+  late DateTime _date;
+  late String _memo;
+  late List<String> _tags;
+  final TextEditingController _merchantController = TextEditingController();
+  final TextEditingController _memoController = TextEditingController();
+  final TextEditingController _tagController = TextEditingController();
+
+  // 수입 카테고리 목록
+  final List<String> _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
+  // 지출 카테고리 목록
+  final List<String> _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남'];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeValues();
+  }
+
+  void _initializeValues() {
+    _type = widget.transaction.type;
+    _category = widget.transaction.category;
+    _merchant = widget.transaction.merchant;
+    _date = widget.transaction.date;
+    _memo = widget.transaction.memo;
+    _tags = List<String>.from(widget.transaction.tags);
+    _merchantController.text = _merchant;
+    _memoController.text = _memo;
+  }
+
+  @override
+  void dispose() {
+    _merchantController.dispose();
+    _memoController.dispose();
+    _tagController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Provider를 통해 현재 거래 내역 상태 감시
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final currentTransaction = transactionProvider.transactions
+        .firstWhere((t) => t.id == widget.transaction.id, orElse: () => widget.transaction);
+
     // 금액 표시 형식 설정
-    String amountText = '${widget.transaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(widget.transaction.amount)}원';
+    String amountText = '${currentTransaction.type == '수입' ? '+' : '-'}${NumberFormat('#,###').format(currentTransaction.amount)}원';
     String formattedDate = DateFormat('yyyy년 M월 d일 a h:mm', 'ko_KR')
-        .format(widget.transaction.date)
+        .format(_isEditing ? _date : currentTransaction.date)
         .replaceAll('AM', '오전')
         .replaceAll('PM', '오후');
 
@@ -74,24 +121,24 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: widget.transaction.type == '수입' ? Colors.green : Colors.black,
+                          color: currentTransaction.type == '수입' ? Colors.green : Colors.black,
                         ),
                       ),
                     ),
                     const SizedBox(height: 32.0),
-                    _buildDetailRow('분류', widget.transaction.type),
+                    _buildDetailRow('분류', currentTransaction.type),
                     const SizedBox(height: 24.0),
-                    _buildDetailRow('카테고리', widget.transaction.category),
+                    _buildDetailRow('카테고리', currentTransaction.category),
                     const SizedBox(height: 24.0),
-                    _buildDetailRow('거래처', widget.transaction.merchant),
+                    _buildDetailRow('거래처', currentTransaction.merchant),
                     const SizedBox(height: 24.0),
-                    _buildDetailRow('결제수단', widget.transaction.paymentMethod.isNotEmpty ? widget.transaction.paymentMethod : '없음'),
+                    _buildDetailRow('결제수단', currentTransaction.paymentMethod.isNotEmpty ? currentTransaction.paymentMethod : '없음'),
                     const SizedBox(height: 24.0),
                     _buildDetailRow('날짜', formattedDate),
                     const SizedBox(height: 24.0),
-                    _buildDetailRow('메모', widget.transaction.memo.isNotEmpty ? widget.transaction.memo : '없음'),
+                    _buildDetailRow('메모', currentTransaction.memo.isNotEmpty ? currentTransaction.memo : '없음'),
                     const SizedBox(height: 24.0),
-                    _buildTagsSection(widget.transaction.tags),
+                    _buildTagsSection(currentTransaction.tags),
                     const SizedBox(height: 40.0),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -99,35 +146,47 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // 수정 화면으로 이동하는 코드
-                              // Navigator.push(...);
+                              if (_isEditing) {
+                                _updateTransaction();
+                              } else {
+                                setState(() {
+                                  _isEditing = true;
+                                });
+                              }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[200],
+                              backgroundColor: _isEditing ? const Color(0xFF73AD13) : Colors.grey[200],
                               foregroundColor: Colors.black,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                             ),
-                            child: const Text('수정'),
+                            child: Text(_isEditing ? '저장' : '수정'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () {
-                              _showDeleteConfirmation();
-                            },
+                            onPressed: _isEditing
+                                ? () {
+                                    setState(() {
+                                      _isEditing = false;
+                                      _initializeValues();
+                                    });
+                                  }
+                                : () {
+                                    _showDeleteConfirmation();
+                                  },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                              backgroundColor: _isEditing ? Colors.grey[200] : Colors.red,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
                               ),
                             ),
-                            child: const Text('삭제'),
+                            child: Text(_isEditing ? '취소' : '삭제'),
                           ),
                         ),
                       ],
@@ -142,43 +201,392 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
     );
   }
 
-  // 상세 정보 행 위젯
-  Widget _buildDetailRow(String title, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          value,
-          style: const TextStyle(color: Colors.grey),
-        ),
-      ],
+  // 수정 모드에서 사용할 다이얼로그
+  void _showTypeDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _type = '수입';
+                              // 분류가 변경되면 카테고리 초기화
+                              _category = '미분류';
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _type == '수입' ? Colors.black : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '수입',
+                                style: TextStyle(
+                                  fontWeight: _type == '수입' ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _type = '지출';
+                              // 분류가 변경되면 카테고리 초기화
+                              _category = '미분류';
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: _type == '지출' ? Colors.black : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '지출',
+                                style: TextStyle(
+                                  fontWeight: _type == '지출' ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).then((value) {
+      // 바텀시트가 닫힌 후 메인 화면의 상태 업데이트
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  // 카테고리 선택 다이얼로그
+  void _showCategoryDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '카테고리 선택',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 4,
+                  childAspectRatio: 1.0,
+                  padding: const EdgeInsets.all(4.0),
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  shrinkWrap: true,
+                  children: (_type == '수입' ? _incomeCategories : _expenseCategories).map((category) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        if (mounted) {
+                          setState(() {
+                            _category = category;
+                          });
+                        }
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _category == category ? Colors.grey[200] : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              category,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: _category == category ? FontWeight.bold : FontWeight.normal,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // 태그 섹션 위젯
-  Widget _buildTagsSection(List<String> tags) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '태그',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  // 상세 정보 행 위젯
+  Widget _buildDetailRow(String title, String value) {
+    if (!_isEditing) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ],
+      );
+    } else {
+      Widget? editWidget;
+      switch (title) {
+        case '분류':
+          editWidget = Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildTypeButton('수입'),
+              const SizedBox(width: 8),
+              _buildTypeButton('지출'),
+            ],
+          );
+          break;
+        case '카테고리':
+          editWidget = GestureDetector(
+            onTap: _showCategoryDialog,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _category,
+                style: const TextStyle(color: Colors.black87),
+              ),
+            ),
+          );
+          break;
+        case '거래처':
+          editWidget = TextField(
+            controller: _merchantController,
+            decoration: const InputDecoration(
+              hintText: '거래처 입력',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
+            ),
+          );
+          break;
+        case '결제수단':
+          editWidget = const Text(
+            '선택해주세요',
+            style: TextStyle(color: Colors.grey),
+          );
+          break;
+        case '날짜':
+          editWidget = GestureDetector(
+            onTap: () => _selectDateTime(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                DateFormat('yyyy년 M월 d일 a h:mm', 'ko_KR')
+                  .format(_date)
+                  .replaceAll('AM', '오전')
+                  .replaceAll('PM', '오후'),
+                style: const TextStyle(color: Colors.black87),
+              ),
+            ),
+          );
+          break;
+        case '메모':
+          editWidget = TextField(
+            controller: _memoController,
+            decoration: const InputDecoration(
+              hintText: '메모 입력',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
+            ),
+          );
+          break;
+      }
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          if (editWidget != null)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16.0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: editWidget,
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+  }
+
+  // 분류 버튼 위젯
+  Widget _buildTypeButton(String type) {
+    final isSelected = _type == type;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _type = type;
+          _category = '미분류';
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF73AD13) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(8.0),
         ),
-        const SizedBox(height: 8.0),
-        Wrap(
-          spacing: 8.0,
-          children: tags.map((tag) {
-            return Chip(
-              label: Text(tag),
-            );
-          }).toList(),
+        child: Text(
+          type,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
-      ],
+      ),
     );
+  }
+
+  // 날짜 선택 다이얼로그
+  void _selectDateTime(BuildContext context) async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_date),
+    );
+
+    if (pickedTime != null) {
+      final DateTime? pickedDate = await showDatePicker(
+        context: context,
+        initialDate: _date,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2101),
+      );
+
+      if (pickedDate != null && mounted) {
+        setState(() {
+          _date = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
+      }
+    }
+  }
+
+  // 거래 내역 수정 메서드
+  Future<void> _updateTransaction() async {
+    try {
+      // 먼저 Provider를 통해 UI 업데이트
+      final updatedTransaction = FinancialTransaction(
+        id: widget.transaction.id,
+        type: _type,
+        amount: widget.transaction.amount,
+        date: _date,
+        merchant: _merchantController.text,
+        memo: _memoController.text,
+        tags: _tags,
+        category: _category,
+        paymentMethod: widget.transaction.paymentMethod,
+      );
+
+      if (mounted) {
+        Provider.of<TransactionProvider>(context, listen: false)
+            .updateTransaction(updatedTransaction);
+      }
+
+      // Firestore 업데이트
+      await _firestore.collection('ledger').doc(widget.transaction.id).update({
+        'type': _type,
+        'category': _category,
+        'merchant': _merchantController.text,
+        'date': _date,
+        'memo': _memoController.text,
+        'tags': _tags,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('거래 내역이 수정되었습니다.')),
+        );
+        setState(() {
+          _isEditing = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('수정 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
   }
 
   // 삭제 확인 다이얼로그
@@ -232,5 +640,82 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         );
       }
     }
+  }
+
+  // 태그 섹션 위젯
+  Widget _buildTagsSection(List<String> tags) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '태그',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8.0),
+        if (_isEditing) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _tagController,
+                  decoration: const InputDecoration(
+                    hintText: '새로운 태그 입력',
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty && !_tags.contains(value)) {
+                      if (mounted) {
+                        setState(() {
+                          _tags = List.from(_tags)..add(value);
+                          _tagController.clear();
+                        });
+                      }
+                    }
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add),
+                onPressed: () {
+                  final value = _tagController.text.trim();
+                  if (value.isNotEmpty && !_tags.contains(value)) {
+                    if (mounted) {
+                      setState(() {
+                        _tags = List.from(_tags)..add(value);
+                        _tagController.clear();
+                      });
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8.0),
+        ],
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 8.0,
+          children: _tags.map((tag) {
+            return Chip(
+              label: Text(tag),
+              deleteIcon: _isEditing ? const Icon(Icons.close, size: 18) : null,
+              onDeleted: _isEditing ? () {
+                if (mounted) {
+                  setState(() {
+                    _tags = List.from(_tags)..remove(tag);
+                  });
+                }
+              } : null,
+              backgroundColor: Colors.grey[200],
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                color: Colors.black87,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 }
