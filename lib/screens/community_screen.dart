@@ -376,6 +376,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
     super.initState();
     // 초기 카테고리에 대한 합계 계산
     mySum(selectedCategory);
+    // 초기 나이대, 성별 기준 평균 계산
+    AgeSexCompare();
   }
 
   // Firestore에서 사용자의 지출 합계를 계산하는 함수
@@ -417,6 +419,102 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
       print('카테고리 $category의 총 지출: $sum');
     } catch (e) {
       print('데이터 가져오기 오류: $e');
+    }
+  }
+
+  // 선택된 나이대와 성별에 따른 평균 지출 계산 함수
+  Future<void> AgeSexCompare() async {
+    try {
+      // 선택된 나이대 범위 계산
+      String selectedAgeGroup = ageGroups.entries.firstWhere((entry) => entry.value).key;
+      int minAge = 0;
+      int maxAge = 0;
+      
+      if (selectedAgeGroup == '10대') {
+        minAge = 10;
+        maxAge = 19;
+      } else if (selectedAgeGroup == '20대') {
+        minAge = 20;
+        maxAge = 29;
+      } else if (selectedAgeGroup == '30대') {
+        minAge = 30;
+        maxAge = 39;
+      } else if (selectedAgeGroup == '40대') {
+        minAge = 40;
+        maxAge = 49;
+      } else if (selectedAgeGroup == '50대') {
+        minAge = 50;
+        maxAge = 59;
+      } else if (selectedAgeGroup == '60대') {
+        minAge = 60;
+        maxAge = 69;
+      } else if (selectedAgeGroup == '70대') {
+        minAge = 70;
+        maxAge = 79;
+      }
+      
+      // 선택된 성별 가져오기
+      String selectedGender = genderGroups.entries.firstWhere((entry) => entry.value).key;
+      
+      // User 컬렉션에서 조건에 맞는 userId 목록 가져오기
+      QuerySnapshot userSnapshot = await _firestore
+          .collection('User')
+          .where('Age', isGreaterThanOrEqualTo: minAge)
+          .where('Age', isLessThanOrEqualTo: maxAge)
+          .where('Sex', isEqualTo: selectedGender)
+          .get();
+      
+      List<String> userIds = [];
+      for (var doc in userSnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('userId')) {
+          userIds.add(data['userId'] as String);
+        }
+      }
+      
+      // userIds가 비어있으면 처리 중단
+      if (userIds.isEmpty) {
+        print('조건에 맞는 사용자가 없습니다.');
+        return;
+      }
+      
+      // 각 사용자의 선택된 카테고리에 대한 지출 금액 합계 계산
+      double totalAmount = 0;
+      int userCount = 0;
+      
+      for (String userId in userIds) {
+        QuerySnapshot ledgerSnapshot = await _firestore
+            .collection('ledger')
+            .where('userId', isEqualTo: userId)
+            .where('category', isEqualTo: selectedCategory)
+            .get();
+        
+        double userTotal = 0;
+        for (var doc in ledgerSnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          if (data.containsKey('amount')) {
+            userTotal += (data['amount'] as num).toDouble();
+          }
+        }
+        
+        // 해당 사용자가 선택된 카테고리에 지출이 있는 경우만 카운트
+        if (ledgerSnapshot.docs.isNotEmpty) {
+          totalAmount += userTotal;
+          userCount++;
+        }
+      }
+      
+      // 평균 계산
+      double average = userCount > 0 ? totalAmount / userCount : 0;
+      
+      // 상태 업데이트
+      setState(() {
+        averageExpense[selectedCategory] = average;
+      });
+      
+      print('카테고리 $selectedCategory의 $selectedAgeGroup, $selectedGender 평균 지출: $average');
+    } catch (e) {
+      print('평균 지출 계산 오류: $e');
     }
   }
 
@@ -614,12 +712,16 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                       ageGroups[key] = false;
                     });
                     ageGroups[entry.key] = true;
+                    // 나이 필터 변경 시 평균 다시 계산
+                    AgeSexCompare();
                   } else if (title == '성별') {
                     // 성별의 경우 모든 선택 초기화 후 선택된 항목만 true
                     genderGroups.forEach((key, value) {
                       genderGroups[key] = false;
                     });
                     genderGroups[entry.key] = true;
+                    // 성별 필터 변경 시 평균 다시 계산
+                    AgeSexCompare();
                   } else if (title == '소득') {
                     // 소득의 경우 모든 선택 초기화 후 선택된 항목만 true
                     incomeGroups.forEach((key, value) {
@@ -681,8 +783,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     setState(() {
                       selectedCategory = categories[index];
                     });
-                    // 카테고리 변경 시 합계 다시 계산
+                    // 카테고리 변경 시 1)내 지출 합계와 2)회원 평균 지출 다시 계산
                     mySum(selectedCategory);
+                    AgeSexCompare();
                     Navigator.of(context).pop();
                   },
                 );
