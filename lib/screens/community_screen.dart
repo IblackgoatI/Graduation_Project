@@ -377,7 +377,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
     // 초기 카테고리에 대한 합계 계산
     mySum(selectedCategory);
     // 초기 나이대, 성별 기준 평균 계산
-    AgeSexCompare();
+    ageSexCompare();
+    // 초기 소득 구간 기준 평균 계산
+    incomeCompare();
   }
 
   // Firestore에서 사용자의 지출 합계를 계산하는 함수
@@ -423,7 +425,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
   }
 
   // 선택된 나이대와 성별에 따른 평균 지출 계산 함수
-  Future<void> AgeSexCompare() async {
+  Future<void> ageSexCompare() async {
     try {
       // 선택된 나이대 범위 계산
       String selectedAgeGroup = ageGroups.entries.firstWhere((entry) => entry.value).key;
@@ -515,6 +517,105 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
       print('카테고리 $selectedCategory의 $selectedAgeGroup, $selectedGender 평균 지출: $average');
     } catch (e) {
       print('평균 지출 계산 오류: $e');
+    }
+  }
+
+  // 선택된 소득 구간에 따른 평균 지출 계산 함수
+  Future<void> incomeCompare() async {
+    try {
+      // 선택된 소득 구간 가져오기
+      String selectedIncome = incomeGroups.entries.firstWhere((entry) => entry.value).key;
+      
+      // 소득 구간을 최소, 최대 금액으로 변환
+      int minIncome = 0;
+      int maxIncome = 0;
+      
+      if (selectedIncome == '월 200이하') {
+        minIncome = 0;
+        maxIncome = 2000000;
+      } else if (selectedIncome == '월 200~300') {
+        minIncome = 2000000;
+        maxIncome = 3000000;
+      } else if (selectedIncome == '월 300~400') {
+        minIncome = 3000000;
+        maxIncome = 4000000;
+      } else if (selectedIncome == '월 400~550') {
+        minIncome = 4000000;
+        maxIncome = 5500000;
+      } else if (selectedIncome == '월 550~700') {
+        minIncome = 5500000;
+        maxIncome = 7000000;
+      } else if (selectedIncome == '월 700~850') {
+        minIncome = 7000000;
+        maxIncome = 8500000;
+      } else if (selectedIncome == '월 850~1000') {
+        minIncome = 8500000;
+        maxIncome = 10000000;
+      } else if (selectedIncome == '월 1000이상') {
+        minIncome = 10000000;
+        maxIncome = 1000000000; // 충분히 큰 값 설정
+      }
+      
+      // ledger 컬렉션에서 "급여" 카테고리이고 선택된 소득 구간에 해당하는 사용자의 userId 목록을 가져옴
+      QuerySnapshot salarySnapshot = await _firestore
+          .collection('ledger')
+          .where('category', isEqualTo: '급여')
+          .where('amount', isGreaterThanOrEqualTo: minIncome)
+          .where('amount', isLessThanOrEqualTo: maxIncome)
+          .get();
+      
+      // userId 목록 추출
+      Set<String> userIds = {};
+      for (var doc in salarySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('userId')) {
+          userIds.add(data['userId'] as String);
+        }
+      }
+      
+      // userIds가 비어있으면 처리 중단
+      if (userIds.isEmpty) {
+        print('선택한 소득 구간($selectedIncome)에 해당하는 사용자가 없습니다.');
+        return;
+      }
+      
+      // 각 사용자의 선택된 카테고리에 대한 지출 금액 합계 및 평균 계산
+      double totalAmount = 0;
+      int userCount = 0;
+      
+      for (String userId in userIds) {
+        QuerySnapshot ledgerSnapshot = await _firestore
+            .collection('ledger')
+            .where('userId', isEqualTo: userId)
+            .where('category', isEqualTo: selectedCategory)
+            .get();
+        
+        double userTotal = 0;
+        for (var doc in ledgerSnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          if (data.containsKey('amount')) {
+            userTotal += (data['amount'] as num).toDouble();
+          }
+        }
+        
+        // 해당 사용자가 선택된 카테고리에 지출이 있는 경우만 카운트
+        if (ledgerSnapshot.docs.isNotEmpty) {
+          totalAmount += userTotal;
+          userCount++;
+        }
+      }
+      
+      // 평균 계산
+      double average = userCount > 0 ? totalAmount / userCount : 0;
+      
+      // 상태 업데이트 - 이미 다른 필터(나이/성별)로 계산된 값이 있을 수 있으므로 결과를 합쳐서 고려할 필요가 있음
+      setState(() {
+        averageExpense[selectedCategory] = average;
+      });
+      
+      print('카테고리 $selectedCategory의 소득 구간 $selectedIncome 평균 지출: $average');
+    } catch (e) {
+      print('소득 구간별 평균 지출 계산 오류: $e');
     }
   }
 
@@ -713,7 +814,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     });
                     ageGroups[entry.key] = true;
                     // 나이 필터 변경 시 평균 다시 계산
-                    AgeSexCompare();
+                    ageSexCompare();
                   } else if (title == '성별') {
                     // 성별의 경우 모든 선택 초기화 후 선택된 항목만 true
                     genderGroups.forEach((key, value) {
@@ -721,13 +822,15 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     });
                     genderGroups[entry.key] = true;
                     // 성별 필터 변경 시 평균 다시 계산
-                    AgeSexCompare();
+                    ageSexCompare();
                   } else if (title == '소득') {
                     // 소득의 경우 모든 선택 초기화 후 선택된 항목만 true
                     incomeGroups.forEach((key, value) {
                       incomeGroups[key] = false;
                     });
                     incomeGroups[entry.key] = true;
+                    // 소득 필터 변경 시 평균 다시 계산
+                    incomeCompare();
                   }
                 });
               },
@@ -783,9 +886,10 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     setState(() {
                       selectedCategory = categories[index];
                     });
-                    // 카테고리 변경 시 1)내 지출 합계와 2)회원 평균 지출 다시 계산
+                    // 카테고리 변경 시 모든 계산 다시 실행
                     mySum(selectedCategory);
-                    AgeSexCompare();
+                    ageSexCompare();
+                    incomeCompare();
                     Navigator.of(context).pop();
                   },
                 );
