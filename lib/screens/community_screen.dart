@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({Key? key}) : super(key: key);
@@ -288,7 +290,13 @@ class ExpenseComparisonTab extends StatefulWidget {
 
 class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
   // 선택된 카테고리
-  String selectedCategory = '통신비';
+  String selectedCategory = '식비';
+
+  // Firestore 인스턴스
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 현재 사용자의 지출 합계
+  double mySumAmount = 0;
 
   // 연령대 선택
   Map<String, bool> ageGroups = {
@@ -362,6 +370,55 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
     '교육',
     '만남',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // 초기 카테고리에 대한 합계 계산
+    mySum(selectedCategory);
+  }
+
+  // Firestore에서 사용자의 지출 합계를 계산하는 함수
+  Future<void> mySum(String category) async {
+    try {
+      // 현재 로그인한 사용자 ID 가져오기
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        print('사용자가 로그인되어 있지 않습니다.');
+        return;
+      }
+
+      String userId = currentUser.uid;
+
+      // Firestore 쿼리 실행
+      QuerySnapshot querySnapshot = await _firestore
+          .collection('ledger')
+          .where('userId', isEqualTo: userId)
+          .where('category', isEqualTo: category)
+          .get();
+
+      // amount 필드 값 합산
+      double sum = 0;
+      for (var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('amount')) {
+          sum += (data['amount'] as num).toDouble();
+        }
+      }
+
+      // 상태 업데이트
+      setState(() {
+        mySumAmount = sum;
+        // myExpense 맵도 업데이트
+        myExpense[category] = sum;
+      });
+
+      print('카테고리 $category의 총 지출: $sum');
+    } catch (e) {
+      print('데이터 가져오기 오류: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -624,6 +681,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     setState(() {
                       selectedCategory = categories[index];
                     });
+                    // 카테고리 변경 시 합계 다시 계산
+                    mySum(selectedCategory);
                     Navigator.of(context).pop();
                   },
                 );
