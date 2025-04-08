@@ -431,7 +431,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
       String selectedAgeGroup = ageGroups.entries.firstWhere((entry) => entry.value).key;
       int minAge = 0;
       int maxAge = 0;
-      
+
       if (selectedAgeGroup == '10대') {
         minAge = 10;
         maxAge = 19;
@@ -454,43 +454,46 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
         minAge = 70;
         maxAge = 79;
       }
-      
-      // 선택된 성별 가져오기
+
+      // 선택된 성별 가져오기 및 Firebase에 저장된 값으로 매핑
       String selectedGender = genderGroups.entries.firstWhere((entry) => entry.value).key;
-      
+      String selectedGenderValue = (selectedGender == '남') ? "남성" : '여성';
+
       // User 컬렉션에서 조건에 맞는 userId 목록 가져오기
       QuerySnapshot userSnapshot = await _firestore
-          .collection('User')
+          .collection('Users')
           .where('Age', isGreaterThanOrEqualTo: minAge)
           .where('Age', isLessThanOrEqualTo: maxAge)
-          .where('Sex', isEqualTo: selectedGender)
+          .where('Sex', isEqualTo: selectedGenderValue)
           .get();
-      
+
+
       List<String> userIds = [];
       for (var doc in userSnapshot.docs) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
         if (data.containsKey('userId')) {
           userIds.add(data['userId'] as String);
         }
       }
-      
+
       // userIds가 비어있으면 처리 중단
       if (userIds.isEmpty) {
         print('조건에 맞는 사용자가 없습니다.');
         return;
       }
-      
+
       // 각 사용자의 선택된 카테고리에 대한 지출 금액 합계 계산
       double totalAmount = 0;
       int userCount = 0;
-      
+
       for (String userId in userIds) {
         QuerySnapshot ledgerSnapshot = await _firestore
             .collection('ledger')
             .where('userId', isEqualTo: userId)
             .where('category', isEqualTo: selectedCategory)
             .get();
-        
+
         double userTotal = 0;
         for (var doc in ledgerSnapshot.docs) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
@@ -498,22 +501,22 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
             userTotal += (data['amount'] as num).toDouble();
           }
         }
-        
+
         // 해당 사용자가 선택된 카테고리에 지출이 있는 경우만 카운트
         if (ledgerSnapshot.docs.isNotEmpty) {
           totalAmount += userTotal;
           userCount++;
         }
       }
-      
+
       // 평균 계산
       double average = userCount > 0 ? totalAmount / userCount : 0;
-      
+
       // 상태 업데이트
       setState(() {
         averageExpense[selectedCategory] = average;
       });
-      
+
       print('카테고리 $selectedCategory의 $selectedAgeGroup, $selectedGender 평균 지출: $average');
     } catch (e) {
       print('평균 지출 계산 오류: $e');
