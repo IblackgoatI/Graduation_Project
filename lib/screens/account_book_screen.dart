@@ -181,16 +181,15 @@ class AccountBookScreenState extends State<AccountBookScreen>
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
+        onPressed: () {
+          Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const NotloginAddTransactionScreen()),
+            MaterialPageRoute(
+              builder: (context) => const NotloginAddTransactionScreen(),
+            ),
           );
-
-          if (result == true) {
-            listScreenKey.currentState?.loadTransactions();
-          }
         },
+        backgroundColor: const Color(0xFF73AD13),
         child: const Icon(Icons.add),
       ),
     );
