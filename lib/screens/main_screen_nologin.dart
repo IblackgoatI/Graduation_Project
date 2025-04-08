@@ -96,9 +96,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    if (_selectedIndex != index) {
+      setState(() {
+        _selectedIndex = index;
+      });
+    }
   }
 
   @override
@@ -119,54 +121,86 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
         backgroundColor: Colors.grey[50], // AppBar도 동일한 배경색 적용
       )
           : null, // 메인 화면에서만 AppBar 표시
-      body: widgetOptions[_selectedIndex], // 선택된 탭에 해당하는 화면 표시
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: const Color(0xFFAAA1A1),
-        items: <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/home.svg',
-              colorFilter: ColorFilter.mode(
-                _selectedIndex == 0 ? Colors.black : const Color(0xFFAAA1A1),
-                BlendMode.srcIn,
-              ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 150),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.1, 0.0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeIn,
+              )),
+              child: child,
             ),
-            label: '홈',
-          ),
-          BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/calendar.svg',
-              colorFilter: ColorFilter.mode(
-                _selectedIndex == 1 ? Colors.black : const Color(0xFFAAA1A1),
-                BlendMode.srcIn,
-              ),
+          );
+        },
+        child: widgetOptions[_selectedIndex],
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: const Offset(0, -2),
             ),
-            label: '가계부',
-          ),
-          BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/Community.svg',
-              colorFilter: ColorFilter.mode(
-                _selectedIndex == 2 ? Colors.black : const Color(0xFFAAA1A1),
-                BlendMode.srcIn,
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          selectedItemColor: Colors.black,
+          unselectedItemColor: const Color(0xFFAAA1A1),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/icons/home.svg',
+                colorFilter: ColorFilter.mode(
+                  _selectedIndex == 0 ? Colors.black : const Color(0xFFAAA1A1),
+                  BlendMode.srcIn,
+                ),
               ),
+              label: '홈',
             ),
-            label: '커뮤니티',
-          ),
-          BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/menu.svg',
-              colorFilter: ColorFilter.mode(
-                _selectedIndex == 3 ? Colors.black : const Color(0xFFAAA1A1),
-                BlendMode.srcIn,
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/icons/calendar.svg',
+                colorFilter: ColorFilter.mode(
+                  _selectedIndex == 1 ? Colors.black : const Color(0xFFAAA1A1),
+                  BlendMode.srcIn,
+                ),
               ),
+              label: '가계부',
             ),
-            label: '전체',
-          ),
-        ],
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/icons/Community.svg',
+                colorFilter: ColorFilter.mode(
+                  _selectedIndex == 2 ? Colors.black : const Color(0xFFAAA1A1),
+                  BlendMode.srcIn,
+                ),
+              ),
+              label: '커뮤니티',
+            ),
+            BottomNavigationBarItem(
+              icon: SvgPicture.asset(
+                'assets/icons/menu.svg',
+                colorFilter: ColorFilter.mode(
+                  _selectedIndex == 3 ? Colors.black : const Color(0xFFAAA1A1),
+                  BlendMode.srcIn,
+                ),
+              ),
+              label: '전체',
+            ),
+          ],
+        ),
       ),
     );
   }
