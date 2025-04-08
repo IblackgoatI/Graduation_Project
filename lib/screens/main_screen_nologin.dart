@@ -16,17 +16,38 @@ class MainScreenNotLogin extends StatefulWidget {
   State<MainScreenNotLogin> createState() => _MainScreenNotLoginState();
 }
 
-class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
+class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _userAccounts = [];
   int _totalBalance = 0;
   bool _isLoading = true; // 로딩 상태 변수 추가
-
+  late PageController _pageController;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(
+      initialPage: 0,
+      viewportFraction: 0.999,
+    );
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    );
     _loadUserAccounts();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _animationController.dispose();
+    super.dispose();
   }
 
   // 사용자의 계좌 정보를 로드하는 메서드
@@ -96,49 +117,47 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
   }
 
   void _onItemTapped(int index) {
-    if (_selectedIndex != index) {
-      setState(() {
-        _selectedIndex = index;
-      });
-    }
+    _animationController.reset();
+    _animationController.forward();
+    
+    setState(() {
+      _selectedIndex = index;
+    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // _widgetOptions를 build 메서드 내에서 생성하여 상태 변화 반영
     final List<Widget> widgetOptions = [
-      _homeScreen(), // 홈 화면 - 현재 상태가 반영됨
+      _homeScreen(),
       const AccountBookScreen(),
       const CommunityScreen(),
       const AllScreen(),
     ];
 
     return Scaffold(
-      backgroundColor: Colors.grey[50], // 연한 회색 배경 추가
+      backgroundColor: Colors.grey[50],
       appBar: _selectedIndex == 0
           ? AppBar(
-        title: const Text('금융 대시보드'),
-        backgroundColor: Colors.grey[50], // AppBar도 동일한 배경색 적용
-      )
-          : null, // 메인 화면에서만 AppBar 표시
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 150),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0.1, 0.0),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeIn,
-              )),
-              child: child,
-            ),
-          );
+              title: const Text('금융 대시보드'),
+              backgroundColor: Colors.grey[50],
+            )
+          : null,
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          if (_selectedIndex != index) {
+            setState(() {
+              _selectedIndex = index;
+            });
+          }
         },
-        child: widgetOptions[_selectedIndex],
+        physics: const NeverScrollableScrollPhysics(),
+        children: widgetOptions,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -389,7 +408,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> {
                     Text(
                       "${numberFormat(_totalBalance)}원",
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
