@@ -173,9 +173,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
           selectedItemColor: Colors.black,
           unselectedItemColor: const Color(0xFFAAA1A1),
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.grey[50],
           elevation: 0,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
