@@ -1061,7 +1061,7 @@ class DonutChartPainter extends CustomPainter {
     
     if (categories.isEmpty || categories.length == 1 && categories[0].name == '지출 없음') {
       // 데이터가 없거나 지출이 없는 경우, 회색 원 그리기
-      paint.color = Colors.grey.withOpacity(0.3);
+      paint.color = Colors.grey.withAlpha(76);
       canvas.drawCircle(center, radius, paint);
       return;
     }
