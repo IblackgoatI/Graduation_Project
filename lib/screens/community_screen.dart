@@ -412,6 +412,14 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
     _animationController.forward();
   }
 
+  // 숫자 포맷 함수 (천 단위 콤마 추가)
+  String numberFormat(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
+
   // Firestore에서 사용자의 지출 합계를 계산하는 함수
   Future<void> mySum(String category) async {
     try {
@@ -709,26 +717,57 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
   }
 
   Widget _buildUserExpenseAlert() {
+    // 현재 선택된 카테고리의 내 지출과 평균 지출 비교
+    double myAmount = myExpense[selectedCategory] ?? 0;
+    double avgAmount = averageExpense[selectedCategory] ?? 0;
+    
+    // 금액 차이 계산
+    double difference = 0;
+    String message = '';
+    Color messageColor = Colors.black;
+    
+    if (myAmount < avgAmount) {
+      // 절약하고 있는 경우
+      difference = avgAmount - myAmount;
+      message = '절약하고 있어요';
+      messageColor = Colors.green.shade700;
+    } else {
+      // 더 많이 소비하고 있는 경우
+      difference = myAmount - avgAmount;
+      message = '소비하고 있어요';
+      messageColor = Colors.red.shade700;
+    }
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(fontSize: 14, color: Colors.black),
-          children: [
-            const TextSpan(text: '부린이님 '),
-            const TextSpan(
-              text: '월평균금 17,000원\n',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextSpan(
-              text: '절약하고 있어요',
-              style: TextStyle(color: Colors.green.shade700),
-            ),
-          ],
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: RichText(
+          key: ValueKey<String>("$selectedCategory-$difference-$message"),
+          text: TextSpan(
+            style: const TextStyle(fontSize: 14, color: Colors.black),
+            children: [
+              const TextSpan(text: '부린이님 '),
+              TextSpan(
+                text: '월평균금 ${numberFormat(difference.toInt())}원\n',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              TextSpan(
+                text: message,
+                style: TextStyle(color: messageColor),
+              ),
+            ],
+          ),
         ),
       ),
     );
