@@ -664,13 +664,14 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 고정지출 카드
   Widget _buildFixedExpenseCard() {
     return _buildStandardCard(
+      height: 250,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '고정지출',
             style: TextStyle(
-              fontSize: 14, // 제목 텍스트 크기 감소
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -679,7 +680,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Text(
             '고정지출을 추가하세요',
             style: TextStyle(
-              fontSize: 12, // 안내 텍스트 크기 감소
+              fontSize: 12,
               color: Colors.grey,
             ),
           ),
@@ -693,13 +694,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
+              minimumSize: const Size(double.infinity, 36),
             ),
             child: const Text(
               '고정지출 추가',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 11, // 버튼 텍스트 크기 감소
+                fontSize: 11,
               ),
             ),
           ),
@@ -711,47 +712,102 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 이번 달 예산 카드
   Widget _buildMonthlyBudgetCard() {
     return _buildStandardCard(
+      height: 250,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '이번 달 예산',
             style: TextStyle(
-              fontSize: 14, // 제목 텍스트 크기 감소
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          const Spacer(),
-          const Text(
-            '예산을 설정하세요',
-            style: TextStyle(
-              fontSize: 12, // 안내 텍스트 크기 감소
-              color: Colors.grey,
-            ),
+          const SizedBox(height: 16),
+          // 예산과 지출을 보여주는 그래프
+          Column(
+            children: [
+              const Text(
+                '30만원', // 예산 금액 (예시)
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildBudgetProgressBar(22.5, 30.0),
+              const SizedBox(height: 12),
+              const Text(
+                '남은 예산: 7.5만원',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black,
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // 월 예산 설정 로직
+              // 월 예산 변경 로직
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF73AD13),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
+              minimumSize: const Size(double.infinity, 36),
             ),
             child: const Text(
-              '월 예산 설정',
+              '월 예산 변경',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 11, // 버튼 텍스트 크기 감소
+                fontSize: 11,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  // 커스텀 예산 진행 바 위젯
+  Widget _buildBudgetProgressBar(double spent, double budget) {
+    double progress = spent / budget;
+    progress = progress.clamp(0.0, 1.0); // 1.0을 넘지 않도록 제한
+    
+    return Stack(
+      children: [
+        // 배경(전체 예산)
+        Container(
+          height: 25,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12.5),
+          ),
+        ),
+        // 진행 바(사용된 예산)
+        Container(
+          height: 25,
+          width: MediaQuery.of(context).size.width * 0.35 * progress, // 화면 너비에 비례하게 조정
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(12.5),
+          ),
+          child: Center(
+            child: Text(
+              '${spent}만원',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
