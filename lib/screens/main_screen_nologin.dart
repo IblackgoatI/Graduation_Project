@@ -24,18 +24,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _userAccounts = [];
   int _totalBalance = 0;
-  bool _isLoading = true; // 로딩 상태 변수 추가
-  late PageController _pageController;
+  bool _isLoading = true;
   late AnimationController _animationController;
   late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      initialPage: 0,
-      viewportFraction: 0.999,
-    );
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -49,7 +44,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
 
   @override
   void dispose() {
-    _pageController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -127,11 +121,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     setState(() {
       _selectedIndex = index;
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeOutCubic,
-    );
   }
 
   @override
@@ -151,17 +140,19 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               backgroundColor: Colors.grey[50],
             )
           : null,
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          if (_selectedIndex != index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          }
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
         },
-        physics: const NeverScrollableScrollPhysics(),
-        children: widgetOptions,
+        child: IndexedStack(
+          key: ValueKey<int>(_selectedIndex),
+          index: _selectedIndex,
+          children: widgetOptions,
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
