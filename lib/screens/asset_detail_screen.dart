@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' show min;
 import 'transaction_provider.dart';
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 
@@ -307,15 +308,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     }
 
     return SizedBox(
-      width: 45, // 전체 너비 제한
+      width: 35, // 너비 더 감소
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Tooltip(
             message: '${month}: $amountDisplay원',
             child: Container(
-              width: 20, // 막대 너비 감소
-              height: heightPercent > 0 ? heightPercent : 2, // 데이터가 0이면 최소 높이 표시
+              width: 15, // 막대 너비 감소
+              height: heightPercent > 0 ? min(heightPercent, 150) : 2, // 높이 제한
               decoration: BoxDecoration(
                 color: color,
                 borderRadius: const BorderRadius.vertical(
@@ -423,11 +424,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               color: Colors.black87,
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           
           // 막대 그래프와 월 표시를 포함하는 컨테이너
-          SizedBox(
-            height: 100,
+          Expanded(
             child: Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -458,7 +458,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(height: 16),
           Center(
             child: Text(
               currentMonthIncome,
