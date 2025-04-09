@@ -9,7 +9,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class NotloginListScreen extends StatefulWidget {
-  const NotloginListScreen({super.key});
+  final int selectedMonth;
+  
+  const NotloginListScreen({super.key, this.selectedMonth = 0});
 
   @override
   NotloginListScreenState createState() => NotloginListScreenState();
@@ -85,9 +87,18 @@ class NotloginListScreenState extends State<NotloginListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final allTransactions = transactionProvider.transactions;
+    
+    // 선택된 월에 해당하는 거래만 필터링
+    final filteredTransactions = widget.selectedMonth > 0
+        ? allTransactions.where((transaction) => 
+            transaction.date.month == widget.selectedMonth).toList()
+        : allTransactions;
+    
     // 날짜별로 그룹화하기
     Map<String, List<FinancialTransaction>> groupedTransactions = {};
-    for (var transaction in _transactions) {
+    for (var transaction in filteredTransactions) {
       String formattedDate = DateFormat('d일 EEEE', 'ko_KR').format(transaction.date);
       if (!groupedTransactions.containsKey(formattedDate)) {
         groupedTransactions[formattedDate] = [];

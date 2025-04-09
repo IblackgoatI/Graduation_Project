@@ -173,8 +173,11 @@ class AccountBookScreenState extends State<AccountBookScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                NotloginListScreen(key: listScreenKey), // GlobalKey를 전달하여 state에 접근할 수 있게 함
-                NotloginCalendarScreen(selectedMonth: _selectedMonth), // 선택된 월을 전달
+                NotloginListScreen(
+                  key: listScreenKey,
+                  selectedMonth: _selectedMonth, // 선택된 월 매개변수 전달
+                ),
+                NotloginCalendarScreen(selectedMonth: _selectedMonth),
               ],
             ),
           ),
