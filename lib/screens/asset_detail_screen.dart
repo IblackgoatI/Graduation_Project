@@ -687,7 +687,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // 고정지출 추가 로직
+              // 고정지출 추가 시트 표시
+              _showFixedExpenseSheet();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF73AD13),
@@ -706,6 +707,116 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           ),
         ],
       ),
+    );
+  }
+
+  // 고정지출 추가 시트 표시
+  void _showFixedExpenseSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 200,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '고정지출 내역찾기',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const Text(
+                          '가계부에서',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF73AD13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            minimumSize: const Size(double.infinity, 50),
+                          ),
+                          child: const Text(
+                            '내역찾기',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        const Text(
+                          '고정지출 항목',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF73AD13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            minimumSize: const Size(double.infinity, 50),
+                          ),
+                          child: const Text(
+                            '추가하기',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -751,7 +862,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // 월 예산 변경 로직
+              // 월 예산 변경 시트 표시
+              _showMonthlyBudgetSettingSheet();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF73AD13),
@@ -773,6 +885,105 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
   
+  // 월 예산 설정 시트 표시
+  void _showMonthlyBudgetSettingSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 250,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '월 지출 예산 설정',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '지출 예산',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            '800,000원',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            '월 수입의 40%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF73AD13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text(
+                  '저장',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // 커스텀 예산 진행 바 위젯
   Widget _buildBudgetProgressBar(double spent, double budget) {
     double progress = spent / budget;
@@ -814,14 +1025,14 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 이번 달 저축 카드
   Widget _buildMonthlySavingsCard() {
     return _buildStandardCard(
-      height: 250, // 높이 더 증가
+      height: 250,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '이번 달 저축',
             style: TextStyle(
-              fontSize: 14, // 제목 텍스트 크기 감소
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -831,7 +1042,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '0원',
               style: TextStyle(
-                fontSize: 16, // 금액 텍스트 크기 감소
+                fontSize: 16,
                 fontWeight: FontWeight.normal,
               ),
             ),
@@ -839,25 +1050,165 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // 월 목표 설정 로직
+              // 월 저축 목표 설정 시트 표시
+              _showMonthlySavingsGoalSheet();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF73AD13),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
+              minimumSize: const Size(double.infinity, 36),
             ),
             child: const Text(
               '월 목표 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 11, // 버튼 텍스트 크기 감소
+                fontSize: 11,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  // 월 저축 목표 설정 시트 표시
+  void _showMonthlySavingsGoalSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          height: 300,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '월 저축 목표 설정',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '목표 금액',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            '500,000원',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            '월 수입의 25%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '저축 계좌',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const Text(
+                            '국민은행',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Text(
+                            '잔액 0원',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF73AD13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+                child: const Text(
+                  '저장',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
