@@ -288,9 +288,14 @@ class ExpenseComparisonTab extends StatefulWidget {
   State<ExpenseComparisonTab> createState() => _ExpenseComparisonTabState();
 }
 
-class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
+class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
+    with SingleTickerProviderStateMixin {
   // 선택된 카테고리
   String selectedCategory = '식비';
+  
+  // 애니메이션 컨트롤러 추가
+  late AnimationController _animationController;
+  late Animation<double> _animation;
 
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -374,12 +379,37 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
   @override
   void initState() {
     super.initState();
+    // 애니메이션 컨트롤러 초기화
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
+    
     // 초기 카테고리에 대한 합계 계산
     mySum(selectedCategory);
     // 초기 나이대, 성별 기준 평균 계산
     ageSexCompare();
     // 초기 소득 구간 기준 평균 계산
     incomeCompare();
+    
+    // 초기 애니메이션 시작
+    _animationController.forward();
+  }
+  
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // 카테고리 변경 시 애니메이션 재시작 메서드
+  void _resetAnimation() {
+    _animationController.reset();
+    _animationController.forward();
   }
 
   // Firestore에서 사용자의 지출 합계를 계산하는 함수
@@ -705,26 +735,31 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
   }
 
   Widget _buildComparisonChart() {
-    return SizedBox(
-      height: 250,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          // 내 지출 막대
-          _buildBarColumn(
-              '나',
-              myExpense[selectedCategory] ?? 0,
-              Colors.blue,
-              '${myExpense[selectedCategory]?.toInt() ?? 0}원'),
-          // 부린이 평균 지출 막대
-          _buildBarColumn(
-              '부린이 평균금액',
-              averageExpense[selectedCategory] ?? 0,
-              Colors.grey.shade300,
-              '${averageExpense[selectedCategory]?.toInt() ?? 0}원'),
-        ],
-      ),
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return SizedBox(
+          height: 250,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // 내 지출 막대
+              _buildBarColumn(
+                  '나',
+                  myExpense[selectedCategory] ?? 0,
+                  Colors.blue,
+                  '${myExpense[selectedCategory]?.toInt() ?? 0}원'),
+              // 부린이 평균 지출 막대
+              _buildBarColumn(
+                  '부린이 평균금액',
+                  averageExpense[selectedCategory] ?? 0,
+                  Colors.grey.shade300,
+                  '${averageExpense[selectedCategory]?.toInt() ?? 0}원'),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -741,17 +776,32 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         // 값 텍스트
-        Text(
-          valueText,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: animation,
+                child: child,
+              ),
+            );
+          },
+          child: Text(
+            valueText,
+            key: ValueKey<String>(valueText), // 키를 지정하여 애니메이션 트리거
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
           ),
         ),
         const SizedBox(height: 8),
 
         // 막대
-        Container(
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
           width: 80,
           height: 160 * heightPercentage,
           decoration: BoxDecoration(
@@ -816,6 +866,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                       ageGroups[key] = false;
                     });
                     ageGroups[entry.key] = true;
+                    // 애니메이션 재시작
+                    _resetAnimation();
                     // 나이 필터 변경 시 평균 다시 계산
                     ageSexCompare();
                   } else if (title == '성별') {
@@ -824,6 +876,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                       genderGroups[key] = false;
                     });
                     genderGroups[entry.key] = true;
+                    // 애니메이션 재시작
+                    _resetAnimation();
                     // 성별 필터 변경 시 평균 다시 계산
                     ageSexCompare();
                   } else if (title == '소득') {
@@ -832,6 +886,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                       incomeGroups[key] = false;
                     });
                     incomeGroups[entry.key] = true;
+                    // 애니메이션 재시작
+                    _resetAnimation();
                     // 소득 필터 변경 시 평균 다시 계산
                     incomeCompare();
                   }
@@ -840,7 +896,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
                     width: 20,
                     height: 20,
                     decoration: BoxDecoration(
@@ -852,13 +909,17 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                           ? Colors.green
                           : Colors.transparent,
                     ),
-                    child: entry.value
-                        ? const Icon(
-                      Icons.check,
-                      size: 16,
-                      color: Colors.white,
-                    )
-                        : null,
+                    child: Center(
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 300),
+                        opacity: entry.value ? 1.0 : 0.0,
+                        child: const Icon(
+                          Icons.check,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   Text(entry.key),
@@ -889,6 +950,8 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab> {
                     setState(() {
                       selectedCategory = categories[index];
                     });
+                    // 애니메이션 재시작
+                    _resetAnimation();
                     // 카테고리 변경 시 모든 계산 다시 실행
                     mySum(selectedCategory);
                     ageSexCompare();
