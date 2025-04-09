@@ -80,7 +80,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                     child: Text(
                       '$value월',
                       style: TextStyle(
-                        color: Colors.black, // 텍스트 색상 변경
+                        color: value == _selectedMonth ? const Color(0xFF73AD13) : Colors.black, // 드롭다운 메뉴에서는 선택된 항목은 녹색
                         fontSize: 24, // 텍스트 크기 조정
                         fontWeight: FontWeight.bold,
                       ),
@@ -92,6 +92,23 @@ class AccountBookScreenState extends State<AccountBookScreen>
               icon: Container(), // 화살표 제거
               isExpanded: true, // 드롭다운 메뉴를 최대 너비로 확장
               alignment: Alignment.center, // 드롭다운 메뉴 텍스트 가운데 정렬
+              dropdownColor: Colors.white, // 드롭다운 메뉴의 배경색을 흰색으로 설정
+              selectedItemBuilder: (BuildContext context) {
+                // 선택된 항목의 표시 방식을 별도로 지정 (드롭다운 닫혔을 때)
+                return List.generate(12, (index) => index + 1)
+                    .map<Widget>((int value) {
+                  return Center(
+                    child: Text(
+                      '$value월',
+                      style: const TextStyle(
+                        color: Colors.black, // 선택된 항목은 검은색으로 표시
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }).toList();
+              },
             ),
           ),
           // 수입과 지출 지표 (한 줄로 출력)
