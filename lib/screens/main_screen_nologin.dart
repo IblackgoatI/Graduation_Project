@@ -15,6 +15,19 @@ import 'transaction.dart'; // 트랜잭션 모델 import
 class MainScreenNotLogin extends StatefulWidget {
   final User? user;
   const MainScreenNotLogin({super.key, this.user});
+  
+  // 최근 방문 탭 정보 가져오는 정적 메서드
+  static List<Map<String, dynamic>> getRecentTabs() {
+    return _MainScreenNotLoginState.recentTabs;
+  }
+  
+  // 탭 전환 메서드 추가
+  static void navigateToTab(BuildContext context, int index) {
+    final mainScreenState = context.findAncestorStateOfType<_MainScreenNotLoginState>();
+    if (mainScreenState != null) {
+      mainScreenState.onItemTapped(index);
+    }
+  }
 
   @override
   State<MainScreenNotLogin> createState() => _MainScreenNotLoginState();
@@ -27,6 +40,18 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   bool _isLoading = true;
   late AnimationController _animationController;
   late Animation<double> _animation;
+  
+  // 최근에 방문한 탭 저장 (최대 3개)
+  static List<Map<String, dynamic>> recentTabs = [];
+  
+  // 탭 이름 매핑
+  final List<String> tabNames = ['홈', '가계부', '커뮤니티', '전체'];
+  final List<IconData> tabIcons = [
+    Icons.home, 
+    Icons.calendar_today, 
+    Icons.people, 
+    Icons.menu
+  ];
 
   @override
   void initState() {
@@ -118,9 +143,44 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     _animationController.reset();
     _animationController.forward();
     
+    // 현재 선택하는 탭이 '전체' 탭이 아니면 최근 방문 탭에 추가
+    if (index != 3) {
+      // 최근 방문 탭에 현재 선택한 탭 추가
+      _addToRecentTabs(index);
+    }
+    
     setState(() {
       _selectedIndex = index;
     });
+  }
+  
+  // 최근 방문 탭에 추가하는 메서드
+  void _addToRecentTabs(int index) {
+    // 이미 같은 탭이 있는지 확인
+    int existingIndex = recentTabs.indexWhere((tab) => tab['index'] == index);
+    
+    // 있으면 목록에서 제거 (나중에 맨 앞에 다시 추가하기 위해)
+    if (existingIndex != -1) {
+      recentTabs.removeAt(existingIndex);
+    }
+    
+    // 새 방문 기록 추가
+    recentTabs.insert(0, {
+      'index': index,
+      'name': tabNames[index],
+      'icon': tabIcons[index],
+      'timestamp': DateTime.now(),
+    });
+    
+    // 최대 3개만 유지
+    if (recentTabs.length > 3) {
+      recentTabs.removeLast();
+    }
+  }
+  
+  // 최근 방문 탭 목록을 가져오는 메서드 (다른 클래스에서 접근 가능)
+  static List<Map<String, dynamic>> getRecentTabs() {
+    return recentTabs;
   }
 
   @override
@@ -850,5 +910,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
     );
+  }
+
+  // 외부에서 접근 가능한 public 메서드
+  void onItemTapped(int index) {
+    _onItemTapped(index);
   }
 }
