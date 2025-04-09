@@ -373,9 +373,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onboardingData[index]["title"]!,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E355E),
+                        fontSize: 25,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 10),

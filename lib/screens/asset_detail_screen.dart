@@ -132,7 +132,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('자산'),
+        title: const Text('자산', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
       body: Column(
@@ -464,7 +464,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               currentMonthIncome,
               style: TextStyle(
                 fontSize: 12, // 금액 텍스트 크기 감소
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
                 color: Colors.black,
               ),
             ),
@@ -626,7 +626,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               expenseText,
               style: TextStyle(
                 fontSize: 12, // 금액 텍스트 크기 감소
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
                 color: Colors.black,
               ),
             ),
@@ -776,7 +776,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '0원',
               style: TextStyle(
                 fontSize: 16, // 금액 텍스트 크기 감소
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
               ),
             ),
           ),
@@ -814,7 +814,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           '부린이님의 총자산',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.grey,
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 8.0),
@@ -822,7 +823,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           '${_numberFormat(_totalAssets)}원',
           style: const TextStyle(
             fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.normal,
           ),
         ),
         const SizedBox(height: 8.0),
@@ -837,6 +838,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
@@ -844,6 +846,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                 ],
@@ -858,6 +861,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
@@ -865,6 +869,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black,
+                      fontWeight: FontWeight.normal,
                     ),
                   ),
                 ],
@@ -921,7 +926,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               '${_numberFormat(totalAmount)}원',
               style: const TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.normal,
               ),
             ),
           ],
@@ -995,7 +1000,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           Text(
             '${_numberFormat(account['balance'])}원',
             style: const TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.normal,
               fontSize: 16,
             ),
           ),

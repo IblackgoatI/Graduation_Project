@@ -314,7 +314,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           children: [
             const Text(
               "입출금 계좌",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16.0),
             // 로딩 상태에 따라 다른 위젯 표시
@@ -341,14 +341,14 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                             Text(
                               "${account['bank']}",
                               style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 14,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
                               "${account['account']}",
                               style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 12,
                                 color: Colors.grey,
                               ),
                             ),
@@ -358,8 +358,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                       Text(
                         "${numberFormat(account['balance'])}원",
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -373,7 +372,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 const Text(
                   "계좌 미연결",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.grey,
                   ),
@@ -381,7 +380,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 const SizedBox(height: 8.0),
                 const Text(
                   "아직 자산이 연결되지 않았습니다.",
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 16.0),
                 Center(
@@ -447,7 +446,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               children: [
                 const Text(
                   "총 자산 >",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16.0),
                 // 로딩 상태에 따라 다른 위젯 표시
@@ -462,10 +461,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "${numberFormat(_totalBalance)}원",
+                      "입출금계좌: ${numberFormat(_totalBalance)}원",
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -477,7 +475,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     const Text(
                       "자산 미연결",
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: Colors.grey,
                       ),
@@ -485,7 +483,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     const SizedBox(height: 8.0),
                     const Text(
                       "아직 자산이 연결되지 않았습니다.",
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -568,22 +566,22 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
             children: [
               const Text(
                 "이번 달 지출 >",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8.0),
               Text(
                 "${numberFormat(totalExpense.toInt())}원",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 20.0), // 섹션 간 간격
               const Text(
                 "나의 고정지출 >",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8.0),
               Text(
                 "${numberFormat(fixedExpenses.toInt())}원",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -676,7 +674,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
             children: [
               Text(
                 "부린이님의 $monthInKorean 소비 리포트",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 30.0), // 상단 여백 조정
               // 소비 그래프 영역
@@ -722,7 +720,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                         title: '${percent.toStringAsFixed(1)}%',
                                         radius: 50,
                                         titleStyle: const TextStyle(
-                                          fontSize: 11,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.white,
                                         ),
@@ -773,13 +771,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                         const SizedBox(width: 4),
                                         Text(
                                           entry.key,
-                                          style: const TextStyle(fontSize: 12),
+                                          style: const TextStyle(fontSize: 11),
                                         ),
                                         const Spacer(),
                                         Text(
                                           '${percent.toStringAsFixed(1)}%',
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: Colors.grey[600],
                                           ),
                                         ),
@@ -814,8 +812,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 child: Text(
                   "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -869,13 +866,14 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                 categoryName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 13,
                                 ),
                               ),
                               Text(
                                 '${percent.toStringAsFixed(1)}%',
                                 style: TextStyle(
                                   color: Colors.grey[600],
-                                  fontSize: 12,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -884,7 +882,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                         Text(
                           '${numberFormat(amount.toInt())}원',
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
                           ),
                         ),
                       ],
@@ -902,6 +900,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                         '더보기',
                         style: TextStyle(
                           color: Colors.grey[600],
+                          fontSize: 12,
                           decoration: TextDecoration.underline,
                         ),
                       ),

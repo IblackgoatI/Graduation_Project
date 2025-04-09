@@ -127,7 +127,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         style: TextStyle(
                           color: Colors.black, // "수입" 텍스트 색상
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.normal,
                         ),
                       ),
                       TextSpan(
@@ -135,7 +135,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         style: TextStyle(
                           color: Color(0xFF73AD13), // 가격 색상 (#73AD13)
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.normal,
                         ),
                       ),
                     ],
@@ -150,7 +150,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         style: TextStyle(
                           color: Colors.black, // "지출" 텍스트 색상
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.normal,
                         ),
                       ),
                       TextSpan(
@@ -158,7 +158,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         style: TextStyle(
                           color: Colors.red, // 가격 색상
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.normal,
                         ),
                       ),
                     ],
