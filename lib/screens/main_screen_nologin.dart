@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import 'asset_detail_screen.dart'; // 자산 detail화면 import
 import 'account_book_screen.dart'; // 가계부 화면 import
 import 'community_screen.dart'; // 커뮤니티 화면 import
 import 'all_screen.dart'; // 전체 화면 import
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
+import 'transaction_provider.dart'; // 트랜잭션 프로바이더 import
+import 'transaction.dart'; // 트랜잭션 모델 import
 
 class MainScreenNotLogin extends StatefulWidget {
   final User? user;
@@ -476,6 +480,29 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
 
 
   Widget _buildMonthlySpendingCard() {
+    // 현재 월 가져오기
+    final currentMonth = DateTime.now().month;
+    
+    // TransactionProvider에서 데이터 가져오기
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final transactions = transactionProvider.transactions;
+    
+    // 현재 월의 지출 트랜잭션만 필터링
+    final currentMonthExpenses = transactions.where((transaction) {
+      return transaction.date.month == currentMonth && 
+             transaction.date.year == DateTime.now().year && 
+             transaction.type == '지출';
+    }).toList();
+    
+    // 총 지출 금액 계산
+    final totalExpense = currentMonthExpenses.fold(0.0, 
+      (sum, transaction) => sum + transaction.amount);
+    
+    // 고정 지출 계산 (예: 매달 같은 금액으로 지출되는 카테고리만 계산)
+    // 여기서는 예시로 '생활용품', '서비스' 카테고리를 고정 지출로 간주
+    final fixedExpenseCategories = ['생활용품', '서비스', '교통', '의료'];
+    final fixedExpenses = 0.0; // 고정 지출 금액을 0원으로 설정
+
     return SizedBox(
       width: double.infinity, // 부모 위젯의 너비에 맞춤
       child: Card(
@@ -493,9 +520,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8.0),
-              const Text(
-                "0원",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                "${numberFormat(totalExpense.toInt())}원",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20.0), // 섹션 간 간격
               const Text(
@@ -503,9 +530,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8.0),
-              const Text(
-                "0원",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                "${numberFormat(fixedExpenses.toInt())}원",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -518,6 +545,71 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     // 현재 월 가져오기
     final currentMonth = DateTime.now().month;
     final monthInKorean = '$currentMonth월';
+    
+    // TransactionProvider에서 데이터 가져오기
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final transactions = transactionProvider.transactions;
+    
+    // 현재 월의 지출 트랜잭션만 필터링
+    final currentMonthExpenses = transactions.where((transaction) {
+      return transaction.date.month == currentMonth && 
+             transaction.date.year == DateTime.now().year && 
+             transaction.type == '지출';
+    }).toList();
+    
+    // 총 지출 금액 계산
+    final totalExpense = currentMonthExpenses.fold(0.0, 
+      (sum, transaction) => sum + transaction.amount);
+    
+    // 카테고리별 지출 금액 계산
+    Map<String, double> categoryExpenses = {};
+    for (var transaction in currentMonthExpenses) {
+      if (categoryExpenses.containsKey(transaction.category)) {
+        categoryExpenses[transaction.category] = 
+          categoryExpenses[transaction.category]! + transaction.amount;
+      } else {
+        categoryExpenses[transaction.category] = transaction.amount;
+      }
+    }
+    
+    // 카테고리별 퍼센트 계산 및 정렬
+    List<MapEntry<String, double>> sortedCategories = [];
+    if (totalExpense > 0) {
+      sortedCategories = categoryExpenses.entries.map((entry) {
+        return MapEntry(entry.key, entry.value);
+      }).toList();
+      
+      // 금액이 큰 순서대로 정렬
+      sortedCategories.sort((a, b) => b.value.compareTo(a.value));
+    }
+    
+    // 원형 차트 색상 매핑
+    final Map<String, Color> categoryColors = {
+      '식비': Colors.red[300]!,
+      '쇼핑': Colors.pink[300]!,
+      '교통': Colors.orange[300]!,
+      '문화생활': Colors.purple[300]!,
+      '의료': Colors.blue[300]!,
+      '여행': Colors.amber[300]!,
+      '용돈': Colors.teal[300]!,
+      '생활용품': Colors.indigo[300]!,
+      '서비스': Colors.lime[300]!,
+      '미분류': Colors.grey[400]!,
+    };
+    
+    // 카테고리별 아이콘 매핑
+    final Map<String, IconData> categoryIcons = {
+      '식비': Icons.restaurant,
+      '쇼핑': Icons.shopping_bag,
+      '교통': Icons.directions_car,
+      '문화생활': Icons.movie,
+      '의료': Icons.medical_services,
+      '여행': Icons.flight,
+      '용돈': Icons.attach_money,
+      '생활용품': Icons.home,
+      '서비스': Icons.miscellaneous_services,
+      '미분류': Icons.help_outline,
+    };
 
     return SizedBox(
       width: double.infinity, // 부모 위젯의 너비에 맞춤
@@ -537,40 +629,223 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               ),
               const SizedBox(height: 20.0),
               // 소비 그래프 영역
-              Container(
-                height: 150, // 그래프 높이
-                decoration: BoxDecoration(
-                  color: Colors.grey[200], // 그래프 배경색 (임시)
-                  borderRadius: BorderRadius.circular(12.0), // 그래프 모서리 둥글기
-                ),
-                child: const Center(
-                  child: Text(
-                    "소비 그래프 영역",
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+              currentMonthExpenses.isNotEmpty 
+              ? SizedBox(
+                  height: 200,
+                  child: Column(
+                    children: [
+                      // 차트를 중앙에 배치
+                      SizedBox(
+                        height: 140,
+                        child: Center(
+                          child: PieChart(
+                            PieChartData(
+                              sections: sortedCategories.map((entry) {
+                                final percent = (entry.value / totalExpense) * 100;
+                                final index = sortedCategories.indexOf(entry);
+                                // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
+                                final colors = [
+                                  Colors.red[300]!,
+                                  Colors.pink[300]!,
+                                  Colors.orange[300]!,
+                                  Colors.purple[300]!,
+                                  Colors.blue[300]!,
+                                  Colors.amber[300]!,
+                                  Colors.teal[300]!,
+                                  Colors.indigo[300]!,
+                                  Colors.lime[300]!,
+                                  Colors.green[300]!,
+                                  Colors.cyan[300]!,
+                                  Colors.brown[300]!,
+                                ];
+                                final color = colors[index % colors.length];
+                                return PieChartSectionData(
+                                  color: color,
+                                  value: entry.value,
+                                  title: '${percent.toStringAsFixed(1)}%',
+                                  radius: 50,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }).toList(),
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 30,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 범례를 하단에 수평으로 배치
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: sortedCategories.take(3).map((entry) {
+                            final index = sortedCategories.indexOf(entry);
+                            final colors = [
+                              Colors.red[300]!,
+                              Colors.pink[300]!,
+                              Colors.orange[300]!,
+                              Colors.purple[300]!,
+                              Colors.blue[300]!,
+                              Colors.amber[300]!,
+                              Colors.teal[300]!,
+                              Colors.indigo[300]!,
+                              Colors.lime[300]!,
+                              Colors.green[300]!,
+                              Colors.cyan[300]!,
+                              Colors.brown[300]!,
+                            ];
+                            final color = colors[index % colors.length];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    color: color,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    entry.key,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      "이번 달 소비 내역이 없습니다",
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20.0),
+              const SizedBox(height: 16.0),
               // 현재 월 총 소비
               Center(
                 child: Text(
-                  "$monthInKorean 총 소비 0원",
+                  "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Colors.grey,
-                    decoration: TextDecoration.underline, // 밑줄 추가
-                    decorationStyle: TextDecorationStyle.solid, // 부드러운 밑줄
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(height: 20.0),
-              // "아직 이번 달 소비 내역이 없습니다." (가운데 정렬)
-              const Center(
-                child: Text(
-                  "아직 이번 달 소비 내역이 없습니다.",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+              const SizedBox(height: 16.0),
+              const Divider(),
+              // 카테고리별 지출 내역
+              if (currentMonthExpenses.isNotEmpty) ...[
+                const SizedBox(height: 8.0),
+                ...sortedCategories.take(4).map((entry) {
+                  final categoryName = entry.key;
+                  final amount = entry.value;
+                  final percent = (amount / totalExpense) * 100;
+                  final icon = categoryIcons[categoryName] ?? Icons.help_outline;
+                  final index = sortedCategories.indexOf(entry);
+                  final colors = [
+                    Colors.red[300]!,
+                    Colors.pink[300]!,
+                    Colors.orange[300]!,
+                    Colors.purple[300]!,
+                    Colors.blue[300]!,
+                    Colors.amber[300]!,
+                    Colors.teal[300]!,
+                    Colors.indigo[300]!,
+                    Colors.lime[300]!,
+                    Colors.green[300]!,
+                    Colors.cyan[300]!,
+                    Colors.brown[300]!,
+                  ];
+                  final color = colors[index % colors.length];
+                  
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(icon, color: color, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                categoryName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${percent.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${numberFormat(amount.toInt())}원',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                if (sortedCategories.length > 4)
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        // 가계부 탭으로 이동
+                        _onItemTapped(1);
+                      },
+                      child: Text(
+                        '더보기',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+              ] else
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0),
+                    child: Text(
+                      "가계부에 지출 내역을 추가해보세요",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
