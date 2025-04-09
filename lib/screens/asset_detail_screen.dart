@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'transaction_provider.dart';
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 
 class AssetDetailScreen extends StatefulWidget {
@@ -224,7 +227,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 목표 탭 위젯 수정
+  // 목표 탭 위젯 수정
   Widget _buildGoalTab() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -232,7 +235,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 첫 번째 줄: 이번 달 수입 & 지출
+            // 첫 번째 줄: 이번 달 수입 & 이번 달 저축
             Row(
               children: [
                 // 이번 달 수입 카드
@@ -240,16 +243,21 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                   child: _buildMonthlyIncomeCard(),
                 ),
                 const SizedBox(width: 16.0),
-                // 이번 달 지출 카드 (파이 차트)
+                // 이번 달 저축 카드
                 Expanded(
-                  child: _buildMonthlyExpenseCard(),
+                  child: _buildMonthlySavingsCard(),
                 ),
               ],
             ),
 
             const SizedBox(height: 16.0),
 
-            // 두 번째 줄: 고정지출 & 이번 달 예산
+            // 두 번째 줄: 이번 달 지출 카드 (파이 차트) - 가로 전체
+            _buildMonthlyExpenseCard(),
+
+            const SizedBox(height: 16.0),
+
+            // 세 번째 줄: 고정지출 & 이번 달 예산
             Row(
               children: [
                 // 고정지출 카드
@@ -264,23 +272,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               ],
             ),
 
-            const SizedBox(height: 16.0),
-
-            // 세 번째 줄: 이번 달 저축 & 목표 중간점
-            Row(
-              children: [
-                // 이번 달 저축 카드
-                Expanded(
-                  child: _buildMonthlySavingsCard(),
-                ),
-                const SizedBox(width: 16.0),
-                // 목표 중간점 카드
-                Expanded(
-                  child: _buildGoalCheckpointCard(),
-                ),
-              ],
-            ),
-
             const SizedBox(height: 80.0), // FloatingActionButton 공간 확보
           ],
         ),
@@ -288,36 +279,49 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 공통 카드 스타일
-  Widget _buildStandardCard({required Widget child}) {
+  // 공통 카드 스타일
+  Widget _buildStandardCard({required Widget child, double height = 180}) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),
+      color: Colors.grey[50],
       child: Container(
-        height: 180,
+        height: height,
         padding: const EdgeInsets.all(16.0),
         child: child,
       ),
     );
   }
 
-// 막대 그래프 위젯
+  // 막대 그래프 위젯
   Widget _buildBarGraph(String month, double amount, Color color, double heightPercent) {
+    // 수입 금액을 간단히 표시 (천 단위 구분)
+    String amountDisplay = '';
+    if (amount >= 10000) {
+      final inMillions = amount / 10000;
+      amountDisplay = '${inMillions.toStringAsFixed(1)}만';
+    } else {
+      amountDisplay = NumberFormat('#,###').format(amount);
+    }
+
     return SizedBox(
-      width: 28, // 전체 너비 제한
+      width: 45, // 전체 너비 제한
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 20, // 막대 너비 감소
-            height: heightPercent,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-                bottom: Radius.circular(10),
+          Tooltip(
+            message: '${month}: $amountDisplay원',
+            child: Container(
+              width: 20, // 막대 너비 감소
+              height: heightPercent > 0 ? heightPercent : 2, // 데이터가 0이면 최소 높이 표시
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(10),
+                  bottom: Radius.circular(10),
+                ),
               ),
             ),
           ),
@@ -327,7 +331,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               month,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 8, // 텍스트 크기 감소
                 color: Colors.black87,
               ),
             ),
@@ -337,16 +341,84 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 이번 달 수입 카드
+  // 이번 달 수입 카드
   Widget _buildMonthlyIncomeCard() {
+    // TransactionProvider에서 데이터 가져오기
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final transactions = transactionProvider.transactions;
+    
+    // 현재 날짜 정보 가져오기
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    final currentYear = now.year;
+    
+    // 최근 3개월의 연도와 월 계산
+    List<Map<String, dynamic>> lastThreeMonths = [];
+    for (int i = 0; i < 3; i++) {
+      int month = currentMonth - i;
+      int year = currentYear;
+      if (month <= 0) {
+        month += 12;
+        year -= 1;
+      }
+      lastThreeMonths.add({
+        'year': year,
+        'month': month,
+        'label': '$month월',
+      });
+    }
+    // 가장 오래된 월이 먼저 오도록 뒤집기
+    lastThreeMonths = lastThreeMonths.reversed.toList();
+    
+    // 각 월의 수입 계산
+    List<double> monthlyIncomes = [];
+    for (var monthData in lastThreeMonths) {
+      int year = monthData['year'];
+      int month = monthData['month'];
+      
+      // 해당 월의 수입 트랜잭션 필터링
+      final monthlyTransactions = transactions.where((transaction) {
+        return transaction.date.year == year && 
+               transaction.date.month == month && 
+               transaction.type == '수입';
+      }).toList();
+      
+      // 해당 월의 총 수입 계산
+      final totalIncome = monthlyTransactions.fold(0.0, 
+          (sum, transaction) => sum + transaction.amount);
+          
+      monthlyIncomes.add(totalIncome);
+    }
+    
+    // 그래프 높이 계산 (최대 수입을 기준으로 비율 계산)
+    double maxIncome = monthlyIncomes.isNotEmpty ? 
+        monthlyIncomes.reduce((curr, next) => curr > next ? curr : next) : 1.0;
+    List<double> heightPercents = monthlyIncomes.map((income) => 
+        maxIncome > 0 ? (income / maxIncome) * 90 : 0.0).toList();
+    
+    // 현재 월의 수입 (마지막 값)
+    String currentMonthIncome = '';
+    if (monthlyIncomes.isNotEmpty) {
+      final lastIncome = monthlyIncomes.last;
+      currentMonthIncome = NumberFormat.compact(locale: 'ko').format(lastIncome) + '원';
+      if (lastIncome >= 10000) {
+        final inMillions = lastIncome / 10000;
+        currentMonthIncome = '${inMillions.toStringAsFixed(0)}만원';
+      }
+    }
+
+    // 월 이름 표시
+    List<String> monthLabels = lastThreeMonths.map((data) => data['label'] as String).toList();
+    
     return _buildStandardCard(
+      height: 250, // 높이 더 증가
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '이번 달 수입',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14, // 제목 텍스트 크기 감소
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -361,11 +433,26 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _buildBarGraph('11월', 150, Color.fromRGBO(158, 158, 158, 0.3), 50),
+                  _buildBarGraph(
+                    monthLabels[0], 
+                    monthlyIncomes[0],
+                    Color.fromRGBO(158, 158, 158, 0.3), 
+                    heightPercents[0]
+                  ),
                   const SizedBox(width: 12),
-                  _buildBarGraph('12월', 180, Color.fromRGBO(158, 158, 158, 0.3), 65),
+                  _buildBarGraph(
+                    monthLabels[1], 
+                    monthlyIncomes[1],
+                    Color.fromRGBO(158, 158, 158, 0.3), 
+                    heightPercents[1]
+                  ),
                   const SizedBox(width: 12),
-                  _buildBarGraph('1월', 200, const Color(0xFF73AD13), 80),
+                  _buildBarGraph(
+                    monthLabels[2], 
+                    monthlyIncomes[2],
+                    const Color(0xFF73AD13), 
+                    heightPercents[2]
+                  ),
                 ],
               ),
             ),
@@ -374,9 +461,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Spacer(),
           Center(
             child: Text(
-              '200만원',
+              currentMonthIncome,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12, // 금액 텍스트 크기 감소
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
@@ -387,16 +474,17 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 이번 달 지출 카드 (도넛 차트)
+  // 이번 달 지출 카드 (도넛 차트)
   Widget _buildMonthlyExpenseCard() {
     return _buildStandardCard(
+      height: 160, // 높이 약간 감소
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '이번 달 지출',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14, // 제목 텍스트 크기 감소
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -407,26 +495,43 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           Expanded(
             child: Row(
               children: [
-                // 도넛 차트
+                // 도넛 차트 - 크기 조정
                 Expanded(
-                  child: CustomPaint(
-                    painter: DonutChartPainter(),
+                  flex: 4, // 전체 너비의 40%
+                  child: SizedBox(
+                    height: 90, // 높이 제한
+                    child: Center(
+                      child: SizedBox(
+                        width: 90, // 도넛 차트 크기 제한
+                        height: 90,
+                        child: CustomPaint(
+                          painter: DonutChartPainter(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 // 범례
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildLegendItem('식비', '33%', Colors.blue),
-                      const SizedBox(height: 4),
-                      _buildLegendItem('여행', '25%', Colors.green),
-                      const SizedBox(height: 4),
-                      _buildLegendItem('쇼핑', '25%', Colors.orange),
-                      const SizedBox(height: 4),
-                      _buildLegendItem('기타', '17%', Colors.red),
-                    ],
+                  flex: 6, // 전체 너비의 60%
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end, // 오른쪽 정렬
+                        children: [
+                          _buildLegendItem('식비', '33%', Colors.blue),
+                          const SizedBox(height: 4),
+                          _buildLegendItem('여행', '25%', Colors.green),
+                          const SizedBox(height: 4),
+                          _buildLegendItem('쇼핑', '25%', Colors.orange),
+                          const SizedBox(height: 4),
+                          _buildLegendItem('기타', '17%', Colors.red),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -437,7 +542,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '70만원',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12, // 금액 텍스트 크기 감소
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
@@ -451,10 +556,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 범례 아이템 위젯
   Widget _buildLegendItem(String label, String percentage, Color color) {
     return Row(
+      mainAxisSize: MainAxisSize.min, // 내용물 크기에 맞춤
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 8, // 범례 점 크기 감소
+          height: 8, // 범례 점 크기 감소
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
@@ -464,7 +570,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         Text(
           '$label $percentage',
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10, // 범례 텍스트 크기 감소
             color: Colors.black87,
           ),
         ),
@@ -472,7 +578,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 고정지출 카드
+  // 고정지출 카드
   Widget _buildFixedExpenseCard() {
     return _buildStandardCard(
       child: Column(
@@ -481,7 +587,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Text(
             '고정지출',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14, // 제목 텍스트 크기 감소
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -490,7 +596,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Text(
             '고정지출을 추가하세요',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12, // 안내 텍스트 크기 감소
               color: Colors.grey,
             ),
           ),
@@ -504,13 +610,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 48),
+              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
             ),
             child: const Text(
               '고정지출 추가',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: 11, // 버튼 텍스트 크기 감소
               ),
             ),
           ),
@@ -519,7 +625,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 이번 달 예산 카드
+  // 이번 달 예산 카드
   Widget _buildMonthlyBudgetCard() {
     return _buildStandardCard(
       child: Column(
@@ -528,7 +634,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Text(
             '이번 달 예산',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14, // 제목 텍스트 크기 감소
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -537,7 +643,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const Text(
             '예산을 설정하세요',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12, // 안내 텍스트 크기 감소
               color: Colors.grey,
             ),
           ),
@@ -551,13 +657,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 48),
+              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
             ),
             child: const Text(
               '월 예산 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: 11, // 버튼 텍스트 크기 감소
               ),
             ),
           ),
@@ -566,16 +672,17 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-// 이번 달 저축 카드
+  // 이번 달 저축 카드
   Widget _buildMonthlySavingsCard() {
     return _buildStandardCard(
+      height: 250, // 높이 더 증가
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '이번 달 저축',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14, // 제목 텍스트 크기 감소
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
@@ -585,7 +692,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             child: Text(
               '0원',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16, // 금액 텍스트 크기 감소
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -600,62 +707,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              minimumSize: const Size(double.infinity, 48),
+              minimumSize: const Size(double.infinity, 36), // 버튼 높이 감소
             ),
             child: const Text(
               '월 목표 설정',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-// 목표 중간점 카드
-  Widget _buildGoalCheckpointCard() {
-    return _buildStandardCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '목표 종잣돈',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const Spacer(),
-          const Center(
-            child: Text(
-              '0원',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: () {
-              // 계좌 설정 로직
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF73AD13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              minimumSize: const Size(double.infinity, 48),
-            ),
-            child: const Text(
-              '계좌 설정',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
+                fontSize: 11, // 버튼 텍스트 크기 감소
               ),
             ),
           ),
