@@ -678,97 +678,119 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 "부린이님의 $monthInKorean 소비 리포트",
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 20.0),
+              const SizedBox(height: 30.0), // 상단 여백 조정
               // 소비 그래프 영역
               currentMonthExpenses.isNotEmpty 
               ? SizedBox(
-                  height: 200,
+                  height: 180, // 그래프 컨테이너 높이 조정
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center, // 세로 중앙 정렬
                     children: [
-                      // 차트를 중앙에 배치
-                      SizedBox(
-                        height: 140,
-                        child: Center(
-                          child: PieChart(
-                            PieChartData(
-                              sections: sortedCategories.map((entry) {
-                                final percent = (entry.value / totalExpense) * 100;
-                                final index = sortedCategories.indexOf(entry);
-                                // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
-                                final colors = [
-                                  Colors.red[300]!,
-                                  Colors.pink[300]!,
-                                  Colors.orange[300]!,
-                                  Colors.purple[300]!,
-                                  Colors.blue[300]!,
-                                  Colors.amber[300]!,
-                                  Colors.teal[300]!,
-                                  Colors.indigo[300]!,
-                                  Colors.lime[300]!,
-                                  Colors.green[300]!,
-                                  Colors.cyan[300]!,
-                                  Colors.brown[300]!,
-                                ];
-                                final color = colors[index % colors.length];
-                                return PieChartSectionData(
-                                  color: color,
-                                  value: entry.value,
-                                  title: '${percent.toStringAsFixed(1)}%',
-                                  radius: 50,
-                                  titleStyle: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                      // 차트와 범례를 Row로 배치
+                      Row(
+                        children: [
+                          // 차트를 왼쪽에 배치
+                          Expanded(
+                            flex: 3,
+                            child: SizedBox(
+                              height: 150, // 차트 높이 조정
+                              child: Center(
+                                child: PieChart(
+                                  PieChartData(
+                                    sections: sortedCategories.map((entry) {
+                                      final percent = (entry.value / totalExpense) * 100;
+                                      final index = sortedCategories.indexOf(entry);
+                                      // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
+                                      final colors = [
+                                        Colors.red[300]!,
+                                        Colors.pink[300]!,
+                                        Colors.orange[300]!,
+                                        Colors.purple[300]!,
+                                        Colors.blue[300]!,
+                                        Colors.amber[300]!,
+                                        Colors.teal[300]!,
+                                        Colors.indigo[300]!,
+                                        Colors.lime[300]!,
+                                        Colors.green[300]!,
+                                        Colors.cyan[300]!,
+                                        Colors.brown[300]!,
+                                      ];
+                                      final color = colors[index % colors.length];
+                                      return PieChartSectionData(
+                                        color: color,
+                                        value: entry.value,
+                                        title: '${percent.toStringAsFixed(1)}%',
+                                        radius: 50,
+                                        titleStyle: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      );
+                                    }).toList(),
+                                    sectionsSpace: 2,
+                                    centerSpaceRadius: 30,
                                   ),
-                                );
-                              }).toList(),
-                              sectionsSpace: 2,
-                              centerSpaceRadius: 30,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      // 범례를 하단에 수평으로 배치
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: sortedCategories.take(3).map((entry) {
-                            final index = sortedCategories.indexOf(entry);
-                            final colors = [
-                              Colors.red[300]!,
-                              Colors.pink[300]!,
-                              Colors.orange[300]!,
-                              Colors.purple[300]!,
-                              Colors.blue[300]!,
-                              Colors.amber[300]!,
-                              Colors.teal[300]!,
-                              Colors.indigo[300]!,
-                              Colors.lime[300]!,
-                              Colors.green[300]!,
-                              Colors.cyan[300]!,
-                              Colors.brown[300]!,
-                            ];
-                            final color = colors[index % colors.length];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    color: color,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    entry.key,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
+                          // 범례를 오른쪽에 배치
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.only(left: 8.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: sortedCategories.take(4).map((entry) {
+                                  final index = sortedCategories.indexOf(entry);
+                                  final colors = [
+                                    Colors.red[300]!,
+                                    Colors.pink[300]!,
+                                    Colors.orange[300]!,
+                                    Colors.purple[300]!,
+                                    Colors.blue[300]!,
+                                    Colors.amber[300]!,
+                                    Colors.teal[300]!,
+                                    Colors.indigo[300]!,
+                                    Colors.lime[300]!,
+                                    Colors.green[300]!,
+                                    Colors.cyan[300]!,
+                                    Colors.brown[300]!,
+                                  ];
+                                  final color = colors[index % colors.length];
+                                  final percent = (entry.value / totalExpense) * 100;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 12,
+                                          height: 12,
+                                          color: color,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          entry.key,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          '${percent.toStringAsFixed(1)}%',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                            );
-                          }).toList(),
-                        ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -786,7 +808,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     ),
                   ),
                 ),
-              const SizedBox(height: 16.0),
+              const SizedBox(height: 30.0), // 하단 여백 조정
               // 현재 월 총 소비
               Center(
                 child: Text(
@@ -799,6 +821,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               ),
               const SizedBox(height: 16.0),
               const Divider(),
+              const SizedBox(height: 16.0), // 구분선과 카테고리 상세 사이 간격 추가
               // 카테고리별 지출 내역
               if (currentMonthExpenses.isNotEmpty) ...[
                 const SizedBox(height: 8.0),
