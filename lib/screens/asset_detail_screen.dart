@@ -476,6 +476,91 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
   // 이번 달 지출 카드 (도넛 차트)
   Widget _buildMonthlyExpenseCard() {
+    // TransactionProvider에서 데이터 가져오기
+    final transactionProvider = Provider.of<TransactionProvider>(context);
+    final transactions = transactionProvider.transactions;
+    
+    // 현재 날짜 정보 가져오기
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    final currentYear = now.year;
+    
+    // 이번 달 지출 트랜잭션 필터링
+    final monthlyExpenses = transactions.where((transaction) {
+      return transaction.date.year == currentYear && 
+             transaction.date.month == currentMonth && 
+             transaction.type == '지출';
+    }).toList();
+    
+    // 카테고리별 지출 금액 계산
+    Map<String, double> categoryExpenses = {};
+    for (var transaction in monthlyExpenses) {
+      final category = transaction.category.isEmpty ? '기타' : transaction.category;
+      if (categoryExpenses.containsKey(category)) {
+        categoryExpenses[category] = categoryExpenses[category]! + transaction.amount;
+      } else {
+        categoryExpenses[category] = transaction.amount;
+      }
+    }
+    
+    // 총 지출액 계산
+    final totalExpense = monthlyExpenses.fold(
+        0.0, (sum, transaction) => sum + transaction.amount);
+    
+    // 상위 4개 카테고리 선택 (또는 더 적은 경우 모든 카테고리)
+    List<MapEntry<String, double>> sortedCategories = 
+        categoryExpenses.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    
+    List<MapEntry<String, double>> topCategories = [];
+    double otherAmount = 0.0;
+    
+    if (sortedCategories.length <= 4) {
+      topCategories = sortedCategories;
+    } else {
+      topCategories = sortedCategories.take(3).toList();
+      // 나머지 카테고리 금액 합산
+      otherAmount = sortedCategories.skip(3).fold(
+          0.0, (sum, entry) => sum + entry.value);
+      topCategories.add(MapEntry('기타', otherAmount));
+    }
+    
+    // 퍼센트 계산
+    final List<ChartCategory> chartData = [];
+    final colors = [Colors.blue, Colors.green, Colors.orange, Colors.red];
+    
+    if (totalExpense > 0) {
+      for (int i = 0; i < topCategories.length; i++) {
+        final category = topCategories[i];
+        final percent = (category.value / totalExpense * 100).round();
+        chartData.add(ChartCategory(
+          name: category.key,
+          amount: category.value,
+          percent: percent,
+          color: i < colors.length ? colors[i] : Colors.grey,
+        ));
+      }
+    } else {
+      // 지출이 없는 경우 기본 데이터
+      chartData.add(ChartCategory(
+        name: '지출 없음',
+        amount: 0,
+        percent: 100,
+        color: Colors.grey,
+      ));
+    }
+    
+    // 금액 표시 포맷
+    String expenseText = '0원';
+    if (totalExpense > 0) {
+      if (totalExpense >= 10000) {
+        final inMillions = totalExpense / 10000;
+        expenseText = '${inMillions.toStringAsFixed(0)}만원';
+      } else {
+        expenseText = '${NumberFormat('#,###').format(totalExpense)}원';
+      }
+    }
+    
     return _buildStandardCard(
       height: 160, // 높이 약간 감소
       child: Column(
@@ -505,7 +590,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         width: 90, // 도넛 차트 크기 제한
                         height: 90,
                         child: CustomPaint(
-                          painter: DonutChartPainter(),
+                          painter: DonutChartPainter(categories: chartData),
                         ),
                       ),
                     ),
@@ -521,15 +606,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end, // 오른쪽 정렬
-                        children: [
-                          _buildLegendItem('식비', '33%', Colors.blue),
-                          const SizedBox(height: 4),
-                          _buildLegendItem('여행', '25%', Colors.green),
-                          const SizedBox(height: 4),
-                          _buildLegendItem('쇼핑', '25%', Colors.orange),
-                          const SizedBox(height: 4),
-                          _buildLegendItem('기타', '17%', Colors.red),
-                        ],
+                        children: chartData.map((category) => 
+                          _buildLegendItem(
+                            category.name, 
+                            '${category.percent}%', 
+                            category.color,
+                          )
+                        ).toList(),
                       ),
                     ),
                   ),
@@ -540,7 +623,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
           Center(
             child: Text(
-              '70만원',
+              expenseText,
               style: TextStyle(
                 fontSize: 12, // 금액 텍스트 크기 감소
                 fontWeight: FontWeight.bold,
@@ -947,7 +1030,25 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   }
 }
 
+class ChartCategory {
+  final String name;
+  final double amount;
+  final int percent;
+  final Color color;
+  
+  ChartCategory({
+    required this.name,
+    required this.amount,
+    required this.percent,
+    required this.color,
+  });
+}
+
 class DonutChartPainter extends CustomPainter {
+  final List<ChartCategory> categories;
+  
+  DonutChartPainter({this.categories = const []});
+  
   @override
   void paint(Canvas canvas, Size size) {
     final double strokeWidth = size.width * 0.2;
@@ -957,50 +1058,34 @@ class DonutChartPainter extends CustomPainter {
 
     double radius = (size.width - strokeWidth) / 2;
     Offset center = Offset(size.width / 2, size.height / 2);
-
-    // 식비 33%
-    paint.color = Colors.blue;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -0.5 * 3.14,
-      0.33 * 2 * 3.14,
-      false,
-      paint,
-    );
-
-    // 여행 25%
-    paint.color = Colors.green;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0.33 * 2 * 3.14 - 0.5 * 3.14,
-      0.25 * 2 * 3.14,
-      false,
-      paint,
-    );
-
-    // 쇼핑 25%
-    paint.color = Colors.orange;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      (0.33 + 0.25) * 2 * 3.14 - 0.5 * 3.14,
-      0.25 * 2 * 3.14,
-      false,
-      paint,
-    );
-
-    // 기타 17%
-    paint.color = Colors.red;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      (0.33 + 0.25 + 0.25) * 2 * 3.14 - 0.5 * 3.14,
-      0.17 * 2 * 3.14,
-      false,
-      paint,
-    );
+    
+    if (categories.isEmpty || categories.length == 1 && categories[0].name == '지출 없음') {
+      // 데이터가 없거나 지출이 없는 경우, 회색 원 그리기
+      paint.color = Colors.grey.withOpacity(0.3);
+      canvas.drawCircle(center, radius, paint);
+      return;
+    }
+    
+    double startAngle = -0.5 * 3.14; // 12시 방향에서 시작
+    
+    for (var category in categories) {
+      final sweepAngle = category.percent / 100 * 2 * 3.14;
+      paint.color = category.color;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
+      
+      startAngle += sweepAngle;
+    }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+    return true;
   }
 }
