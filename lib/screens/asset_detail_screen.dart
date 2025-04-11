@@ -917,45 +917,52 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 ],
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '지출 예산',
-                    style: TextStyle(
-                      fontSize: 16,
+              InkWell(
+                onTap: () {
+                  // 현재 시트를 닫고 예산 입력 다이얼로그 표시
+                  Navigator.pop(context);
+                  _showBudgetInputDialog();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '지출 예산',
+                      style: TextStyle(
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            '800,000원',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            const Text(
+                              '800,000원',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            '월 수입의 40%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                            const Text(
+                              '월 수입의 40%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 5),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ),
-                    ],
-                  ),
-                ],
+                          ],
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
@@ -981,6 +988,263 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           ),
         );
       },
+    );
+  }
+  
+  // 예산 입력 다이얼로그 표시
+  void _showBudgetInputDialog() {
+    // 예산 금액 관리를 위한 변수
+    String budgetInput = '800000';
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // 입력된 금액을 포맷팅하여 표시
+            String formattedBudget = _numberFormat(int.parse(budgetInput)) + '원';
+            String percentageText = '월 수입의 40%';
+            
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom
+              ),
+              child: SizedBox(
+                height: 500,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 상단 제목 및 닫기 버튼
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '월 지출 예산을 입력해주세요.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            iconSize: 24,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // 예산 금액 표시
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              formattedBudget,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              percentageText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+
+                      // 숫자 키패드
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // 첫 번째 줄: 1, 2, 3
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('1', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '1';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('2', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '2';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('3', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '3';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 두 번째 줄: 4, 5, 6
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('4', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '4';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('5', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '5';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('6', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '6';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 세 번째 줄: 7, 8, 9
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('7', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '7';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('8', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '8';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('9', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10) {
+                                      budgetInput += '9';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 네 번째 줄: 0, 백스페이스
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                const SizedBox(width: 50),
+                                _buildNumberButton('0', onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.length < 10 && budgetInput != '0') {
+                                      budgetInput += '0';
+                                    }
+                                  });
+                                }),
+                                _buildBackspaceButton(onPressed: () {
+                                  setState(() {
+                                    if (budgetInput.isNotEmpty) {
+                                      budgetInput = budgetInput.substring(0, budgetInput.length - 1);
+                                      if (budgetInput.isEmpty) {
+                                        budgetInput = '0';
+                                      }
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 확인 버튼
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF73AD13),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text(
+                            '확인',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  // 숫자 버튼 위젯
+  Widget _buildNumberButton(String number, {required VoidCallback onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        width: 50,
+        height: 50,
+        alignment: Alignment.center,
+        child: Text(
+          number,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 백스페이스 버튼 위젯
+  Widget _buildBackspaceButton({required VoidCallback onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(30),
+      child: Container(
+        width: 50,
+        height: 50,
+        alignment: Alignment.center,
+        child: const Icon(Icons.backspace_outlined, size: 24),
+      ),
     );
   }
 
