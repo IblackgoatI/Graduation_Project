@@ -25,12 +25,18 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   int _stocksTotal = 0;
   int _cashTotal = 0;
   List<Map<String, dynamic>> _assetAccounts = [];
+  
+  // 예산 금액과 지출 금액을 저장할 변수
+  double _budgetAmount = 0.0; // 예산 금액
+  double _expensesAmount = 0.0; // 지출 금액
+  bool _hasBudget = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadAssetData();
+    _loadBudgetData(); // 예산 로드 함수
   }
 
   @override
@@ -118,6 +124,109 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         setState(() {
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  // 예산 데이터 로드
+  Future<void> _loadBudgetData() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+
+      if (currentUser != null) {
+        // 예산 문서 있는지 확인
+        QuerySnapshot budgetQuery = await FirebaseFirestore.instance
+            .collection('budget')
+            .where('userId', isEqualTo: currentUser.uid)
+            .limit(1)
+            .get();
+
+        double budgetAmount = 0.0;
+        bool hasBudget = false;
+
+        // 목표금액 가져오기 (Amount 1)
+        if (budgetQuery.docs.isNotEmpty) {
+          Map<String, dynamic> budgetData = budgetQuery.docs.first.data() as Map<String, dynamic>;
+          budgetAmount = (budgetData['goalcost'] as num).toDouble();
+          hasBudget = true;
+        }
+
+        // 이번 달 지출 (Amount 2)
+        double expensesAmount = 0.0;
+        
+        // 이번달 가져오기
+        DateTime now = DateTime.now();
+        DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
+        DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+        // 이번 달 지출 가져오는 쿼리문
+        QuerySnapshot expensesQuery = await FirebaseFirestore.instance
+            .collection('ledger')
+            .where('userId', isEqualTo: currentUser.uid)
+            .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+            .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+            .where('type', isEqualTo: '지출') // 지출만 필터링
+            .get();
+
+        // 지출 합계 계산
+        for (var doc in expensesQuery.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          expensesAmount += (data['amount'] as num).toDouble();
+        }
+
+        if (mounted) {
+          setState(() {
+            _budgetAmount = budgetAmount;
+            _expensesAmount = expensesAmount;
+            _hasBudget = hasBudget;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('예산 정보 로드 오류: $e'); // 지출 오류
+    }
+  }
+
+  //  Firestore에 저장
+  Future<void> _saveBudget(double amount) async {
+    // 컨텍스트를 미리 저장
+    final BuildContext currentContext = context;
+    
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // 예산 문서 있는지 확인
+        QuerySnapshot budgetQuery = await FirebaseFirestore.instance
+            .collection('budget')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+            
+        if (budgetQuery.docs.isEmpty) {
+          // 예산 문서가 없으면 새로 생성
+          await FirebaseFirestore.instance.collection('budget').add({
+            'userId': currentUser.uid,
+            'goalcost': amount,
+            'createdAt': DateTime.now(),
+          });
+        } else {
+          // 예산 문서가 있으면 새로 업데이트
+          String docId = budgetQuery.docs.first.id;
+          await FirebaseFirestore.instance.collection('budget').doc(docId).update({
+            'goalcost': amount,
+            'updatedAt': DateTime.now(),
+          });
+        }
+        
+        // 예산 저장 후 데이터 다시 로드
+        await _loadBudgetData();
+      }
+    } catch (e) {
+      debugPrint('예산 저장 오류: $e'); // 예산 저장 오류
+      if (currentContext.mounted) {
+        ScaffoldMessenger.of(currentContext).showSnackBar(
+          const SnackBar(content: Text('예산 정보를 저장하는 중 오류가 발생했습니다.'))
+        );
       }
     }
   }
@@ -313,7 +422,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         mainAxisSize: MainAxisSize.min,
         children: [
           Tooltip(
-            message: '${month}: $amountDisplay원',
+            message: '$month: $amountDisplay원',
             child: Container(
               width: 15, // 막대 너비 감소
               height: heightPercent > 0 ? min(heightPercent, 150) : 2, // 높이 제한
@@ -386,7 +495,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       
       // 해당 월의 총 수입 계산
       final totalIncome = monthlyTransactions.fold(0.0, 
-          (sum, transaction) => sum + transaction.amount);
+          (total, transaction) => total + transaction.amount);
           
       monthlyIncomes.add(totalIncome);
     }
@@ -401,7 +510,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     String currentMonthIncome = '';
     if (monthlyIncomes.isNotEmpty) {
       final lastIncome = monthlyIncomes.last;
-      currentMonthIncome = NumberFormat.compact(locale: 'ko').format(lastIncome) + '원';
+      currentMonthIncome = '${NumberFormat.compact(locale: 'ko').format(lastIncome)}원';
       if (lastIncome >= 10000) {
         final inMillions = lastIncome / 10000;
         currentMonthIncome = '${inMillions.toStringAsFixed(0)}만원';
@@ -505,7 +614,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     
     // 총 지출액 계산
     final totalExpense = monthlyExpenses.fold(
-        0.0, (sum, transaction) => sum + transaction.amount);
+        0.0, (total, transaction) => total + transaction.amount);
     
     // 상위 4개 카테고리 선택 (또는 더 적은 경우 모든 카테고리)
     List<MapEntry<String, double>> sortedCategories = 
@@ -521,7 +630,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       topCategories = sortedCategories.take(3).toList();
       // 나머지 카테고리 금액 합산
       otherAmount = sortedCategories.skip(3).fold(
-          0.0, (sum, entry) => sum + entry.value);
+          0.0, (total, entry) => total + entry.value);
       topCategories.add(MapEntry('기타', otherAmount));
     }
     
@@ -822,6 +931,26 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
   // 이번 달 예산 카드
   Widget _buildMonthlyBudgetCard() {
+    // 예산 초기화
+    String budgetText = _hasBudget 
+        ? (_budgetAmount >= 10000 
+            ? '${(_budgetAmount / 10000).toStringAsFixed(1)}만원' 
+            : '${_numberFormat(_budgetAmount.toInt())}원')
+        : '예산을 설정하세요'; 
+    
+    // Calculate remaining budget
+    double remainingBudget = _budgetAmount - _expensesAmount;
+    remainingBudget = remainingBudget < 0 ? 0 : remainingBudget;
+    
+    String remainingText = _hasBudget
+        ? '남은 예산: ${remainingBudget >= 10000 
+            ? '${(remainingBudget / 10000).toStringAsFixed(1)}만원' 
+            : '${_numberFormat(remainingBudget.toInt())}원'}'
+        : '';
+    
+    // 예산 값이 있으면 "변경", 없으면 "설정"
+    String buttonText = _hasBudget ? '월 예산 변경' : '월 예산 설정'; 
+    
     return _buildStandardCard(
       height: 250,
       child: Column(
@@ -839,20 +968,22 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           // 예산과 지출을 보여주는 그래프
           Column(
             children: [
-              const Text(
-                '30만원', // 예산 금액 (예시)
-                style: TextStyle(
+              Text(
+                budgetText,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
               ),
               const SizedBox(height: 12),
-              _buildBudgetProgressBar(22.5, 30.0),
+              _hasBudget 
+                  ? _buildBudgetProgressBar(_expensesAmount / 10000, _budgetAmount / 10000)
+                  : Container(height: 25),
               const SizedBox(height: 12),
-              const Text(
-                '남은 예산: 7.5만원',
-                style: TextStyle(
+              Text(
+                remainingText,
+                style: const TextStyle(
                   fontSize: 14,
                   color: Colors.black,
                 ),
@@ -872,9 +1003,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               ),
               minimumSize: const Size(double.infinity, 36),
             ),
-            child: const Text(
-              '월 예산 변경',
-              style: TextStyle(
+            child: Text(
+              buttonText,
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
               ),
@@ -938,7 +1069,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             const Text(
-                              '800,000원',
+                              '300,000원',
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.blue,
@@ -994,7 +1125,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 예산 입력 다이얼로그 표시
   void _showBudgetInputDialog() {
     // 예산 금액 관리를 위한 변수
-    String budgetInput = '800000';
+    String budgetInput = _hasBudget ? _budgetAmount.toInt().toString() : '0';
     
     showModalBottomSheet(
       context: context,
@@ -1006,7 +1137,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         return StatefulBuilder(
           builder: (context, setState) {
             // 입력된 금액을 포맷팅하여 표시
-            String formattedBudget = _numberFormat(int.parse(budgetInput)) + '원';
+            String formattedBudget = '${_numberFormat(int.parse(budgetInput))}원';
             String percentageText = '월 수입의 40%';
             
             return Padding(
@@ -1186,8 +1317,16 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
+                          onPressed: () async {
+                            // 예산 입력값을 숫자로 변환
+                            final currentContext = context;
+                            double budgetAmount = double.parse(budgetInput);
+                            await _saveBudget(budgetAmount);
+                            
+                            // 예산 저장 후 다이얼로그 표시
+                            if (currentContext.mounted) {
+                              Navigator.pop(currentContext);
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF73AD13),
@@ -1273,7 +1412,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           ),
           child: Center(
             child: Text(
-              '${spent}만원',
+              '$spent만원',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
