@@ -29,7 +29,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 예산 금액과 지출 금액을 저장할 변수
   double _budgetAmount = 0.0; // 예산 금액
   double _expensesAmount = 0.0; // 지출 금액
+  double _incomeAmount = 0.0; // 수입 금액 변수 추가
   bool _hasBudget = false;
+  int _budgetPercentage = 0; // 예산이 수입에서 차지하는 비율
 
   @override
   void initState() {
@@ -129,63 +131,90 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   }
 
   // 예산 데이터 로드
-  Future<void> _loadBudgetData() async {
-    try {
-      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+  // 예산 데이터 로드
+Future<void> _loadBudgetData() async {
+  try {
+    User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
 
-      if (currentUser != null) {
-        // 예산 문서 있는지 확인
-        QuerySnapshot budgetQuery = await FirebaseFirestore.instance
-            .collection('budget')
-            .where('userId', isEqualTo: currentUser.uid)
-            .limit(1)
-            .get();
+    if (currentUser != null) {
+      // 예산 문서 있는지 확인
+      QuerySnapshot budgetQuery = await FirebaseFirestore.instance
+          .collection('budget')
+          .where('userId', isEqualTo: currentUser.uid)
+          .limit(1)
+          .get();
 
-        double budgetAmount = 0.0;
-        bool hasBudget = false;
+      double budgetAmount = 0.0;
+      bool hasBudget = false;
 
-        // 목표금액 가져오기 (Amount 1)
-        if (budgetQuery.docs.isNotEmpty) {
-          Map<String, dynamic> budgetData = budgetQuery.docs.first.data() as Map<String, dynamic>;
-          budgetAmount = (budgetData['goalcost'] as num).toDouble();
-          hasBudget = true;
-        }
-
-        // 이번 달 지출 (Amount 2)
-        double expensesAmount = 0.0;
-        
-        // 이번달 가져오기
-        DateTime now = DateTime.now();
-        DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
-        DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-        // 이번 달 지출 가져오는 쿼리문
-        QuerySnapshot expensesQuery = await FirebaseFirestore.instance
-            .collection('ledger')
-            .where('userId', isEqualTo: currentUser.uid)
-            .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
-            .where('date', isLessThanOrEqualTo: lastDayOfMonth)
-            .where('type', isEqualTo: '지출') // 지출만 필터링
-            .get();
-
-        // 지출 합계 계산
-        for (var doc in expensesQuery.docs) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          expensesAmount += (data['amount'] as num).toDouble();
-        }
-
-        if (mounted) {
-          setState(() {
-            _budgetAmount = budgetAmount;
-            _expensesAmount = expensesAmount;
-            _hasBudget = hasBudget;
-          });
-        }
+      // 목표금액 가져오기 (Amount 1)
+      if (budgetQuery.docs.isNotEmpty) {
+        Map<String, dynamic> budgetData = budgetQuery.docs.first.data() as Map<String, dynamic>;
+        budgetAmount = (budgetData['goalcost'] as num).toDouble();
+        hasBudget = true;
       }
-    } catch (e) {
-      debugPrint('예산 정보 로드 오류: $e'); // 지출 오류
+
+      // 이번 달 지출 (Amount 2)
+      double expensesAmount = 0.0;
+      
+      // 이번달 가져오기
+      DateTime now = DateTime.now();
+      DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
+      DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+      // 이번 달 지출 가져오는 쿼리문
+      QuerySnapshot expensesQuery = await FirebaseFirestore.instance
+          .collection('ledger')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+          .where('type', isEqualTo: '지출') // 지출만 필터링
+          .get();
+
+      // 지출 합계 계산
+      for (var doc in expensesQuery.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        expensesAmount += (data['amount'] as num).toDouble();
+      }
+      
+      // 이번 달 수입 가져오기
+      double incomeAmount = 0.0;
+      
+      // 수입 쿼리문 (같은 달의 수입 데이터)
+      QuerySnapshot incomeQuery = await FirebaseFirestore.instance
+          .collection('ledger')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+          .where('type', isEqualTo: '수입') // 수입만 필터링
+          .get();
+      
+      // 수입 합계 계산
+      for (var doc in incomeQuery.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        incomeAmount += (data['amount'] as num).toDouble();
+      }
+      
+      // 예산의 수입 대비 비율 계산
+      int budgetPercentage = 0;
+      if (incomeAmount > 0) {
+        budgetPercentage = ((budgetAmount / incomeAmount) * 100).round();
+      }
+
+      if (mounted) {
+        setState(() {
+          _budgetAmount = budgetAmount;
+          _expensesAmount = expensesAmount;
+          _incomeAmount = incomeAmount;
+          _hasBudget = hasBudget;
+          _budgetPercentage = budgetPercentage;
+        });
+      }
     }
+  } catch (e) {
+    debugPrint('예산 정보 로드 오류: $e');
   }
+}
 
   //  Firestore에 저장
   Future<void> _saveBudget(double amount) async {
@@ -1018,83 +1047,93 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   
   // 월 예산 설정 시트 표시
   void _showMonthlyBudgetSettingSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          height: 250,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (BuildContext context) {
+      // 예산 금액 포맷팅
+      String budgetText = _hasBudget 
+          ? '${_numberFormat(_budgetAmount.toInt())}원' 
+          : '0원';
+      
+      // 예산 비율 텍스트
+      String percentageText = _incomeAmount > 0 
+          ? '월 수입의 $_budgetPercentage%'
+          : '월 수입이 없습니다';
+      
+      return Container(
+        padding: const EdgeInsets.all(20),
+        height: 250,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '월 지출 예산 설정',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            InkWell(
+              onTap: () {
+                // 현재 시트를 닫고 예산 입력 다이얼로그 표시
+                Navigator.pop(context);
+                _showBudgetInputDialog();
+              },
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    '월 지출 예산 설정',
+                    '지출 예산',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            budgetText,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            percentageText,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.grey,
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-              InkWell(
-                onTap: () {
-                  // 현재 시트를 닫고 예산 입력 다이얼로그 표시
-                  Navigator.pop(context);
-                  _showBudgetInputDialog();
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '지출 예산',
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              '300,000원',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const Text(
-                              '월 수입의 40%',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 5),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Colors.grey,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
@@ -1124,78 +1163,87 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   
   // 예산 입력 다이얼로그 표시
   void _showBudgetInputDialog() {
-    // 예산 금액 관리를 위한 변수
-    String budgetInput = _hasBudget ? _budgetAmount.toInt().toString() : '0';
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            // 입력된 금액을 포맷팅하여 표시
-            String formattedBudget = '${_numberFormat(int.parse(budgetInput))}원';
-            String percentageText = '월 수입의 40%';
-            
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom
-              ),
-              child: SizedBox(
-                height: 500,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 상단 제목 및 닫기 버튼
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // 예산 금액 관리를 위한 변수
+  String budgetInput = _hasBudget ? _budgetAmount.toInt().toString() : '0';
+  
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          // 입력된 금액을 포맷팅하여 표시
+          String formattedBudget = '${_numberFormat(int.parse(budgetInput))}원';
+          
+          // 입력한 예산액의 수입 대비 퍼센트 계산
+          String percentageText = '월 수입의 0%';
+          if (_incomeAmount > 0 && budgetInput.isNotEmpty) {
+            double inputAmount = double.parse(budgetInput);
+            int percentage = ((inputAmount / _incomeAmount) * 100).round();
+            percentageText = '월 수입의 $percentage%';
+          } else if (_incomeAmount <= 0) {
+            percentageText = '월 수입이 없습니다';
+          }
+          
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom
+            ),
+            child: SizedBox(
+              height: 500,
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 상단 제목 및 닫기 버튼
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '월 지출 예산을 입력해주세요.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          iconSize: 24,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // 예산 금액 표시
+                    Center(
+                      child: Column(
                         children: [
-                          const Text(
-                            '월 지출 예산을 입력해주세요.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.normal,
+                          Text(
+                            formattedBudget,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            iconSize: 24,
+                          const SizedBox(height: 4),
+                          Text(
+                            percentageText,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      
-                      // 예산 금액 표시
-                      Center(
-                        child: Column(
-                          children: [
-                            Text(
-                              formattedBudget,
-                              style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              percentageText,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    ),
                       
                       const SizedBox(height: 20),
 
