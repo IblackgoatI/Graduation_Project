@@ -660,45 +660,94 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       '미분류': Icons.help_outline,
     };
 
-    return SizedBox(
-      width: double.infinity, // 부모 위젯의 너비에 맞춤
-      child: Card(
-        color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "부린이님의 $monthInKorean 소비 리포트",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 30.0), // 상단 여백 조정
-              // 소비 그래프 영역
-              currentMonthExpenses.isNotEmpty 
-              ? SizedBox(
-                  height: 180, // 그래프 컨테이너 높이 조정
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center, // 세로 중앙 정렬
-                    children: [
-                      // 차트와 범례를 Row로 배치
-                      Row(
+    // 표시할 카테고리 수를 관리하는 상태 변수
+    bool _showAllCategories = false;
+    
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return SizedBox(
+          width: double.infinity, // 부모 위젯의 너비에 맞춤
+          child: Card(
+            color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "부린이님의 $monthInKorean 소비 리포트",
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 30.0), // 상단 여백 조정
+                  // 소비 그래프 영역
+                  currentMonthExpenses.isNotEmpty 
+                  ? SizedBox(
+                      height: 180, // 그래프 컨테이너 높이 조정
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center, // 세로 중앙 정렬
                         children: [
-                          // 차트를 왼쪽에 배치
-                          Expanded(
-                            flex: 3,
-                            child: SizedBox(
-                              height: 150, // 차트 높이 조정
-                              child: Center(
-                                child: PieChart(
-                                  PieChartData(
-                                    sections: sortedCategories.map((entry) {
-                                      final percent = (entry.value / totalExpense) * 100;
+                          // 차트와 범례를 Row로 배치
+                          Row(
+                            children: [
+                              // 차트를 왼쪽에 배치
+                              Expanded(
+                                flex: 3,
+                                child: SizedBox(
+                                  height: 150, // 차트 높이 조정
+                                  child: Center(
+                                    child: PieChart(
+                                      PieChartData(
+                                        sections: sortedCategories.map((entry) {
+                                          final percent = (entry.value / totalExpense) * 100;
+                                          final index = sortedCategories.indexOf(entry);
+                                          // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
+                                          final colors = [
+                                            Colors.red[300]!,
+                                            Colors.pink[300]!,
+                                            Colors.orange[300]!,
+                                            Colors.purple[300]!,
+                                            Colors.blue[300]!,
+                                            Colors.amber[300]!,
+                                            Colors.teal[300]!,
+                                            Colors.indigo[300]!,
+                                            Colors.lime[300]!,
+                                            Colors.green[300]!,
+                                            Colors.cyan[300]!,
+                                            Colors.brown[300]!,
+                                          ];
+                                          final color = colors[index % colors.length];
+                                          return PieChartSectionData(
+                                            color: color,
+                                            value: entry.value,
+                                            title: '${percent.toStringAsFixed(1)}%',
+                                            radius: 50,
+                                            titleStyle: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          );
+                                        }).toList(),
+                                        sectionsSpace: 2,
+                                        centerSpaceRadius: 30,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // 범례를 오른쪽에 배치
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: sortedCategories.take(4).map((entry) {
                                       final index = sortedCategories.indexOf(entry);
-                                      // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
                                       final colors = [
                                         Colors.red[300]!,
                                         Colors.pink[300]!,
@@ -714,215 +763,261 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                         Colors.brown[300]!,
                                       ];
                                       final color = colors[index % colors.length];
-                                      return PieChartSectionData(
-                                        color: color,
-                                        value: entry.value,
-                                        title: '${percent.toStringAsFixed(1)}%',
-                                        radius: 50,
-                                        titleStyle: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
+                                      final percent = (entry.value / totalExpense) * 100;
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 12,
+                                              height: 12,
+                                              color: color,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              entry.key,
+                                              style: const TextStyle(fontSize: 11),
+                                            ),
+                                            const Spacer(),
+                                            Text(
+                                              '${percent.toStringAsFixed(1)}%',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       );
                                     }).toList(),
-                                    sectionsSpace: 2,
-                                    centerSpaceRadius: 30,
                                   ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 범례를 오른쪽에 배치
-                          Expanded(
-                            flex: 2,
-                            child: Container(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: sortedCategories.take(4).map((entry) {
-                                  final index = sortedCategories.indexOf(entry);
-                                  final colors = [
-                                    Colors.red[300]!,
-                                    Colors.pink[300]!,
-                                    Colors.orange[300]!,
-                                    Colors.purple[300]!,
-                                    Colors.blue[300]!,
-                                    Colors.amber[300]!,
-                                    Colors.teal[300]!,
-                                    Colors.indigo[300]!,
-                                    Colors.lime[300]!,
-                                    Colors.green[300]!,
-                                    Colors.cyan[300]!,
-                                    Colors.brown[300]!,
-                                  ];
-                                  final color = colors[index % colors.length];
-                                  final percent = (entry.value / totalExpense) * 100;
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4.0),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 12,
-                                          height: 12,
-                                          color: color,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          entry.key,
-                                          style: const TextStyle(fontSize: 11),
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          '${percent.toStringAsFixed(1)}%',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-              : Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      "이번 달 소비 내역이 없습니다",
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 30.0), // 하단 여백 조정
-              // 현재 월 총 소비
-              Center(
-                child: Text(
-                  "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
-                  style: const TextStyle(
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              const Divider(),
-              const SizedBox(height: 16.0), // 구분선과 카테고리 상세 사이 간격 추가
-              // 카테고리별 지출 내역
-              if (currentMonthExpenses.isNotEmpty) ...[
-                const SizedBox(height: 8.0),
-                ...sortedCategories.take(4).map((entry) {
-                  final categoryName = entry.key;
-                  final amount = entry.value;
-                  final percent = (amount / totalExpense) * 100;
-                  final icon = categoryIcons[categoryName] ?? Icons.help_outline;
-                  final index = sortedCategories.indexOf(entry);
-                  final colors = [
-                    Colors.red[300]!,
-                    Colors.pink[300]!,
-                    Colors.orange[300]!,
-                    Colors.purple[300]!,
-                    Colors.blue[300]!,
-                    Colors.amber[300]!,
-                    Colors.teal[300]!,
-                    Colors.indigo[300]!,
-                    Colors.lime[300]!,
-                    Colors.green[300]!,
-                    Colors.cyan[300]!,
-                    Colors.brown[300]!,
-                  ];
-                  final color = colors[index % colors.length];
-                  
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12.0),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Icon(icon, color: color, size: 20),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                categoryName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              Text(
-                                '${percent.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 11,
                                 ),
                               ),
                             ],
                           ),
+                        ],
+                      ),
+                    )
+                  : Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "이번 달 소비 내역이 없습니다",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
                         ),
-                        Text(
-                          '${numberFormat(amount.toInt())}원',
-                          style: const TextStyle(
-                            fontSize: 13,
+                      ),
+                    ),
+                  const SizedBox(height: 30.0), // 하단 여백 조정
+                  // 현재 월 총 소비
+                  Center(
+                    child: Text(
+                      "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
+                      style: const TextStyle(
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  const Divider(),
+                  const SizedBox(height: 16.0), // 구분선과 카테고리 상세 사이 간격 추가
+                  // 카테고리별 지출 내역
+                  if (currentMonthExpenses.isNotEmpty) ...[
+                    const SizedBox(height: 8.0),
+                    AnimatedCrossFade(
+                      firstChild: Column(
+                        children: sortedCategories.take(4).map((entry) {
+                          final categoryName = entry.key;
+                          final amount = entry.value;
+                          final percent = (amount / totalExpense) * 100;
+                          final icon = categoryIcons[categoryName] ?? Icons.help_outline;
+                          final index = sortedCategories.indexOf(entry);
+                          final colors = [
+                            Colors.red[300]!,
+                            Colors.pink[300]!,
+                            Colors.orange[300]!,
+                            Colors.purple[300]!,
+                            Colors.blue[300]!,
+                            Colors.amber[300]!,
+                            Colors.teal[300]!,
+                            Colors.indigo[300]!,
+                            Colors.lime[300]!,
+                            Colors.green[300]!,
+                            Colors.cyan[300]!,
+                            Colors.brown[300]!,
+                          ];
+                          final color = colors[index % colors.length];
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Icon(icon, color: color, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        categoryName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${percent.toStringAsFixed(1)}%',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${numberFormat(amount.toInt())}원',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      secondChild: Column(
+                        children: sortedCategories.map((entry) {
+                          final categoryName = entry.key;
+                          final amount = entry.value;
+                          final percent = (amount / totalExpense) * 100;
+                          final icon = categoryIcons[categoryName] ?? Icons.help_outline;
+                          final index = sortedCategories.indexOf(entry);
+                          final colors = [
+                            Colors.red[300]!,
+                            Colors.pink[300]!,
+                            Colors.orange[300]!,
+                            Colors.purple[300]!,
+                            Colors.blue[300]!,
+                            Colors.amber[300]!,
+                            Colors.teal[300]!,
+                            Colors.indigo[300]!,
+                            Colors.lime[300]!,
+                            Colors.green[300]!,
+                            Colors.cyan[300]!,
+                            Colors.brown[300]!,
+                          ];
+                          final color = colors[index % colors.length];
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: color.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Icon(icon, color: color, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        categoryName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${percent.toStringAsFixed(1)}%',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  '${numberFormat(amount.toInt())}원',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      crossFadeState: _showAllCategories ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 300),
+                    ),
+                    if (sortedCategories.length > 4)
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            // 현재 상태를 반대로 전환
+                            setState(() {
+                              _showAllCategories = !_showAllCategories;
+                            });
+                          },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _showAllCategories ? '접기' : '더보기',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                _showAllCategories ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                if (sortedCategories.length > 4)
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        // 가계부 탭으로 이동
-                        _onItemTapped(1);
-                      },
-                      child: Text(
-                        '더보기',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                          decoration: TextDecoration.underline,
+                      ),
+                  ] else
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text(
+                          "가계부에 지출 내역을 추가해보세요",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ] else
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0),
-                    child: Text(
-                      "가계부에 지출 내역을 추가해보세요",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      }
     );
   }
 
