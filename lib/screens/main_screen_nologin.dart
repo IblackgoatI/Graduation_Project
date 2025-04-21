@@ -196,7 +196,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       backgroundColor: Colors.grey[50],
       appBar: _selectedIndex == 0
           ? AppBar(
-              title: const Text('금융 대시보드'),
+        title: const Text('금융 대시보드'),
               backgroundColor: Colors.grey[50],
             )
           : null,
@@ -226,55 +226,55 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           ],
         ),
         child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: Colors.black,
-          unselectedItemColor: const Color(0xFFAAA1A1),
+        selectedItemColor: Colors.black,
+        unselectedItemColor: const Color(0xFFAAA1A1),
           backgroundColor: Colors.grey[50],
           elevation: 0,
-          items: <BottomNavigationBarItem>[
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/home.svg',
-                colorFilter: ColorFilter.mode(
-                  _selectedIndex == 0 ? Colors.black : const Color(0xFFAAA1A1),
-                  BlendMode.srcIn,
-                ),
+        items: <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/home.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 0 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
               ),
-              label: '홈',
             ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/calendar.svg',
-                colorFilter: ColorFilter.mode(
-                  _selectedIndex == 1 ? Colors.black : const Color(0xFFAAA1A1),
-                  BlendMode.srcIn,
-                ),
+            label: '홈',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/calendar.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 1 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
               ),
-              label: '가계부',
             ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/Community.svg',
-                colorFilter: ColorFilter.mode(
-                  _selectedIndex == 2 ? Colors.black : const Color(0xFFAAA1A1),
-                  BlendMode.srcIn,
-                ),
+            label: '가계부',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/Community.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 2 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
               ),
-              label: '커뮤니티',
             ),
-            BottomNavigationBarItem(
-              icon: SvgPicture.asset(
-                'assets/icons/menu.svg',
-                colorFilter: ColorFilter.mode(
-                  _selectedIndex == 3 ? Colors.black : const Color(0xFFAAA1A1),
-                  BlendMode.srcIn,
-                ),
+            label: '커뮤니티',
+          ),
+          BottomNavigationBarItem(
+            icon: SvgPicture.asset(
+              'assets/icons/menu.svg',
+              colorFilter: ColorFilter.mode(
+                _selectedIndex == 3 ? Colors.black : const Color(0xFFAAA1A1),
+                BlendMode.srcIn,
               ),
-              label: '전체',
             ),
-          ],
+            label: '전체',
+          ),
+        ],
         ),
       ),
     );
@@ -594,7 +594,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     // 현재 월 가져오기
     final currentMonth = DateTime.now().month;
     final monthInKorean = '$currentMonth월';
-    
+
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
     final transactions = transactionProvider.transactions;
@@ -665,24 +665,24 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     
     return StatefulBuilder(
       builder: (context, setState) {
-        return SizedBox(
-          width: double.infinity, // 부모 위젯의 너비에 맞춤
-          child: Card(
-            color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "부린이님의 $monthInKorean 소비 리포트",
+    return SizedBox(
+      width: double.infinity, // 부모 위젯의 너비에 맞춤
+      child: Card(
+        color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "부린이님의 $monthInKorean 소비 리포트",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+              ),
                   const SizedBox(height: 30.0), // 상단 여백 조정
-                  // 소비 그래프 영역
+              // 소비 그래프 영역
                   currentMonthExpenses.isNotEmpty 
                   ? SizedBox(
                       height: 180, // 그래프 컨테이너 높이 조정
@@ -768,7 +768,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                                         child: Row(
                                           children: [
-                                            Container(
+              Container(
                                               width: 12,
                                               height: 12,
                                               color: color,
@@ -800,23 +800,23 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     )
                   : Container(
                       height: 150,
-                      decoration: BoxDecoration(
+                decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      child: const Center(
-                        child: Text(
+                ),
+                child: const Center(
+                  child: Text(
                           "이번 달 소비 내역이 없습니다",
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                      ),
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                ),
+              ),
                   const SizedBox(height: 30.0), // 하단 여백 조정
-                  // 현재 월 총 소비
-                  Center(
-                    child: Text(
+              // 현재 월 총 소비
+              Center(
+                child: Text(
                       "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
-                      style: const TextStyle(
+                  style: const TextStyle(
                         fontSize: 14,
                       ),
                     ),
@@ -996,26 +996,26 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                 color: Colors.grey[600],
                               ),
                             ],
-                          ),
-                        ),
-                      ),
+                  ),
+                ),
+              ),
                   ] else
-                    const Center(
+              const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.0),
-                        child: Text(
+                child: Text(
                           "가계부에 지출 내역을 추가해보세요",
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
                           ),
                         ),
-                      ),
-                    ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
+        ),
+      ),
         );
       }
     );
