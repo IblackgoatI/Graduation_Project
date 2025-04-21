@@ -2213,69 +2213,66 @@ Future<void> _loadBudgetData() async {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '부린이님의 총자산',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '부린이님의 총자산',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${_numberFormat(_totalAssets)}원',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8.0),
-        Text(
-          '${_numberFormat(_totalAssets)}원',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.normal,
-          ),
+        const SizedBox(height: 16.0),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '계좌 잔금',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${_numberFormat(_savingsTotal + _depositTotal + _cashTotal)}원',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8.0),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '계좌 잔금',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '${_numberFormat(_savingsTotal + _depositTotal + _cashTotal)}원',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
+            const Text(
+              '입출금',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '입출금',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '${_numberFormat(_savingsTotal)}원',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
+            Text(
+              '${_numberFormat(_savingsTotal)}원',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.normal,
               ),
             ),
           ],
@@ -2321,14 +2318,14 @@ Future<void> _loadBudgetData() async {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               '${_numberFormat(totalAmount)}원',
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.normal,
               ),
             ),
