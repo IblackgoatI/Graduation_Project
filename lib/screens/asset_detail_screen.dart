@@ -26,6 +26,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   int _cashTotal = 0;
   List<Map<String, dynamic>> _assetAccounts = [];
   
+  // 저축 목표 관련 변수 추가
+  int _savingsGoalAmount = 0; // 저축 목표 금액
+  Map<String, dynamic>? _selectedSavingAccount; // 선택된 저축 계좌
+  
   // 예산 금액과 지출 금액을 저장할 변수
   double _budgetAmount = 0.0; // 예산 금액
   double _expensesAmount = 0.0; // 지출 금액
@@ -1180,7 +1184,7 @@ Future<void> _loadBudgetData() async {
           
           // 입력한 예산액의 수입 대비 퍼센트 계산
           String percentageText = '월 수입의 0%';
-          if (_incomeAmount > 0 && budgetInput.isNotEmpty) {
+          if (_incomeAmount > 0 && budgetInput.isNotEmpty && budgetInput != '0') {
             double inputAmount = double.parse(budgetInput);
             int percentage = ((inputAmount / _incomeAmount) * 100).round();
             percentageText = '월 수입의 $percentage%';
@@ -1475,6 +1479,11 @@ Future<void> _loadBudgetData() async {
 
   // 이번 달 저축 카드
   Widget _buildMonthlySavingsCard() {
+    // 저축 목표 금액 텍스트 포맷팅
+    String goalAmountText = _savingsGoalAmount > 0
+        ? '${_numberFormat(_savingsGoalAmount)}원'
+        : '0원';
+        
     return _buildStandardCard(
       height: 250,
       child: Column(
@@ -1489,12 +1498,13 @@ Future<void> _loadBudgetData() async {
             ),
           ),
           const Spacer(),
-          const Center(
+          Center(
             child: Text(
-              '0원',
-              style: TextStyle(
+              goalAmountText,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.normal,
+                color: Color(0xFF73AD13),
               ),
             ),
           ),
@@ -1533,6 +1543,27 @@ Future<void> _loadBudgetData() async {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
+        // 목표 금액 텍스트 포맷팅
+        String goalAmountText = _savingsGoalAmount > 0
+            ? '${_numberFormat(_savingsGoalAmount)}원'
+            : '0원';
+            
+        // 수입 대비 퍼센트 계산
+        String percentageText = '월 수입의 0%';
+        if (_incomeAmount > 0 && _savingsGoalAmount > 0) {
+          int percentage = ((_savingsGoalAmount / _incomeAmount) * 100).round();
+          percentageText = '월 수입의 $percentage%';
+        }
+        
+        // 계좌 정보 텍스트
+        String accountBankText = '계좌 선택';
+        String accountBalanceText = '';
+        
+        if (_selectedSavingAccount != null) {
+          accountBankText = _selectedSavingAccount!['bank'];
+          accountBalanceText = '잔액 ${_numberFormat(_selectedSavingAccount!['balance'])}원';
+        }
+        
         return Container(
           padding: const EdgeInsets.all(20),
           height: 300,
@@ -1556,89 +1587,105 @@ Future<void> _loadBudgetData() async {
                 ],
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '목표 금액',
-                    style: TextStyle(
-                      fontSize: 16,
+              InkWell(
+                onTap: () {
+                  // 현재 시트를 닫고 저축 목표 입력 다이얼로그 표시
+                  Navigator.pop(context);
+                  _showSavingsGoalInputDialog();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '목표 금액',
+                      style: TextStyle(
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            '500,000원',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              goalAmountText,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            '월 수입의 25%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                            Text(
+                              percentageText,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 5),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ),
-                    ],
-                  ),
-                ],
+                          ],
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    '저축 계좌',
-                    style: TextStyle(
-                      fontSize: 16,
+              InkWell(
+                onTap: () {
+                  // 현재 시트를 닫고 저축 계좌 선택 다이얼로그 표시
+                  Navigator.pop(context);
+                  _showSelectSavingAccountDialog();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '저축 계좌',
+                      style: TextStyle(
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text(
-                            '국민은행',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              accountBankText,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            '잔액 0원',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
+                            Text(
+                              accountBalanceText,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 5),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ),
-                    ],
-                  ),
-                ],
+                          ],
+                        ),
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const Spacer(),
               ElevatedButton(
                 onPressed: () {
+                  // 여기에서 저축 목표 저장 로직 구현
+                  // 저장 후 설정값 리셋
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
@@ -1660,6 +1707,504 @@ Future<void> _loadBudgetData() async {
           ),
         );
       },
+    );
+  }
+
+  // 저축 계좌 선택 다이얼로그 표시
+  void _showSelectSavingAccountDialog() {
+    // 선택된 계좌를 추적하기 위한 Map
+    Map<String, bool> selectedAccounts = {};
+    
+    // 사용자의 계좌 정보 목록 준비
+    List<Map<String, dynamic>> savingAccounts = _assetAccounts
+        .where((account) => account['assetType'] == 'savings')
+        .toList();
+        
+    List<Map<String, dynamic>> depositAccounts = _assetAccounts
+        .where((account) => account['assetType'] == 'deposit')
+        .toList();
+    
+    // 각 계좌에 선택 상태 할당
+    for (var account in savingAccounts) {
+      selectedAccounts[account['id']] = _selectedSavingAccount != null && 
+          _selectedSavingAccount!['id'] == account['id'];
+    }
+    
+    for (var account in depositAccounts) {
+      selectedAccounts[account['id']] = _selectedSavingAccount != null && 
+          _selectedSavingAccount!['id'] == account['id'];
+    }
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                height: 500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '월 저축 계좌를 설정해주세요.',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      '입출금',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const Divider(),
+                    
+                    // 입출금 계좌 목록
+                    Expanded(
+                      flex: savingAccounts.isEmpty ? 1 : 2,
+                      child: savingAccounts.isEmpty 
+                          ? const Center(child: Text('등록된 입출금 계좌가 없습니다.'))
+                          : ListView.builder(
+                              itemCount: savingAccounts.length,
+                              itemBuilder: (context, index) {
+                                final account = savingAccounts[index];
+                                final isSelected = selectedAccounts[account['id']] ?? false;
+                                
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: _buildAccountIcon(account),
+                                  title: Text(
+                                    account['bank'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text('${_numberFormat(account['balance'])}원'),
+                                  trailing: Checkbox(
+                                    value: isSelected,
+                                    onChanged: (bool? value) {
+                                      setState(() {
+                                        // 다른 모든 체크박스 선택 해제
+                                        for (var key in selectedAccounts.keys) {
+                                          selectedAccounts[key] = false;
+                                        }
+                                        // 현재 체크박스만 선택
+                                        selectedAccounts[account['id']] = value ?? false;
+                                      });
+                                    },
+                                    activeColor: const Color(0xFF73AD13),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    
+                    // 적금 계좌가 있을 때만 적금 섹션 표시
+                    if (depositAccounts.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        '적금',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const Divider(),
+                      
+                      // 적금 계좌 목록
+                      Expanded(
+                        flex: 2,
+                        child: ListView.builder(
+                          itemCount: depositAccounts.length,
+                          itemBuilder: (context, index) {
+                            final account = depositAccounts[index];
+                            final isSelected = selectedAccounts[account['id']] ?? false;
+                            
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: _buildAccountIcon(account),
+                              title: Text(
+                                account['bank'],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text('${_numberFormat(account['balance'])}원'),
+                              trailing: Checkbox(
+                                value: isSelected,
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    // 다른 모든 체크박스 선택 해제
+                                    for (var key in selectedAccounts.keys) {
+                                      selectedAccounts[key] = false;
+                                    }
+                                    // 현재 체크박스만 선택
+                                    selectedAccounts[account['id']] = value ?? false;
+                                  });
+                                },
+                                activeColor: const Color(0xFF73AD13),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    
+                    const SizedBox(height: 10),
+                    
+                    // 확인 버튼
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // 선택한 계좌 찾기
+                          Map<String, dynamic>? selectedAccount;
+                          
+                          // 선택된 계좌 ID 찾기
+                          String? selectedAccountId = selectedAccounts.entries
+                              .where((entry) => entry.value)
+                              .map((entry) => entry.key)
+                              .firstOrNull;
+                              
+                          if (selectedAccountId != null) {
+                            // 모든 계좌 목록에서 선택된 ID와 일치하는 계좌 찾기
+                            selectedAccount = [...savingAccounts, ...depositAccounts]
+                                .firstWhere((account) => account['id'] == selectedAccountId);
+                          }
+                          
+                          // 상태 업데이트
+                          setState(() {
+                            _selectedSavingAccount = selectedAccount;
+                          });
+                          
+                          Navigator.pop(context);
+                          // 계좌 선택 후 월 저축 목표 설정 시트 다시 표시
+                          _showMonthlySavingsGoalSheet();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF73AD13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                        child: const Text(
+                          '확인',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+  
+  // 저축 목표 금액 입력 다이얼로그 표시
+  void _showSavingsGoalInputDialog() {
+    // 저축 목표 금액 관리를 위한 변수
+    String goalInput = _savingsGoalAmount > 0 ? _savingsGoalAmount.toString() : '0';
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // 입력된 금액을 포맷팅하여 표시
+            String formattedGoal = '${_numberFormat(int.parse(goalInput))}원';
+            
+            // 입력한 목표액의 수입 대비 퍼센트 계산
+            String percentageText = '월 수입의 0%';
+            if (_incomeAmount > 0 && goalInput.isNotEmpty && goalInput != '0') {
+              double inputAmount = double.parse(goalInput);
+              int percentage = ((inputAmount / _incomeAmount) * 100).round();
+              percentageText = '월 수입의 $percentage%';
+            } else if (_incomeAmount <= 0) {
+              percentageText = '월 수입이 없습니다';
+            }
+            
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom
+              ),
+              child: SizedBox(
+                height: 500,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 상단 제목 및 닫기 버튼
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            '월 저축 목표를 입력해주세요.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            iconSize: 24,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // 목표 금액 표시
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                              formattedGoal,
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              percentageText,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+
+                      // 숫자 키패드
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            // 첫 번째 줄: 1, 2, 3
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('1', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '1';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('2', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '2';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('3', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '3';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 두 번째 줄: 4, 5, 6
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('4', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '4';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('5', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '5';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('6', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '6';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 세 번째 줄: 7, 8, 9
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildNumberButton('7', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '7';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('8', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '8';
+                                    }
+                                  });
+                                }),
+                                _buildNumberButton('9', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10) {
+                                      goalInput += '9';
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                            // 네 번째 줄: 0, 백스페이스
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                const SizedBox(width: 50),
+                                _buildNumberButton('0', onPressed: () {
+                                  setState(() {
+                                    if (goalInput.length < 10 && goalInput != '0') {
+                                      goalInput += '0';
+                                    }
+                                  });
+                                }),
+                                _buildBackspaceButton(onPressed: () {
+                                  setState(() {
+                                    if (goalInput.isNotEmpty) {
+                                      goalInput = goalInput.substring(0, goalInput.length - 1);
+                                      if (goalInput.isEmpty) {
+                                        goalInput = '0';
+                                      }
+                                    }
+                                  });
+                                }),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 확인 버튼
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // 저축 목표 금액 저장
+                            int amount = int.parse(goalInput);
+                            setState(() {
+                              _savingsGoalAmount = amount;
+                            });
+                            
+                            Navigator.pop(context);
+                            // 목표 금액 설정 후 월 저축 목표 설정 시트 다시 표시
+                            _showMonthlySavingsGoalSheet();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF73AD13),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text(
+                            '확인',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  // 계좌 아이콘 위젯 (은행 아이콘 생성)
+  Widget _buildAccountIcon(Map<String, dynamic> account) {
+    // 여기에서 실제 은행 아이콘을 사용할 수 있습니다
+    String bankName = account['bank'];
+    Color iconColor = Color(account['iconColor'] ?? 0xFF73AD13);
+    String iconLetter = bankName.isNotEmpty ? bankName[0] : '?';
+    
+    // 은행에 따른 아이콘 (가상의 예시)
+    Map<String, Widget> bankIcons = {
+      '하나': _buildBankIcon('하', const Color(0xFF00B8ED)),
+      'KB': _buildBankIcon('K', const Color(0xFFFFBC00)),
+      '카카오': _buildBankIcon('카', const Color(0xFFFFE600)),
+    };
+    
+    // 등록된 은행 아이콘이 있으면 사용, 없으면 첫 글자로 아이콘 생성
+    return bankIcons[bankName] ?? _buildBankIcon(iconLetter, iconColor);
+  }
+  
+  // 은행 아이콘 위젯
+  Widget _buildBankIcon(String letter, Color color) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          letter,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 
