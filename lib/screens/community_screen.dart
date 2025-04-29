@@ -13,36 +13,102 @@ class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String userName = '부린이님'; // 기본값 설정
+  int userAge = 0; // 사용자 나이 저장 변수
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadUserName(); // 사용자 이름 로드
+    _loadUserInfo(); // 사용자 정보 로드
   }
 
-  // Firebase에서 사용자 이름을 가져오는 함수
-  Future<void> _loadUserName() async {
+  // Firebase에서 사용자 정보를 가져오는 함수
+  Future<void> _loadUserInfo() async {
     try {
       final User? currentUser = FirebaseAuth.instance.currentUser;
+      print('현재 로그인한 사용자: ${currentUser?.uid}');
+
       if (currentUser != null) {
         final userDoc = await FirebaseFirestore.instance
             .collection('Users')
             .doc(currentUser.uid)
             .get();
         
+        print('Firestore 문서 존재 여부: ${userDoc.exists}');
+        
         if (userDoc.exists) {
           final userData = userDoc.data();
-          if (userData != null && userData['Name'] != null) {
+          print('Firestore 전체 데이터: $userData');
+          
+          // 데이터의 모든 키와 값, 타입을 출력
+          if (userData != null) {
+            userData.forEach((key, value) {
+              print('키: $key, 값: $value, 타입: ${value.runtimeType}');
+            });
+            
+            // 이름 처리
+            if (userData.containsKey('Name')) {
+              userName = userData['Name'] as String? ?? '부린이님';
+              print('이름 설정됨: $userName');
+            }
+            
+            // 나이 처리
+            int age = 0;
+            if (userData.containsKey('Age')) {
+              var ageValue = userData['Age'];
+              print('원본 Age 값: $ageValue, 타입: ${ageValue.runtimeType}');
+              
+              if (ageValue is int) {
+                age = ageValue;
+                print('Age는 int 타입입니다: $age');
+              } else if (ageValue is double) {
+                age = ageValue.toInt();
+                print('Age는 double 타입입니다: $age');
+              } else if (ageValue is String) {
+                age = int.tryParse(ageValue) ?? 0;
+                print('Age는 String 타입입니다: $age');
+              } else {
+                print('Age는 다른 타입입니다. 문자열로 변환 시도: $ageValue');
+                try {
+                  String ageStr = ageValue.toString();
+                  age = int.tryParse(ageStr) ?? 0;
+                  print('변환 결과: $age');
+                } catch (e) {
+                  print('Age 변환 중 오류: $e');
+                }
+              }
+            } else {
+              print('Age 필드가 존재하지 않습니다');
+            }
+            
+            // 상태 업데이트
             setState(() {
-              userName = userData['Name'];
+              userAge = age;
+              print('최종 설정된 나이: $userAge');
             });
           }
+        } else {
+          print('사용자 문서가 존재하지 않습니다.');
         }
+      } else {
+        print('로그인된 사용자가 없습니다.');
       }
     } catch (e) {
-      print('사용자 이름 로드 중 오류 발생: $e');
+      print('사용자 정보 로드 중 오류 발생: $e');
+      print('오류 스택 트레이스: ${StackTrace.current}');
     }
+  }
+
+  // 나이를 연령대 문자열로 변환하는 함수
+  String _getAgeGroup(int age) {
+    if (age >= 10 && age < 20) return '10대';
+    if (age >= 20 && age < 30) return '20대';
+    if (age >= 30 && age < 40) return '30대';
+    if (age >= 40 && age < 50) return '40대';
+    if (age >= 50 && age < 60) return '50대';
+    if (age >= 60 && age < 70) return '60대';
+    if (age >= 70) return '70대';
+    return '사용자';
   }
 
   @override
@@ -186,98 +252,50 @@ class _CommunityScreenState extends State<CommunityScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '20대 부린이님을 위한 커뮤니티',
-          style: TextStyle(
+        Text(
+          '${_getAgeGroup(userAge)} $userName님을 위한 커뮤니티',
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 16),
-        _buildPostItem(
-          profileImage: 'assets/profile1.jpg',
-          nickname: '보노보노',
-          timeAgo: '11시간 전',
-          content:
-          '이번 달 식비 절약 성공! 여러분도 해보세요 😄\n인스타해요. 머리부터 발끝까지 소비를 줄여보려고 콘텐츠 새봤고 실\n단체할인, 셋끼니 다 잘짜 골라서 14만 9천원에 완료했습니다.\n➡️ 마지막 식비 절약 꿀팁\n1.집 주식만 미리 계획하기\n✓ 효율적으로 외식까지도 배달용 서비스는 절 중이기 위해...',
-        ),
-        const SizedBox(height: 16),
-        _buildPostItem(
-          profileImage: 'assets/profile2.jpg',
-          nickname: '케이마',
-          timeAgo: '13시간 전',
-          content:
-          '이번 달 용돈비용 절약 성공! 👏🏼\n이번 달엔 조금 더 신경써서 소비했는데 마음으로 계획대로 쭉이\n했어요. 월리가 낮아지려면 습관화 해야겠죠!\n✨ 이번 달 가계부 정리 방법\n1.돈과 가치까지 기다리기🔍\n✓ 사고 싶은 제품이 있었지만 바로 지르지 않고, 세일 기간을...',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPostItem({
-    required String profileImage,
-    required String nickname,
-    required String timeAgo,
-    required String content,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundImage: AssetImage(profileImage),
-                onBackgroundImageError: (exception, stackTrace) {
-                  // 이미지 로드 실패 시 기본 아이콘 표시
-                  debugPrint('이미지 로드 오류: $exception');
-                },
-                child: const Icon(Icons.person), // 기본 아이콘
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    nickname,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    timeAgo,
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        // 게시글 대신 커뮤니티 준비 중 메시지 표시
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(height: 12),
-          Text(
-            content,
-            style: const TextStyle(fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '더보기',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 12,
+          child: const Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.construction,
+                  size: 50,
+                  color: Color(0xFF8BC34A),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  '커뮤니티 기능 준비 중입니다',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '더 나은 서비스로 곧 찾아뵙겠습니다',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
