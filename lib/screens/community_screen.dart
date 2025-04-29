@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'expense_report_screen.dart';  // 수정된 import 경로
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({Key? key}) : super(key: key);
@@ -155,6 +156,40 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
         ],
       ),
+      bottomSheet: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          // 그림자 효과 제거
+        ),
+        child: ElevatedButton(
+          onPressed: () {
+            // 새로운 소비리포트 화면으로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ExpenseReportScreen(),
+              ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF8BC34A),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text(
+            '소비 리포트 공유하기',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -172,10 +207,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
             // 20대 부린이님을 위한 커뮤니티
             _buildCommunitySection(),
-            const SizedBox(height: 24),
-
-            // 소비 리포트 공유하기 버튼
-            _buildShareButton(),
+            const SizedBox(height: 48), // 바텀시트의 버튼을 위한 추가 여백
           ],
         ),
       ),
@@ -300,27 +332,8 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 
   Widget _buildShareButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {},
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF8BC34A),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        child: const Text(
-          '소비 리포트 공유하기',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
+    // 이 메서드는 더 이상 사용하지 않습니다. bottomSheet에서 직접 버튼을 정의합니다.
+    return const SizedBox.shrink();
   }
 }
 
@@ -1078,4 +1091,43 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
       },
     );
   }
+}
+
+// 원형 차트를 그리는 커스텀 페인터
+class PieChartPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    
+    // 각 섹션의 색상과 크기(각도) 정의
+    final sections = [
+      {'color': Colors.red.shade300, 'percent': 0.33}, // 식비
+      {'color': Colors.purple.shade300, 'percent': 0.25}, // 문화 생활
+      {'color': Colors.blue.shade300, 'percent': 0.17}, // 은행
+      {'color': Colors.green.shade300, 'percent': 0.25}, // 기타
+    ];
+    
+    var startAngle = -90 * 3.14 / 180; // -90도에서 시작 (12시 방향)
+    
+    for (var section in sections) {
+      final sweepAngle = (section['percent'] as double) * 360 * 3.14 / 180;
+      final paint = Paint()
+        ..color = section['color'] as Color
+        ..style = PaintingStyle.fill;
+      
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        true,
+        paint,
+      );
+      
+      startAngle += sweepAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
