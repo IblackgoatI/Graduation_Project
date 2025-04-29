@@ -347,6 +347,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
   // 현재 사용자의 지출 합계
   double mySumAmount = 0;
 
+  // 사용자 정보
+  String userName = '부린이님';
+
   // 연령대 선택
   Map<String, bool> ageGroups = {
     '10대': true,
@@ -439,9 +442,35 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
     ageSexCompare();
     // 초기 소득 구간 기준 평균 계산
     incomeCompare();
+    // 사용자 이름 가져오기
+    _loadUserName();
     
     // 초기 애니메이션 시작
     _animationController.forward();
+  }
+  
+  // Firebase에서 사용자 이름을 가져오는 함수
+  Future<void> _loadUserName() async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data();
+          if (userData != null && userData['Name'] != null) {
+            setState(() {
+              userName = userData['Name'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('사용자 이름 로드 중 오류 발생: $e');
+    }
   }
   
   @override
@@ -801,9 +830,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
           text: TextSpan(
             style: const TextStyle(fontSize: 14, color: Colors.black),
             children: [
-              const TextSpan(text: '부린이님 '),
+              TextSpan(text: '$userName님'),
               TextSpan(
-                text: '월평균금 ${numberFormat(difference.toInt())}원\n',
+                text: ' 월평균금 ${numberFormat(difference.toInt())}원\n',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               TextSpan(
