@@ -37,7 +37,7 @@ dependencies:
   cloud_firestore: ^5.6.3
   flutter_svg: ^2.0.0+1 #svg파일 사용 하기 위한 패키지
   table_calendar:       #달력 패키지
-  intl:
+  intl: ^0.18.1  # 날짜 및 숫자 포맷팅을 위한 패키지 추가
   provider: ^6.1.4
   smooth_page_indicator: ^1.1.0  # 최신 버전 확인 가능
 
