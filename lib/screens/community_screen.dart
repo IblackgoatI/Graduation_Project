@@ -12,11 +12,37 @@ class CommunityScreen extends StatefulWidget {
 class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String userName = '부린이님'; // 기본값 설정
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadUserName(); // 사용자 이름 로드
+  }
+
+  // Firebase에서 사용자 이름을 가져오는 함수
+  Future<void> _loadUserName() async {
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data();
+          if (userData != null && userData['Name'] != null) {
+            setState(() {
+              userName = userData['Name'];
+            });
+          }
+        }
+      }
+    } catch (e) {
+      print('사용자 이름 로드 중 오류 발생: $e');
+    }
   }
 
   @override
@@ -31,8 +57,8 @@ class _CommunityScreenState extends State<CommunityScreen>
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         backgroundColor: Colors.grey[50],
-        title: const Text('부린이님',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('$userName님',
+            style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: Column(
         children: [
