@@ -146,71 +146,79 @@ class _CommunityScreenState extends State<CommunityScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                // 게시판 탭
+                // 게시판 탭 (버튼 포함)
                 _buildBoardContent(),
 
-                // 지출 비교 탭 - 새로운 구현으로 교체하세요
+                // 지출 비교 탭 (버튼 없음)
                 const ExpenseComparisonTab(),
               ],
             ),
           ),
         ],
       ),
-      bottomSheet: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          // 그림자 효과 제거
-        ),
-        child: ElevatedButton(
-          onPressed: () {
-            // 새로운 소비리포트 화면으로 이동
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ExpenseReportScreen(),
-              ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8BC34A),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const Text(
-            '소비 리포트 공유하기',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ),
     );
   }
 
-  // 기존 나머지 코드...
+  // 게시판 탭 화면
   Widget _buildBoardContent() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 월간 절약왕 TOP 3
-            _buildTopSaverSection(),
-            const SizedBox(height: 24),
-
-            // 20대 부린이님을 위한 커뮤니티
-            _buildCommunitySection(),
-            const SizedBox(height: 48), // 바텀시트의 버튼을 위한 추가 여백
-          ],
+    return Column(
+      children: [
+        // 스크롤 가능한 메인 콘텐츠
+        Expanded(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 월간 절약왕 TOP 3
+                  _buildTopSaverSection(),
+                  const SizedBox(height: 24),
+                  
+                  // 20대 부린이님을 위한 커뮤니티
+                  _buildCommunitySection(),
+                  const SizedBox(height: 80), // 버튼을 위한 하단 여백
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+        
+        // 하단에 고정된 버튼
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+          ),
+          child: ElevatedButton(
+            onPressed: () {
+              // 새로운 소비리포트 화면으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ExpenseReportScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8BC34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              '소비 리포트 공유하기',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -329,11 +337,6 @@ class _CommunityScreenState extends State<CommunityScreen>
         ),
       ],
     );
-  }
-
-  Widget _buildShareButton() {
-    // 이 메서드는 더 이상 사용하지 않습니다. bottomSheet에서 직접 버튼을 정의합니다.
-    return const SizedBox.shrink();
   }
 }
 
