@@ -42,9 +42,18 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadAssetData();
-    _loadBudgetData(); // 예산 로드 함수
-    _loadSavingGoalData(); // 저축 목표 로드 함수 추가
+    // 비동기 데이터 로드를 위한 별도 함수 호출
+    _loadInitialData();
+  }
+
+  // 초기 데이터 로드를 위한 비동기 함수
+  Future<void> _loadInitialData() async {
+    // 자산 데이터 먼저 로드하고 기다림
+    await _loadAssetData();
+    // 예산 데이터 로드
+    await _loadBudgetData();
+    // 자산 데이터 로드가 완료된 후 저축 목표 데이터 로드
+    await _loadSavingGoalData();
   }
 
   @override
@@ -55,9 +64,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
   // 자산 데이터 로드
   Future<void> _loadAssetData() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // setState(() { // initState에서 호출 시 불필요할 수 있음
+    //   _isLoading = true;
+    // });
 
     try {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
@@ -110,24 +119,36 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           }
         }
 
-        if (mounted) {
-          setState(() {
-            _assetAccounts = accounts;
-            _totalAssets = totalAssets;
-            _savingsTotal = savingsTotal;
-            _depositTotal = depositTotal;
-            _stocksTotal = stocksTotal;
-            _cashTotal = cashTotal;
-            _isLoading = false;
-          });
-        }
+        // _assetAccounts 업데이트는 setState 밖에서 수행 가능 (initState 단계)
+        _assetAccounts = accounts;
+        _totalAssets = totalAssets;
+        _savingsTotal = savingsTotal;
+        _depositTotal = depositTotal;
+        _stocksTotal = stocksTotal;
+        _cashTotal = cashTotal;
+
+        // 모든 데이터 로드가 완료된 후 isLoading 상태 변경
+        // if (mounted) { // initState에서는 mounted 체크 불필요
+        //   setState(() {
+        //     _isLoading = false;
+        //   });
+        // }
       } else {
-        setState(() {
-          _isLoading = false;
-        });
+        // if (mounted) {
+        //   setState(() {
+        //     _isLoading = false;
+        //   });
+        // }
       }
     } catch (e) {
       debugPrint('자산 정보 로드 오류: $e');
+      // if (mounted) {
+      //   setState(() {
+      //     _isLoading = false;
+      //   });
+      // }
+    } finally {
+      // 모든 로직 완료 후 isLoading 상태 변경 (선택적)
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -282,99 +303,115 @@ Future<void> _loadBudgetData() async {
           String? selectedAccountId = savingData['selectedAccountId'];
           Map<String, dynamic>? selectedAccount;
 
-          // 선택된 계좌 정보 찾기
-          if (selectedAccountId != null) {
+          // 선택된 계좌 정보 찾기 (_assetAccounts가 로드된 후 실행됨)
+          if (selectedAccountId != null && _assetAccounts.isNotEmpty) { // _assetAccounts 비어있는지 확인
             try {
               selectedAccount = _assetAccounts.firstWhere(
                 (account) => account['id'] == selectedAccountId,
               );
             } catch (e) {
-              // 계좌가 삭제되었거나 찾을 수 없는 경우
-              debugPrint('선택된 저축 계좌를 찾을 수 없습니다: $e');
+              // 계좌가 삭제되었거나 찾을 수 없는 경우 (Firestore 업데이트 제거)
+              debugPrint('선택된 저축 계좌를 찾을 수 없습니다 (ID: $selectedAccountId): $e');
               selectedAccount = null; // 선택된 계좌 없음으로 처리
-              // Firestore에서도 해당 필드를 제거하거나 null로 업데이트하는 로직 추가 가능
-              await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({
-                'selectedAccountId': null,
-              });
+              // Firestore 업데이트 로직 제거됨
+              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({
+              //   'selectedAccountId': null,
+              // });
             }
+          } else if (selectedAccountId != null && _assetAccounts.isEmpty) {
+             debugPrint('저축 목표 로드 시 자산 정보(_assetAccounts)가 아직 로드되지 않았습니다.');
+             selectedAccount = null; // 자산 정보 없으면 null 처리
           }
 
-          if (mounted) {
+          // initState 단계에서는 mounted 체크 없이 setState 호출 가능
+          // if (mounted) {
             setState(() {
               _savingsGoalAmount = (savingData['goalsaving'] as num?)?.toInt() ?? 0;
               _selectedSavingAccount = selectedAccount;
               _hasSavingGoal = true; // 문서가 있으므로 true
             });
-          }
+          // }
         } else {
           // 문서가 없으면 기본값으로 설정
-          if (mounted) {
+          // if (mounted) {
             setState(() {
               _savingsGoalAmount = 0;
               _selectedSavingAccount = null;
               _hasSavingGoal = false; // 문서가 없으므로 false
             });
-          }
+          // }
         }
       }
     } catch (e) {
       debugPrint('저축 목표 정보 로드 오류: $e');
-      if (mounted) {
-        // 오류 발생 시 기본값 설정
+      // 오류 발생 시 기본값 설정
+      // if (mounted) {
         setState(() {
           _savingsGoalAmount = 0;
           _selectedSavingAccount = null;
           _hasSavingGoal = false;
         });
-      }
+      // }
     }
   }
 
   // 저축 목표 저장 함수 추가
   Future<void> _saveSavingGoal() async {
-    final BuildContext currentContext = context; // 컨텍스트 저장
+    User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser; // currentUser 먼저 가져오기
+    if (currentUser == null) {
+       debugPrint('저축 목표 저장 오류: 사용자가 로그인되지 않았습니다.');
+       if (mounted) { // mounted 확인 후 context 사용
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('로그인이 필요합니다.')),
+         );
+       }
+       return;
+    }
+
     try {
-      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        QuerySnapshot savingQuery = await FirebaseFirestore.instance
-            .collection('saving')
-            .where('userId', isEqualTo: currentUser.uid)
-            .limit(1)
-            .get();
+      QuerySnapshot savingQuery = await FirebaseFirestore.instance
+          .collection('saving')
+          .where('userId', isEqualTo: currentUser.uid)
+          .limit(1)
+          .get();
 
-        String? selectedAccountId = _selectedSavingAccount?['id'];
+      String? selectedAccountId = _selectedSavingAccount?['id'];
 
-        if (savingQuery.docs.isNotEmpty) {
-          // 문서가 있으면 업데이트
-          String docId = savingQuery.docs.first.id;
-          await FirebaseFirestore.instance.collection('saving').doc(docId).update({
-            'goalsaving': _savingsGoalAmount,
-            'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        } else {
-          // 문서가 없으면 새로 추가
-          await FirebaseFirestore.instance.collection('saving').add({
-            'userId': currentUser.uid,
-            'goalsaving': _savingsGoalAmount,
-            'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        // 저장 후 데이터 다시 로드 및 상태 업데이트
-        await _loadSavingGoalData();
-
-        if (currentContext.mounted) {
-          ScaffoldMessenger.of(currentContext).showSnackBar(
-            const SnackBar(content: Text('저축 목표가 저장되었습니다.')),
-          );
-        }
+      if (savingQuery.docs.isNotEmpty) {
+        // 문서가 있으면 업데이트
+        String docId = savingQuery.docs.first.id;
+        await FirebaseFirestore.instance.collection('saving').doc(docId).update({
+          'goalsaving': _savingsGoalAmount,
+          'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // 문서가 없으면 새로 추가
+        await FirebaseFirestore.instance.collection('saving').add({
+          'userId': currentUser.uid,
+          'goalsaving': _savingsGoalAmount,
+          'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
+          'createdAt': FieldValue.serverTimestamp(),
+        });
       }
+
+      // 저장 후 데이터 다시 로드 및 상태 업데이트
+      // await _loadSavingGoalData(); // 저장 성공 시 UI는 이미 반영됨, 재로드는 선택사항
+
+      // await 이후 mounted 확인
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( // context 직접 사용
+          const SnackBar(content: Text('저축 목표가 저장되었습니다.')),
+        );
+        // 저장 후 상태를 다시 로드하여 최신화 (선택적)
+        await _loadSavingGoalData();
+      }
+
     } catch (e) {
       debugPrint('저축 목표 저장 오류: $e');
-      if (currentContext.mounted) {
-        ScaffoldMessenger.of(currentContext).showSnackBar(
+      // await 이후 mounted 확인
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar( // context 직접 사용
           const SnackBar(content: Text('저축 목표 저장 중 오류가 발생했습니다.')),
         );
       }
@@ -1824,13 +1861,19 @@ Future<void> _loadBudgetData() async {
                   ElevatedButton(
                     onPressed: () async {
                       // 시트 내의 임시 상태를 실제 상태 변수에 반영
+                      final BuildContext currentContext = context;
+                      
                       setState(() {
                         _savingsGoalAmount = currentGoalAmount;
                         _selectedSavingAccount = currentSelectedAccount;
                       });
                       // Firestore에 저장
                       await _saveSavingGoal();
-                      Navigator.pop(context); // 시트 닫기
+                      
+                      // 비동기 작업 완료 후 context가 유효한지 확인
+                      if (currentContext.mounted) {
+                        Navigator.pop(currentContext);
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF73AD13),
@@ -1924,7 +1967,6 @@ Future<void> _loadBudgetData() async {
                               itemCount: savingAccounts.length,
                               itemBuilder: (context, index) {
                                 final account = savingAccounts[index];
-                                final isSelected = tempSelectedAccount != null && tempSelectedAccount!['id'] == account['id'];
 
                                 return ListTile(
                                   contentPadding: EdgeInsets.zero,
@@ -1975,7 +2017,6 @@ Future<void> _loadBudgetData() async {
                           itemCount: depositAccounts.length,
                           itemBuilder: (context, index) {
                             final account = depositAccounts[index];
-                             final isSelected = tempSelectedAccount != null && tempSelectedAccount!['id'] == account['id'];
 
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
@@ -2299,25 +2340,25 @@ Future<void> _loadBudgetData() async {
     String bankName = account['bank'];
     Color iconColor = Color(account['iconColor'] ?? 0xFF73AD13);
     String iconLetter = bankName.isNotEmpty ? bankName[0] : '?';
-    
+
     // 은행에 따른 아이콘 (가상의 예시)
     Map<String, Widget> bankIcons = {
       '하나': _buildBankIcon('하', const Color(0xFF00B8ED)),
       'KB': _buildBankIcon('K', const Color(0xFFFFBC00)),
       '카카오': _buildBankIcon('카', const Color(0xFFFFE600)),
     };
-    
+
     // 등록된 은행 아이콘이 있으면 사용, 없으면 첫 글자로 아이콘 생성
     return bankIcons[bankName] ?? _buildBankIcon(iconLetter, iconColor);
   }
-  
+
   // 은행 아이콘 위젯
   Widget _buildBankIcon(String letter, Color color) {
     return Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withAlpha((0.2 * 255).round()), // withOpacity 대신 withAlpha 사용
         shape: BoxShape.circle,
       ),
       child: Center(
