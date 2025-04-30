@@ -200,7 +200,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                           ),
                         ),
                         child: const Text(
-                          '리포트 공유하기',
+                          '내보내기',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -479,12 +479,15 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
   
   // 리포트 공유 기능
   void _shareExpenseReport() {
-    // 실제 공유 기능 구현 (미구현 - 예시로 메시지만 표시)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("소비 리포트가 공유되었습니다"),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    // 리포트 데이터 생성
+    Map<String, dynamic> reportData = {
+      'total_expense': totalExpense,
+      'categories': categoryExpenses,
+      'month': currentMonthText,
+      'timestamp': DateTime.now(),
+    };
+    
+    // 리포트 데이터를 이전 화면으로 반환
+    Navigator.pop(context, reportData);
   }
 } 

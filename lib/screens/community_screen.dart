@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'expense_report_screen.dart';  // 수정된 import 경로
+import 'expense_report_write_screen.dart';  // 소비 리포트 글쓰기 화면 import
+import 'expense_report_detail_screen.dart';  // 소비 리포트 상세 화면 import
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({Key? key}) : super(key: key);
@@ -193,11 +196,11 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
           child: ElevatedButton(
             onPressed: () {
-              // 새로운 소비리포트 화면으로 이동
+              // 새로운 소비리포트 글쓰기 화면으로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ExpenseReportScreen(),
+                  builder: (context) => const ExpenseReportWriteScreen(),
                 ),
               );
             },
@@ -300,42 +303,273 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
         ),
         const SizedBox(height: 16),
-        // 게시글 대신 커뮤니티 준비 중 메시지 표시
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.grey[200],
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.construction,
-                  size: 50,
-                  color: Color(0xFF8BC34A),
+        
+        // Firestore에서 소비 리포트 게시글 가져오기
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('community')
+              .orderBy('created_at', descending: true)
+              .limit(10)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+            
+            if (snapshot.hasError) {
+              return Center(
+                child: Text('데이터 로드 중 오류가 발생했습니다: ${snapshot.error}'),
+              );
+            }
+            
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                SizedBox(height: 16),
-                Text(
-                  '커뮤니티 기능 준비 중입니다',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                child: const Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.post_add,
+                        size: 50,
+                        color: Color(0xFF8BC34A),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        '게시글이 없습니다',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '첫 번째 소비 리포트를 공유해보세요!',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  '더 나은 서비스로 곧 찾아뵙겠습니다',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
+              );
+            }
+            
+            // 게시글 리스트 표시
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (context, index) {
+                final doc = snapshot.data!.docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                
+                return _buildExpenseReportCard(doc.id, data);
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+  
+  // 소비 리포트 카드 위젯
+  Widget _buildExpenseReportCard(String docId, Map<String, dynamic> data) {
+    // 리포트 데이터 확인
+    final title = data['Heading'] as String? ?? '제목 없음';
+    final content = data['Content'] as String? ?? '';
+    
+    return GestureDetector(
+      onTap: () {
+        // 게시글 상세 화면으로 이동
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ExpenseReportDetailScreen(postData: {...data, 'id': docId}),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '소비 리포트 게시판',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // 카테고리 요약 표시 위젯
+  Widget _buildCategorySummary(Map<String, dynamic> reportData) {
+    // ExpenseReportScreen에서 반환된 데이터 구조 사용
+    final totalAmount = reportData['total_expense'] ?? 0;
+    final formattedAmount = NumberFormat('#,###').format(totalAmount);
+    final categories = reportData['categories'] as Map<String, dynamic>? ?? {};
+    
+    // 카테고리 데이터를 금액 기준으로 정렬
+    final sortedCategories = categories.entries.toList()
+      ..sort((a, b) => (b.value as num).compareTo(a.value as num));
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 총 금액
+        Text(
+          '${formattedAmount}원',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // 상위 3개 카테고리만 표시
+        ...sortedCategories.take(3).map((entry) {
+          final categoryName = entry.key;
+          final amount = (entry.value is int) ? entry.value.toDouble() : (entry.value as num).toDouble();
+          final percent = totalAmount > 0 ? (amount / totalAmount * 100) : 0;
+          
+          return Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                // 카테고리명
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    categoryName,
+                    style: const TextStyle(
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                
+                // 퍼센트
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    '${percent.toStringAsFixed(1)}%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                
+                // 금액
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${NumberFormat('#,###').format(amount)}원',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.right,
                   ),
                 ),
               ],
             ),
-          ),
-        ),
+          );
+        }).toList(),
       ],
+    );
+  }
+
+  // 파이 차트 위젯
+  Widget _buildPieChart(Map<String, dynamic> reportData) {
+    final categories = reportData['categories'] as Map<String, dynamic>? ?? {};
+    final totalAmount = reportData['total_expense'] ?? 0;
+    
+    // 카테고리가 없으면 기본 아이콘 표시
+    if (categories.isEmpty || totalAmount == 0) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.pie_chart,
+          size: 40,
+          color: Colors.grey,
+        ),
+      );
+    }
+    
+    // 카테고리 데이터 변환
+    List<Map<String, dynamic>> chartData = [];
+    
+    // 색상 정의
+    final colors = [
+      Colors.red[300]!,
+      Colors.blue[300]!,
+      Colors.green[300]!,
+      Colors.purple[300]!,
+      Colors.orange[300]!,
+      Colors.teal[300]!,
+      Colors.pink[300]!,
+      Colors.indigo[300]!,
+    ];
+    
+    int colorIndex = 0;
+    categories.forEach((key, value) {
+      final amount = (value is int) ? value.toDouble() : (value as num).toDouble();
+      final percent = totalAmount > 0 ? amount / totalAmount : 0.0;
+      
+      chartData.add({
+        'color': colors[colorIndex % colors.length],
+        'percent': percent,
+      });
+      
+      colorIndex++;
+    });
+    
+    // CustomPaint를 사용하여 파이 차트 그리기
+    return CustomPaint(
+      size: const Size(80, 80),
+      painter: PieChartPainter(sections: chartData),
     );
   }
 }
@@ -1098,23 +1332,20 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
 
 // 원형 차트를 그리는 커스텀 페인터
 class PieChartPainter extends CustomPainter {
+  final List<Map<String, dynamic>> sections;
+  
+  PieChartPainter({required this.sections});
+  
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
     
-    // 각 섹션의 색상과 크기(각도) 정의
-    final sections = [
-      {'color': Colors.red.shade300, 'percent': 0.33}, // 식비
-      {'color': Colors.purple.shade300, 'percent': 0.25}, // 문화 생활
-      {'color': Colors.blue.shade300, 'percent': 0.17}, // 은행
-      {'color': Colors.green.shade300, 'percent': 0.25}, // 기타
-    ];
-    
     var startAngle = -90 * 3.14 / 180; // -90도에서 시작 (12시 방향)
     
     for (var section in sections) {
-      final sweepAngle = (section['percent'] as double) * 360 * 3.14 / 180;
+      final percent = (section['percent'] as num).toDouble();
+      final sweepAngle = percent * 360 * 3.14 / 180;
       final paint = Paint()
         ..color = section['color'] as Color
         ..style = PaintingStyle.fill;
@@ -1129,8 +1360,20 @@ class PieChartPainter extends CustomPainter {
       
       startAngle += sweepAngle;
     }
+    
+    // 가운데 흰색 원 그려서 도넛 차트처럼 만들기
+    final centerPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(center, radius * 0.6, centerPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    if (oldDelegate is PieChartPainter) {
+      return oldDelegate.sections != sections;
+    }
+    return true;
+  }
 }

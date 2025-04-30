@@ -34,15 +34,15 @@ class _AllScreenState extends State<AllScreen> {
           
           // 최근 방문 탭이 없을 경우 기본 메뉴 표시
           if (recentTabs.isEmpty) ...[
-            _buildMenuItem('자산 인증', Icons.verified_user, () {
-              // TODO: 자산 인증 화면으로 이동
-            }),
-            _buildMenuItem('가계부 작성', Icons.edit_note, () {
-              // TODO: 가계부 작성 화면으로 이동
-            }),
-            _buildMenuItem('내 자산 목표', Icons.track_changes, () {
-              // TODO: 내 자산 목표 화면으로 이동
-            }),
+          _buildMenuItem('자산 인증', Icons.verified_user, () {
+            // TODO: 자산 인증 화면으로 이동
+          }),
+          _buildMenuItem('가계부 작성', Icons.edit_note, () {
+            // TODO: 가계부 작성 화면으로 이동
+          }),
+          _buildMenuItem('내 자산 목표', Icons.track_changes, () {
+            // TODO: 내 자산 목표 화면으로 이동
+          }),
           ] 
           // 최근 방문 탭이 있을 경우 해당 탭들 표시
           else ...[

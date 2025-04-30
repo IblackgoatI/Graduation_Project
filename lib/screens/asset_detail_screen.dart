@@ -370,7 +370,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 목표 탭 위젯 수정
+// 목표 탭 위젯 수정
   Widget _buildGoalTab() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -422,7 +422,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 공통 카드 스타일
+// 공통 카드 스타일
   Widget _buildStandardCard({required Widget child, double height = 180}) {
     return Card(
       elevation: 4,
@@ -438,7 +438,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 막대 그래프 위젯
+// 막대 그래프 위젯
   Widget _buildBarGraph(String month, double amount, Color color, double heightPercent) {
     // 수입 금액을 간단히 표시 (천 단위 구분)
     String amountDisplay = '';
@@ -459,11 +459,11 @@ Future<void> _loadBudgetData() async {
             child: Container(
               width: 15, // 막대 너비 감소
               height: heightPercent > 0 ? min(heightPercent, 150) : 2, // 높이 제한
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(10),
-                  bottom: Radius.circular(10),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+                bottom: Radius.circular(10),
                 ),
               ),
             ),
@@ -484,7 +484,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 이번 달 수입 카드
+// 이번 달 수입 카드
   Widget _buildMonthlyIncomeCard() {
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
@@ -616,7 +616,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 이번 달 지출 카드 (도넛 차트)
+// 이번 달 지출 카드 (도넛 차트)
   Widget _buildMonthlyExpenseCard() {
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
@@ -731,7 +731,7 @@ Future<void> _loadBudgetData() async {
                       child: SizedBox(
                         width: 90, // 도넛 차트 크기 제한
                         height: 90,
-                        child: CustomPaint(
+                  child: CustomPaint(
                           painter: DonutChartPainter(categories: chartData),
                         ),
                       ),
@@ -745,8 +745,8 @@ Future<void> _loadBudgetData() async {
                     padding: const EdgeInsets.only(right: 16.0),
                     child: Align(
                       alignment: Alignment.centerRight,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end, // 오른쪽 정렬
                         children: chartData.map((category) => 
                           _buildLegendItem(
@@ -803,7 +803,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 고정지출 카드
+// 고정지출 카드
   Widget _buildFixedExpenseCard() {
     return _buildStandardCard(
       height: 250,
@@ -962,7 +962,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 이번 달 예산 카드
+// 이번 달 예산 카드
   Widget _buildMonthlyBudgetCard() {
     // 예산 초기화
     String budgetText = _hasBudget 
@@ -1077,9 +1077,9 @@ Future<void> _loadBudgetData() async {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+          const Text(
                   '월 지출 예산 설정',
-                  style: TextStyle(
+            style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1123,9 +1123,9 @@ Future<void> _loadBudgetData() async {
                             percentageText,
                             style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
+              color: Colors.grey,
+            ),
+          ),
                         ],
                       ),
                       const SizedBox(width: 5),
@@ -1139,27 +1139,27 @@ Future<void> _loadBudgetData() async {
               ),
             ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
+          ElevatedButton(
+            onPressed: () {
                   Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text(
-                  '저장',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF73AD13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
               ),
-            ],
+                  minimumSize: const Size(double.infinity, 50),
+            ),
+            child: const Text(
+                  '저장',
+              style: TextStyle(
+                color: Colors.white,
+                    fontSize: 16,
+              ),
+            ),
           ),
+        ],
+      ),
         );
       },
     );
@@ -1477,7 +1477,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-  // 이번 달 저축 카드
+// 이번 달 저축 카드
   Widget _buildMonthlySavingsCard() {
     // 저축 목표 금액 텍스트 포맷팅
     String goalAmountText = _savingsGoalAmount > 0
@@ -1567,13 +1567,13 @@ Future<void> _loadBudgetData() async {
         return Container(
           padding: const EdgeInsets.all(20),
           height: 300,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
+        children: [
+          const Text(
                     '월 저축 목표 설정',
                     style: TextStyle(
                       fontSize: 18,
@@ -1598,8 +1598,8 @@ Future<void> _loadBudgetData() async {
                   children: [
                     const Text(
                       '목표 금액',
-                      style: TextStyle(
-                        fontSize: 16,
+            style: TextStyle(
+              fontSize: 16,
                       ),
                     ),
                     Row(
@@ -1612,7 +1612,7 @@ Future<void> _loadBudgetData() async {
                               style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.blue,
-                                fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
@@ -1632,8 +1632,8 @@ Future<void> _loadBudgetData() async {
                       ],
                     ),
                   ],
-                ),
-              ),
+            ),
+          ),
               const SizedBox(height: 20),
               InkWell(
                 onTap: () {
@@ -1646,7 +1646,7 @@ Future<void> _loadBudgetData() async {
                   children: [
                     const Text(
                       '저축 계좌',
-                      style: TextStyle(
+              style: TextStyle(
                         fontSize: 16,
                       ),
                     ),
@@ -1659,8 +1659,8 @@ Future<void> _loadBudgetData() async {
                               accountBankText,
                               style: const TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                fontWeight: FontWeight.bold,
+              ),
                             ),
                             Text(
                               accountBalanceText,
@@ -1679,31 +1679,31 @@ Future<void> _loadBudgetData() async {
                       ],
                     ),
                   ],
-                ),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: () {
+            ),
+          ),
+          const Spacer(),
+          ElevatedButton(
+            onPressed: () {
                   // 여기에서 저축 목표 저장 로직 구현
                   // 저장 후 설정값 리셋
                   Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF73AD13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: const Text(
-                  '저장',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF73AD13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
               ),
-            ],
+                  minimumSize: const Size(double.infinity, 50),
+            ),
+            child: const Text(
+                  '저장',
+              style: TextStyle(
+                color: Colors.white,
+                    fontSize: 16,
+              ),
+            ),
+          ),
+        ],
           ),
         );
       },
@@ -2215,63 +2215,63 @@ Future<void> _loadBudgetData() async {
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '부린이님의 총자산',
-              style: TextStyle(
-                fontSize: 16,
+      children: [
+        const Text(
+          '부린이님의 총자산',
+          style: TextStyle(
+            fontSize: 16,
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${_numberFormat(_totalAssets)}원',
-              style: const TextStyle(
+          ),
+        ),
+        Text(
+          '${_numberFormat(_totalAssets)}원',
+          style: const TextStyle(
                 fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
           ],
         ),
         const SizedBox(height: 16.0),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '계좌 잔금',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+                children: [
+                  const Text(
+                    '계좌 잔금',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${_numberFormat(_savingsTotal + _depositTotal + _cashTotal)}원',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
+                    ),
+                  ),
+                  Text(
+                    '${_numberFormat(_savingsTotal + _depositTotal + _cashTotal)}원',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
                 fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         const SizedBox(height: 8.0),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '입출금',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+                children: [
+                  const Text(
+                    '입출금',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '${_numberFormat(_savingsTotal)}원',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.black,
+                    ),
+                  ),
+                  Text(
+                    '${_numberFormat(_savingsTotal)}원',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
                 fontWeight: FontWeight.normal,
               ),
             ),
@@ -2463,7 +2463,7 @@ class DonutChartPainter extends CustomPainter {
 
     double radius = (size.width - strokeWidth) / 2;
     Offset center = Offset(size.width / 2, size.height / 2);
-    
+
     if (categories.isEmpty || categories.length == 1 && categories[0].name == '지출 없음') {
       // 데이터가 없거나 지출이 없는 경우, 회색 원 그리기
       paint.color = Colors.grey.withAlpha(76);
@@ -2477,13 +2477,13 @@ class DonutChartPainter extends CustomPainter {
       final sweepAngle = category.percent / 100 * 2 * 3.14;
       paint.color = category.color;
       
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
         startAngle,
         sweepAngle,
-        false,
-        paint,
-      );
+      false,
+      paint,
+    );
       
       startAngle += sweepAngle;
     }
