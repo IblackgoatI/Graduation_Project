@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // 파이 차트 커스텀 페인터
 class PieChartPainter extends CustomPainter {
@@ -81,11 +82,21 @@ class ExpenseReportDetailScreen extends StatefulWidget {
 class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
   String _authorName = '';
   bool _isLoading = false;
+  final TextEditingController _commentController = TextEditingController();
+  bool _isSubmittingComment = false;
+  List<Map<String, dynamic>> _comments = [];
 
   @override
   void initState() {
     super.initState();
     _loadAuthorInfo();
+    _loadComments();
+  }
+  
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAuthorInfo() async {
@@ -122,6 +133,129 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       if (mounted && _isLoading) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+  
+  // 댓글 목록 불러오기
+  Future<void> _loadComments() async {
+    try {
+      final String postId = widget.postData['id'];
+      final commentsSnapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .doc(postId)
+          .collection('comments')
+          .orderBy('CreatedAt', descending: false)
+          .get();
+      
+      final List<Map<String, dynamic>> commentsList = [];
+      for (var doc in commentsSnapshot.docs) {
+        Map<String, dynamic> comment = doc.data();
+        comment['id'] = doc.id;
+        
+        // 댓글 작성자 정보 가져오기
+        if (comment['writerUserid'] != null) {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(comment['writerUserid'])
+              .get();
+          
+          if (userDoc.exists) {
+            final userData = userDoc.data();
+            if (userData != null && userData['Name'] != null) {
+              comment['writerName'] = userData['Name'];
+            } else {
+              comment['writerName'] = '익명';
+            }
+          } else {
+            comment['writerName'] = '익명';
+          }
+        } else {
+          comment['writerName'] = '익명';
+        }
+        
+        commentsList.add(comment);
+      }
+      
+      if (mounted) {
+        setState(() {
+          _comments = commentsList;
+        });
+      }
+    } catch (e) {
+      print('댓글 로드 중 오류 발생: $e');
+    }
+  }
+  
+  // 댓글 작성 함수
+  Future<void> _submitComment() async {
+    if (_commentController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('댓글 내용을 입력해주세요'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    
+    setState(() {
+      _isSubmittingComment = true;
+    });
+    
+    try {
+      final String postId = widget.postData['id'];
+      final currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인이 필요합니다'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      
+      // 댓글 데이터 생성
+      final commentData = {
+        'Comment': _commentController.text.trim(),
+        'writerUserid': currentUser.uid,
+        'CreatedAt': Timestamp.now(),
+      };
+      
+      // Firestore에 댓글 저장
+      await FirebaseFirestore.instance
+          .collection('community')
+          .doc(postId)
+          .collection('comments')
+          .add(commentData);
+      
+      // 댓글 입력창 초기화
+      _commentController.clear();
+      
+      // 댓글 목록 새로고침
+      await _loadComments();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('댓글이 작성되었습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      print('댓글 작성 중 오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('댓글 작성 중 오류가 발생했습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingComment = false;
         });
       }
     }
@@ -205,32 +339,122 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                     // 소비 리포트 카드
                     _buildExpenseReportCard(reportData),
                     
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     
-                    // 댓글 남기기 버튼
-                    Center(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          // 댓글 작성 기능 구현
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('댓글 기능은 아직 준비 중입니다'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.comment),
-                        label: const Text('댓글 남기기'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF8BC34A),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
+                    // 댓글 섹션 헤더
+                    const Text(
+                      '댓글',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    
+                    // 댓글 입력
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _commentController,
+                              decoration: const InputDecoration(
+                                hintText: '댓글을 입력하세요',
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              ),
+                              maxLines: 1,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _isSubmittingComment ? null : _submitComment,
+                            child: _isSubmittingComment
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('확인'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // 댓글 목록
+                    _comments.isEmpty
+                        ? Center(
+                            child: Text(
+                              '첫 번째 댓글을 남겨보세요',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _comments.length,
+                            itemBuilder: (context, index) {
+                              final comment = _comments[index];
+                              // Timestamp를 DateTime으로 변환
+                              final timestamp = comment['CreatedAt'] as Timestamp;
+                              final dateTime = timestamp.toDate();
+                              final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
+                              
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // 댓글 작성자 및 시간
+                                    Row(
+                                      children: [
+                                        Text(
+                                          comment['writerName'] ?? '익명',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          formattedDate,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    
+                                    // 댓글 내용
+                                    Text(
+                                      comment['Comment'] ?? '',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                   ],
                 ),
               ),
