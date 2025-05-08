@@ -6,15 +6,24 @@ import 'expense_report_screen.dart';
 import 'expense_report_detail_screen.dart';
 
 class ExpenseReportWriteScreen extends StatefulWidget {
-  const ExpenseReportWriteScreen({Key? key}) : super(key: key);
+  final bool isEditing;
+  final Map<String, dynamic>? postData;
+
+  const ExpenseReportWriteScreen({
+    Key? key,
+    this.isEditing = false,
+    this.postData,
+  }) : super(key: key);
 
   @override
   State<ExpenseReportWriteScreen> createState() => _ExpenseReportWriteScreenState();
 }
 
 class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
+  bool _isSubmitting = false;
   
   bool _isUploading = false;
   bool _formChanged = false; // 폼 변경 여부
@@ -30,6 +39,12 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     // 텍스트 필드 리스너 추가
     _titleController.addListener(_updateFormState);
     _contentController.addListener(_updateFormState);
+    
+    // 수정 모드인 경우 기존 데이터로 초기화
+    if (widget.isEditing && widget.postData != null) {
+      _titleController.text = widget.postData!['Heading'] ?? '';
+      _contentController.text = widget.postData!['Content'] ?? '';
+    }
   }
   
   @override
@@ -196,6 +211,63 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     });
   }
 
+  Future<void> _submitPost() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      final postData = {
+        'Heading': _titleController.text.trim(),
+        'Content': _contentController.text.trim(),
+        'userId': currentUser.uid,
+        'created_at': Timestamp.now(),
+        'updated_at': Timestamp.now(),
+      };
+
+      if (widget.isEditing) {
+        // 게시글 수정
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData!['id'])
+            .update(postData);
+      } else {
+        // 새 게시글 작성
+        await FirebaseFirestore.instance
+            .collection('community')
+            .add(postData);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.isEditing ? '게시글이 수정되었습니다.' : '게시글이 작성되었습니다.'),
+          ),
+        );
+        Navigator.pop(context, true); // 수정/작성 완료 표시
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     String currentMonth = DateFormat('M월').format(DateTime.now());
@@ -209,9 +281,27 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('소비 리포트 공유하기'),
-        backgroundColor: Colors.grey[50],
-        elevation: 0,
+        title: Text(widget.isEditing ? '게시글 수정' : '게시글 작성'),
+        actions: [
+          TextButton(
+            onPressed: _isSubmitting ? null : _submitPost,
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    widget.isEditing ? '수정' : '작성',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -219,130 +309,145 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
           SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 제목 레이블
-                  const Text(
-                    '제목',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // 제목 입력 필드
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      hintText: '제목을 입력해주세요',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 제목 레이블
+                    const Text(
+                      '제목',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    maxLength: 50, // 제목 최대 길이
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // 내용 레이블
-                  const Text(
-                    '내용',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // 내용 입력 필드
-                  TextField(
-                    controller: _contentController,
-                    decoration: const InputDecoration(
-                      hintText: '내용을 입력해주세요',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(16),
-                    ),
-                    maxLines: 10, // 여러 줄 입력 가능
-                    maxLength: 500, // 내용 최대 길이
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // 소비 리포트 불러오기 버튼
-                  Center(
-                    child: Column(
-                      children: [
-                        // 소비 리포트 상태 표시
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: _reportData != null ? Colors.green.withAlpha(26) : Colors.grey.withAlpha(26),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _reportData != null ? Icons.check_circle : Icons.info_outline,
-                                size: 16,
-                                color: _reportData != null ? Colors.green : Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _reportData != null 
-                                    ? '소비 리포트가 첨부되었습니다' 
-                                    : '소비 리포트를 첨부해주세요',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _reportData != null ? Colors.green : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
+                    const SizedBox(height: 8),
+                    
+                    // 제목 입력 필드
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: const InputDecoration(
+                        hintText: '제목을 입력해주세요',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                        
-                        // 소비 리포트 불러오기 버튼
-                        InkWell(
-                          onTap: _navigateToExpenseReport,
-                          child: Container(
-                            width: 80,
-                            height: 80,
+                      ),
+                      maxLength: 50, // 제목 최대 길이
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '제목을 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // 내용 레이블
+                    const Text(
+                      '내용',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // 내용 입력 필드
+                    TextFormField(
+                      controller: _contentController,
+                      decoration: const InputDecoration(
+                        hintText: '내용을 입력해주세요',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(16),
+                      ),
+                      maxLines: 10, // 여러 줄 입력 가능
+                      maxLength: 500, // 내용 최대 길이
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '내용을 입력해주세요';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // 소비 리포트 불러오기 버튼
+                    Center(
+                      child: Column(
+                        children: [
+                          // 소비 리포트 상태 표시
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.grey[400]!,
-                                width: 1,
-                              ),
+                              color: _reportData != null ? Colors.green.withAlpha(26) : Colors.grey.withAlpha(26),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  Icons.upload_outlined,
-                                  size: 32,
-                                  color: Colors.grey[700],
+                                  _reportData != null ? Icons.check_circle : Icons.info_outline,
+                                  size: 16,
+                                  color: _reportData != null ? Colors.green : Colors.grey,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(width: 4),
                                 Text(
-                                  '불러오기',
+                                  _reportData != null 
+                                      ? '소비 리포트가 첨부되었습니다' 
+                                      : '소비 리포트를 첨부해주세요',
                                   style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[700],
+                                    fontSize: 14,
+                                    color: _reportData != null ? Colors.green : Colors.grey,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ],
+                          
+                          // 소비 리포트 불러오기 버튼
+                          InkWell(
+                            onTap: _navigateToExpenseReport,
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.grey[400]!,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.upload_outlined,
+                                    size: 32,
+                                    color: Colors.grey[700],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '불러오기',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 80), // 하단 버튼을 위한 여백
-                ],
+                    const SizedBox(height: 80), // 하단 버튼을 위한 여백
+                  ],
+                ),
               ),
             ),
           ),
@@ -357,7 +462,6 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
             ),
         ],
       ),
-      
       // 하단 버튼 영역
       bottomSheet: Container(
         padding: const EdgeInsets.all(16),
@@ -385,17 +489,16 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  side: BorderSide.none,
                 ),
                 child: const Text('취소'),
               ),
             ),
             const SizedBox(width: 16),
             
-            // 내용 내기 버튼
+            // 수정/작성 버튼
             Expanded(
               child: ElevatedButton(
-                onPressed: _isUploading ? null : (canSubmit ? _uploadReport : null),
+                onPressed: _isSubmitting ? null : _submitPost,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF8BC34A),
                   foregroundColor: Colors.white,
@@ -404,9 +507,17 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  side: BorderSide.none,
                 ),
-                child: const Text('작성하기'),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : Text(widget.isEditing ? '수정하기' : '작성하기'),
               ),
             ),
           ],

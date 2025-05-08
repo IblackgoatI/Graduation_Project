@@ -381,13 +381,11 @@ class _CommunityScreenState extends State<CommunityScreen>
   
   // 소비 리포트 카드 위젯
   Widget _buildExpenseReportCard(String docId, Map<String, dynamic> data) {
-    // 리포트 데이터 확인
     final title = data['Heading'] as String? ?? '제목 없음';
     final content = data['Content'] as String? ?? '';
-    
+
     return GestureDetector(
       onTap: () {
-        // 게시글 상세 화면으로 이동
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -433,6 +431,24 @@ class _CommunityScreenState extends State<CommunityScreen>
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Text(
+                    data['author_name'] ?? '익명',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                  const Text(' · ', style: TextStyle(color: Colors.grey)),
+                  Text(
+                    _timeAgo(
+                      (data['created_at'] is Timestamp)
+                        ? (data['created_at'] as Timestamp).toDate()
+                        : DateTime.tryParse(data['created_at'] ?? '') ?? DateTime.now(),
+                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
               ),
             ],
           ),
@@ -571,6 +587,17 @@ class _CommunityScreenState extends State<CommunityScreen>
       size: const Size(80, 80),
       painter: PieChartPainter(sections: chartData),
     );
+  }
+
+  String _timeAgo(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return '방금 전';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inDays < 7) return '${diff.inDays}일 전';
+    return DateFormat('yyyy.MM.dd').format(date);
   }
 }
 

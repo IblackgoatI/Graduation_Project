@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'expense_report_write_screen.dart';
 
 // 파이 차트 커스텀 페인터
 class PieChartPainter extends CustomPainter {
@@ -85,18 +86,27 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   bool _isSubmittingComment = false;
   List<Map<String, dynamic>> _comments = [];
+  int _commentLength = 0;
 
   @override
   void initState() {
     super.initState();
     _loadAuthorInfo();
     _loadComments();
+    _commentController.addListener(_updateCommentLength);
   }
   
   @override
   void dispose() {
+    _commentController.removeListener(_updateCommentLength);
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _updateCommentLength() {
+    setState(() {
+      _commentLength = _commentController.text.length;
+    });
   }
 
   Future<void> _loadAuthorInfo() async {
@@ -199,6 +209,16 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       );
       return;
     }
+
+    if (_commentController.text.length > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('댓글은 100자를 초과할 수 없습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     
     setState(() {
       _isSubmittingComment = true;
@@ -261,6 +281,297 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     }
   }
 
+  // 게시글 삭제 함수
+  Future<void> _deletePost(BuildContext context) async {
+    try {
+      // 삭제 확인 다이얼로그 표시
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('게시글 삭제'),
+            content: const Text('정말로 이 게시글을 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  '삭제',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      // 사용자가 삭제를 확인한 경우
+      if (confirm == true) {
+        // 현재 로그인한 사용자 확인
+        final User? currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          throw Exception('로그인이 필요합니다.');
+        }
+
+        // 게시글 작성자 확인
+        if (widget.postData['userId'] != currentUser.uid) {
+          throw Exception('자신의 게시글만 삭제할 수 있습니다.');
+        }
+
+        // Firestore에서 게시글 삭제
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .delete();
+
+        // 삭제 성공 메시지 표시
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('게시글이 삭제되었습니다.')),
+          );
+          
+          // 커뮤니티 화면으로 돌아가기
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 게시글 수정 함수
+  Future<void> _editPost(BuildContext context) async {
+    try {
+      // 수정 화면으로 이동
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ExpenseReportWriteScreen(
+            isEditing: true,
+            postData: widget.postData,
+          ),
+        ),
+      );
+
+      // 수정이 완료되면 화면 새로고침
+      if (result == true && mounted) {
+        // 게시글 데이터 새로고침
+        final updatedPost = await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .get();
+
+        if (updatedPost.exists) {
+          setState(() {
+            widget.postData.clear();
+            widget.postData.addAll(updatedPost.data()!);
+            widget.postData['id'] = updatedPost.id;
+          });
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('수정 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 댓글 삭제 함수
+  Future<void> _deleteComment(String commentId) async {
+    try {
+      // 삭제 확인 다이얼로그 표시
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('댓글 삭제'),
+            content: const Text('정말로 이 댓글을 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  '삭제',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirm == true) {
+        // Firestore에서 댓글 삭제
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .collection('comments')
+            .doc(commentId)
+            .delete();
+
+        // 댓글 목록 새로고침
+        await _loadComments();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('댓글이 삭제되었습니다.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 댓글 수정 함수
+  Future<void> _editComment(Map<String, dynamic> comment) async {
+    final TextEditingController editController = TextEditingController(text: comment['Comment']);
+    int editLength = comment['Comment'].length; // 초기 글자수 설정
+    
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) {
+          return StatefulBuilder( // StatefulBuilder 추가
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('댓글 수정'),
+                content: TextField(
+                  controller: editController,
+                  onChanged: (value) {
+                    setState(() {
+                      editLength = value.length;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: '댓글을 입력하세요 (최대 100자)',
+                    border: const OutlineInputBorder(),
+                    counterText: '$editLength/100',
+                    counterStyle: TextStyle(
+                      color: editLength >= 100 ? Colors.red : Colors.grey,
+                    ),
+                  ),
+                  maxLength: 100,
+                  maxLines: 3,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      if (editLength > 100) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('댓글은 100자를 초과할 수 없습니다'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).pop(editController.text);
+                    },
+                    child: const Text('수정'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (result != null && result.trim().isNotEmpty) {
+        if (result.length > 100) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('댓글은 100자를 초과할 수 없습니다'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
+        // Firestore에서 댓글 수정
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .collection('comments')
+            .doc(comment['id'])
+            .update({
+          'Comment': result.trim(),
+          'updated_at': Timestamp.now(),
+        });
+
+        // 댓글 목록 새로고침
+        await _loadComments();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('댓글이 수정되었습니다.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 댓글 메뉴 표시 함수
+  void _showCommentMenu(Map<String, dynamic> comment) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.uid != comment['writerUserid']) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('수정'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editComment(comment);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteComment(comment['id']);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final reportData = widget.postData['report_data'] as Map<String, dynamic>?;
@@ -273,6 +584,19 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         title: const Text('소비 리포트 게시판'),
         backgroundColor: Colors.grey[50],
         elevation: 0,
+        actions: [
+          // 현재 로그인한 사용자가 게시글 작성자인 경우에만 수정/삭제 버튼 표시
+          if (FirebaseAuth.instance.currentUser?.uid == widget.postData['userId']) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _editPost(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _deletePost(context),
+            ),
+          ],
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -363,12 +687,17 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                           Expanded(
                             child: TextField(
                               controller: _commentController,
-                              decoration: const InputDecoration(
-                                hintText: '댓글을 입력하세요',
+                              decoration: InputDecoration(
+                                hintText: '댓글을 입력하세요 (최대 100자)',
                                 border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                counterText: '$_commentLength/100',
+                                counterStyle: TextStyle(
+                                  color: _commentLength >= 100 ? Colors.red : Colors.grey,
+                                ),
                               ),
-                              maxLines: 1,
+                              maxLength: 100,
+                              maxLines: 3,
                             ),
                           ),
                           TextButton(
@@ -439,6 +768,15 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                                             fontSize: 12,
                                           ),
                                         ),
+                                        // 현재 사용자가 댓글 작성자인 경우에만 메뉴 버튼 표시
+                                        if (FirebaseAuth.instance.currentUser?.uid == comment['writerUserid'])
+                                          IconButton(
+                                            icon: const Icon(Icons.more_vert, size: 20),
+                                            onPressed: () => _showCommentMenu(comment),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            visualDensity: VisualDensity.compact,
+                                          ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
