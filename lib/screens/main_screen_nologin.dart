@@ -365,6 +365,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                         "${numberFormat(account['balance'])}원",
                         style: const TextStyle(
                           fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
@@ -460,8 +461,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     ),
                   ],
                 ),
-                const SizedBox(height: 16.0),
-                // 로딩 상태에 따라 다른 위젯 표시
                 _isLoading
                     ? const Center(
                   child: CircularProgressIndicator(
@@ -476,9 +475,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                       "입출금계좌: ${numberFormat(_totalBalance)}원",
                       style: const TextStyle(
                         fontSize: 14,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16.0),
                   ],
                 )
                     : Column(
@@ -499,13 +498,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     ),
                   ],
                 ),
-                const SizedBox(height: 16.0),
-                // 로딩 중이 아니고 계좌가 없을 때만 버튼 표시
                 if (!_isLoading && _userAccounts.isEmpty)
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
-                        // 계좌 연결하기 버튼 동작
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -514,7 +510,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                             ),
                           ),
                         ).then((returnedUser) {
-                          // 화면 복귀 시 계좌 정보 다시 로드
                           _loadUserAccounts();
                         });
                       },
@@ -589,7 +584,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               const SizedBox(height: 8.0),
               Text(
                 "${numberFormat(totalExpense.toInt())}원",
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20.0), // 섹션 간 간격
               Row(
@@ -605,7 +600,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               const SizedBox(height: 8.0),
               Text(
                 "${numberFormat(fixedExpenses.toInt())}원",
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -886,12 +881,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 ),
               ),
                   const SizedBox(height: 30.0), // 하단 여백 조정
-              // 현재 월 총 소비
-              Center(
-                child: Text(
+                  // 현재 월 총 소비
+                  Center(
+                    child: Text(
                       "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
-                  style: const TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -964,6 +960,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                   '${numberFormat(amount.toInt())}원',
                                   style: const TextStyle(
                                     fontSize: 13,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
@@ -1033,6 +1030,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                   '${numberFormat(amount.toInt())}원',
                                   style: const TextStyle(
                                     fontSize: 13,
+                                    fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
