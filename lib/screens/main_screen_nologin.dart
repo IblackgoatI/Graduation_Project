@@ -590,6 +590,50 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
   }
 
+  IconData getCategoryIcon(String category) {
+    switch (category) {
+      case '식비':
+        return Icons.restaurant;
+      case '카페':
+        return Icons.local_cafe;
+      case '간식':
+        return Icons.icecream;
+      case '생활':
+      case '생활용품':
+        return Icons.home;
+      case '쇼핑':
+        return Icons.shopping_bag;
+      case '뷰티':
+      case '미용':
+        return Icons.spa;
+      case '교통':
+        return Icons.directions_car;
+      case '통신':
+        return Icons.phone_android;
+      case '문화':
+      case '문화생활':
+        return Icons.movie;
+      case '교육':
+        return Icons.school;
+      case '만남':
+        return Icons.people;
+      case '의료':
+        return Icons.local_hospital;
+      case '여행':
+        return Icons.flight;
+      case '주거':
+        return Icons.house;
+      case '용돈':
+        return Icons.attach_money;
+      case '서비스':
+        return Icons.miscellaneous_services;
+      case '미분류':
+        return Icons.help_outline;
+      default:
+        return Icons.category;
+    }
+  }
+
   Widget _buildMonthlyReportCard() {
     // 현재 월 가져오기
     final currentMonth = DateTime.now().month;
@@ -833,7 +877,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                           final categoryName = entry.key;
                           final amount = entry.value;
                           final percent = (amount / totalExpense) * 100;
-                          final icon = categoryIcons[categoryName] ?? Icons.help_outline;
+                          final icon = getCategoryIcon(categoryName);
                           final index = sortedCategories.indexOf(entry);
                           final colors = [
                             Colors.red[300]!,
@@ -902,7 +946,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                           final categoryName = entry.key;
                           final amount = entry.value;
                           final percent = (amount / totalExpense) * 100;
-                          final icon = categoryIcons[categoryName] ?? Icons.help_outline;
+                          final icon = getCategoryIcon(categoryName);
                           final index = sortedCategories.indexOf(entry);
                           final colors = [
                             Colors.red[300]!,
