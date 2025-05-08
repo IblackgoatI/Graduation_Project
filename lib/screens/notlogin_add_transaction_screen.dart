@@ -298,10 +298,28 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       };
 
       // Firestore의 ledger 컬렉션에 데이터 추가
-      await _firestore.collection('ledger').add(transactionData);
+      final docRef = await _firestore.collection('ledger').add(transactionData);
 
-      // Provider에 Transaction 추가
-      Provider.of<TransactionProvider>(context, listen: false).addTransaction(transaction);
+      // Firestore에서 해당 document를 다시 읽어옴 (동기화)
+      final docSnap = await docRef.get();
+      if (docSnap.exists) {
+        final data = docSnap.data() as Map<String, dynamic>;
+        final syncedTransaction = FinancialTransaction(
+          id: docSnap.id,
+          type: data['type'] ?? '',
+          amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+          date: (data['date'] is Timestamp)
+              ? (data['date'] as Timestamp).toDate()
+              : DateTime.now(),
+          merchant: data['merchant'] ?? '',
+          memo: data['memo'] ?? '',
+          tags: (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+          category: data['category'] ?? '미분류',
+          paymentMethod: data['paymentMethod'] ?? '',
+        );
+        // Provider에 동기화된 트랜잭션 추가
+        Provider.of<TransactionProvider>(context, listen: false).addTransaction(syncedTransaction);
+      }
 
       // 저장 후 화면 닫기 (true를 반환하여 저장이 성공했음을 알림)
       Navigator.pop(context, true);
