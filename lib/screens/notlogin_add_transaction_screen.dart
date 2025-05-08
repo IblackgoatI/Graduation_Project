@@ -5,6 +5,7 @@ import 'transaction_provider.dart';
 import 'transaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 
 class NotloginAddTransactionScreen extends StatefulWidget {
   const NotloginAddTransactionScreen({super.key});
@@ -34,6 +35,21 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 금액 입력 포맷터 추가
+  final List<TextInputFormatter> _amountInputFormatters = [
+    FilteringTextInputFormatter.digitsOnly,
+    TextInputFormatter.withFunction((oldValue, newValue) {
+      final text = newValue.text.replaceAll(',', '');
+      if (text.isEmpty) return newValue.copyWith(text: '');
+      final number = int.parse(text);
+      final formatted = NumberFormat('#,###').format(number);
+      return TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }),
+  ];
 
   @override
   void initState() {
@@ -353,10 +369,13 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                             controller: _amountController,
                             textAlign: TextAlign.right,
                             keyboardType: TextInputType.number,
+                            inputFormatters: _amountInputFormatters,
+                            maxLength: 11, // 1,000,000,000까지 입력 가능
                             decoration: const InputDecoration(
                               hintText: '0원',
                               border: InputBorder.none,
                               hintStyle: TextStyle(color: Colors.grey),
+                              counterText: '',
                             ),
                             style: const TextStyle(
                               fontSize: 24,
@@ -371,13 +390,13 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                     const SizedBox(height: 32.0),
                     _buildRowWithTextButton('카테고리', _selectedCategory),
                     const SizedBox(height: 24.0),
-                    _buildRowWithInputController('거래처', '입력하세요', _merchantController),
+                    _buildRowWithInputController('거래처', '입력하세요', _merchantController, maxLength: 10),
                     const SizedBox(height: 24.0),
                     _buildRowWithText('결제수단', '선택하세요'),
                     const SizedBox(height: 24.0),
                     _buildDateSelector('날짜', _formattedDate),
                     const SizedBox(height: 24.0),
-                    _buildRowWithInputController('메모', '입력하세요', _memoController),
+                    _buildRowWithInputController('메모', '입력하세요', _memoController, maxLength: 15),
                     const SizedBox(height: 24.0),
                     _buildTagInput(),
                     const SizedBox(height: 40.0),
@@ -431,6 +450,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                 textAlign: TextAlign.right,
                 keyboardType: TextInputType.text,
                 textInputAction: TextInputAction.done,
+                maxLength: 5,
                 decoration: InputDecoration(
                   hintText: '입력하세요',
                   border: InputBorder.none,
@@ -537,7 +557,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   }
 
   /// 컨트롤러가 있는 입력 필드 생성
-  Widget _buildRowWithInputController(String title, String hintText, TextEditingController controller) {
+  Widget _buildRowWithInputController(String title, String hintText, TextEditingController controller, {int? maxLength}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -552,10 +572,12 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
             textAlign: TextAlign.right,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.done,
+            maxLength: maxLength,
             decoration: InputDecoration(
               hintText: hintText,
               border: InputBorder.none,
               hintStyle: const TextStyle(color: Colors.grey),
+              counterText: '',
             ),
           ),
         ),
