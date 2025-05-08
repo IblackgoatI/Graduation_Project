@@ -312,9 +312,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "입출금 계좌",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Icon(Icons.account_balance, color: Colors.green, size: 20),
+                SizedBox(width: 8),
+                const Text(
+                  "입출금 계좌",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             const SizedBox(height: 16.0),
             // 로딩 상태에 따라 다른 위젯 표시
@@ -444,9 +450,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "총 자산 >",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Row(
+                  children: [
+                    Icon(Icons.savings, color: Colors.blue, size: 20),
+                    SizedBox(width: 8),
+                    const Text(
+                      "총 자산 >",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16.0),
                 // 로딩 상태에 따라 다른 위젯 표시
@@ -564,9 +576,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "이번 달 지출 >",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Icon(Icons.trending_down, color: Colors.red, size: 20),
+                  SizedBox(width: 8),
+                  const Text(
+                    "이번 달 지출 >",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               const SizedBox(height: 8.0),
               Text(
@@ -574,9 +592,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 20.0), // 섹션 간 간격
-              const Text(
-                "나의 고정지출 >",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Icon(Icons.repeat, color: Colors.orange, size: 20),
+                  SizedBox(width: 8),
+                  const Text(
+                    "나의 고정지출 >",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
               const SizedBox(height: 8.0),
               Text(
@@ -721,9 +745,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "부린이님의 $monthInKorean 소비 리포트",
+              Row(
+                children: [
+                  Icon(Icons.pie_chart, color: Colors.purple, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    "부린이님의 $monthInKorean 소비 리포트",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
               ),
                   const SizedBox(height: 30.0), // 상단 여백 조정
               // 소비 그래프 영역
