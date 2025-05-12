@@ -76,7 +76,9 @@ Future<void> _sendFcmNotification(String token, String depositName, String bank,
 
 class AssetScreen extends StatefulWidget {
   final User? user;
-  const AssetScreen({super.key, this.user});
+  final String? previousRouteName; // 이전 경로 이름을 받을 파라미터 추가
+
+  const AssetScreen({super.key, this.user, this.previousRouteName}); // 생성자 수정
 
   @override
   State<AssetScreen> createState() => _AssetScreenState();
@@ -124,10 +126,16 @@ class _AssetScreenState extends State<AssetScreen> {
         _currentPage--;
       });
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
+      // previousRouteName을 확인하여 분기
+      if (widget.previousRouteName == 'asset_detail_screen') {
+        Navigator.pop(context); // 자산 상세 화면으로 돌아가기
+      } else {
+        // 기본 동작: 로그인 화면으로 이동 (또는 previousRouteName이 'login_screen'일 때)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      }
     }
   }
 

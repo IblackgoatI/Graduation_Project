@@ -99,9 +99,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // 로그인 성공 시 자산 화면으로 이동
+      // 로그인 성공 후 자산 화면으로 이동 시 previousRouteName 전달
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => AssetScreen(user: userCredential.user)),
+        MaterialPageRoute(
+            builder: (context) => AssetScreen(
+                  user: userCredential.user,
+                  previousRouteName: 'login_screen', // 현재 화면 경로 전달
+                )),
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = '';

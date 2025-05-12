@@ -476,6 +476,7 @@ Future<void> _loadBudgetData() async {
             MaterialPageRoute(
               builder: (context) => AssetScreen(
                 user: widget.user ?? FirebaseAuth.instance.currentUser,
+                previousRouteName: 'asset_detail_screen', // 현재 화면 경로 전달
               ),
             ),
           );
