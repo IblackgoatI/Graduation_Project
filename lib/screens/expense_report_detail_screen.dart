@@ -1077,18 +1077,25 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              '${displayMonth} 총 소비: ', // displayMonth 사용
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              '${displayFormattedAmount}원', // displayFormattedAmount 사용
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${displayMonth} 총 소비: ',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  Text(
+                    '${displayFormattedAmount}원',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
