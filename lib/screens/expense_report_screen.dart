@@ -474,7 +474,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.2),
+                                color: color.withAlpha(51),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(icon, color: color, size: 20),
