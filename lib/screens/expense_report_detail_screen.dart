@@ -981,10 +981,19 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                       ),
                       
                       // 금액
-                      Text(
-                        '${NumberFormat('#,###').format(amount)}원',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                      SizedBox(
+                        width: 100, // 금액 영역의 최대 너비 설정
+                        child: FittedBox(
+                          alignment: Alignment.centerRight,
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '${NumberFormat('#,###').format(amount)}원',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
                         ),
                       ),
                     ],
