@@ -324,6 +324,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     bool canSubmit = isFormValid;
     
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(widget.isEditing ? '게시글 수정' : '게시글 작성'),
         actions: [
