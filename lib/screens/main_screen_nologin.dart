@@ -575,9 +575,28 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 children: [
                   Icon(Icons.trending_down, color: Colors.red, size: 20),
                   SizedBox(width: 8),
-                  const Text(
-                    "이번 달 지출 >",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  // 이번 달 지출 전체를 버튼으로 만들기
+                  InkWell(
+                    onTap: () {
+                      // 가계부 탭으로 이동 (인덱스 1)
+                      _onItemTapped(1);
+                    },
+                    child: Row(
+                      children: [
+                        const Text(
+                          "이번 달 지출 ",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          ">",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
