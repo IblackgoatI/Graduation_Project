@@ -9,7 +9,7 @@ import 'login.dart';
 import 'main_screen_nologin.dart';
 
 // 로컬 알림 표시 함수
-Future<void> _showLocalNotification(String title, String body) async {
+Future<void> showLocalNotification(String title, String body) async {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
   AndroidNotificationDetails(
     'deposit_notification_channel',
@@ -285,7 +285,7 @@ class _AssetScreenState extends State<AssetScreen> {
             await _sendFcmNotification(fcmToken, depositName, bankInput!, accountInput);
 
             // 로컬 알림 표시
-            await _showLocalNotification(
+            await showLocalNotification(
                 '1원 입금 확인',
                 '$bankInput 계좌로 1원이 입금되었습니다. 입금자명: $depositName'
             );

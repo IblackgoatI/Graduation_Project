@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'dart:math' show min;
 import 'transaction_provider.dart';
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
+import 'asset.dart' as asset_screen; // _showLocalNotification 함수를 사용하기 위해 임포트
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -39,7 +40,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   int _budgetPercentage = 0; // 예산이 수입에서 차지하는 비율
 
   // 1. 상태 변수 추가
-  int _finalGoalAmount = 0;
+  int _finalGoalAmount = 0; // Firestore의 goalAmount와 동기화될 변수
+
+  // 알림 상태 추적 변수
+  bool _notified50percent = false;
+  bool _notified90percent = false;
+  bool _notified100percent = false;
 
   @override
   void initState() {
@@ -160,7 +166,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     }
   }
 
-  // 예산 데이터 로드
   // 예산 데이터 로드
 Future<void> _loadBudgetData() async {
   try {
@@ -306,6 +311,10 @@ Future<void> _loadBudgetData() async {
           String? selectedAccountId = savingData['selectedAccountId'];
           Map<String, dynamic>? selectedAccount;
 
+          // Firestore에서 monthlyAmount와 goalAmount 읽기
+          int monthlyAmountFromDB = (savingData['monthlyAmount'] as num?)?.toInt() ?? 0;
+          int goalAmountFromDB = (savingData['goalAmount'] as num?)?.toInt() ?? 0;
+
           // 선택된 계좌 정보 찾기 (_assetAccounts가 로드된 후 실행됨)
           if (selectedAccountId != null && _assetAccounts.isNotEmpty) { // _assetAccounts 비어있는지 확인
             try {
@@ -313,48 +322,88 @@ Future<void> _loadBudgetData() async {
                 (account) => account['id'] == selectedAccountId,
               );
             } catch (e) {
-              // 계좌가 삭제되었거나 찾을 수 없는 경우 (Firestore 업데이트 제거)
               debugPrint('선택된 저축 계좌를 찾을 수 없습니다 (ID: $selectedAccountId): $e');
-              selectedAccount = null; // 선택된 계좌 없음으로 처리
-              // Firestore 업데이트 로직 제거됨
-              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({
-              //   'selectedAccountId': null,
-              // });
+              selectedAccount = null;
             }
           } else if (selectedAccountId != null && _assetAccounts.isEmpty) {
              debugPrint('저축 목표 로드 시 자산 정보(_assetAccounts)가 아직 로드되지 않았습니다.');
-             selectedAccount = null; // 자산 정보 없으면 null 처리
+             selectedAccount = null;
           }
 
-          // initState 단계에서는 mounted 체크 없이 setState 호출 가능
-          // if (mounted) {
+          // 알림 상태 플래그는 Firestore에서 로드하거나, 여기서는 초기화하지 않고 _saveSavingGoal에서 관리
+          // bool notified50 = savingData['notified50percent'] ?? false;
+          // bool notified90 = savingData['notified90percent'] ?? false;
+          // bool notified100 = savingData['notified100percent'] ?? false;
+
+          if (mounted) {
             setState(() {
-              _savingsGoalAmount = (savingData['goalsaving'] as num?)?.toInt() ?? 0;
+              _savingsGoalAmount = monthlyAmountFromDB;
+              _finalGoalAmount = goalAmountFromDB;
               _selectedSavingAccount = selectedAccount;
-              _hasSavingGoal = true; // 문서가 있으므로 true
+              _hasSavingGoal = true;
+              // _notified50percent = notified50; // Firestore에서 로드하는 경우
+              // _notified90percent = notified90;
+              // _notified100percent = notified100;
             });
-          // }
+          }
+
+          // 달성률 계산 및 알림 (데이터 로드 후 실행)
+          if (_selectedSavingAccount != null && _finalGoalAmount > 0) {
+            int currentBalance = (_selectedSavingAccount!['balance'] as num).toInt();
+            double achievementRate = currentBalance / _finalGoalAmount;
+
+            if (achievementRate >= 1.0 && !_notified100percent) {
+              await asset_screen.showLocalNotification(
+                '저축 목표 달성!',
+                '축하합니다! 저축 목표의 100%를 달성했습니다!',
+              );
+              if (mounted) setState(() { _notified100percent = true; });
+              // Firestore에 알림 상태 저장 로직 추가 가능
+              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified100percent': true});
+            } else if (achievementRate >= 0.9 && !_notified90percent) {
+              await asset_screen.showLocalNotification(
+                '저축 목표 90% 달성!',
+                '저축 목표의 90%를 달성했습니다! 조금만 더 힘내세요!',
+              );
+              if (mounted) setState(() { _notified90percent = true; });
+              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified90percent': true});
+            } else if (achievementRate >= 0.5 && !_notified50percent) {
+              await asset_screen.showLocalNotification(
+                '저축 목표 50% 달성!',
+                '저축 목표의 50%를 달성했습니다!',
+              );
+              if (mounted) setState(() { _notified50percent = true; });
+              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified50percent': true});
+            }
+          }
+
         } else {
-          // 문서가 없으면 기본값으로 설정
-          // if (mounted) {
+          if (mounted) {
             setState(() {
               _savingsGoalAmount = 0;
+              _finalGoalAmount = 0;
               _selectedSavingAccount = null;
-              _hasSavingGoal = false; // 문서가 없으므로 false
+              _hasSavingGoal = false;
+              _notified50percent = false; // 목표가 없으면 알림 상태도 초기화
+              _notified90percent = false;
+              _notified100percent = false;
             });
-          // }
+          }
         }
       }
     } catch (e) {
       debugPrint('저축 목표 정보 로드 오류: $e');
-      // 오류 발생 시 기본값 설정
-      // if (mounted) {
+      if (mounted) {
         setState(() {
           _savingsGoalAmount = 0;
+          _finalGoalAmount = 0;
           _selectedSavingAccount = null;
           _hasSavingGoal = false;
+          _notified50percent = false;
+          _notified90percent = false;
+          _notified100percent = false;
         });
-      // }
+      }
     }
   }
 
@@ -380,34 +429,53 @@ Future<void> _loadBudgetData() async {
 
       String? selectedAccountId = _selectedSavingAccount?['id'];
 
-      if (savingQuery.docs.isNotEmpty) {
-        // 문서가 있으면 업데이트
-        String docId = savingQuery.docs.first.id;
-        await FirebaseFirestore.instance.collection('saving').doc(docId).update({
-          'goalsaving': _savingsGoalAmount,
-          'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // 문서가 없으면 새로 추가
-        await FirebaseFirestore.instance.collection('saving').add({
-          'userId': currentUser.uid,
-          'goalsaving': _savingsGoalAmount,
-          'selectedAccountId': selectedAccountId, // 선택된 계좌 ID 저장
-          'createdAt': FieldValue.serverTimestamp(),
+      // 목표 금액이 변경될 수 있으므로, 알림 상태 플래그를 초기화합니다.
+      // 단, 현재 잔액이 새 목표 금액에 대해 이미 특정 %를 넘었는지 여부에 따라
+      // 선택적으로 리셋하는 더 정교한 로직을 고려할 수 있습니다.
+      // 여기서는 단순화를 위해 목표 저장 시 관련 플래그를 초기화합니다.
+      // 실제로는 _finalGoalAmount가 이전 값과 다를 때만 초기화하는 것이 더 좋을 수 있습니다.
+      // bool goalAmountChanged = savingQuery.docs.isNotEmpty && (savingQuery.docs.first.data() as Map<String, dynamic>)['goalAmount'] != _finalGoalAmount;
+      // if (goalAmountChanged) { // 또는 항상 초기화
+      if (mounted) {
+        setState(() {
+          _notified50percent = false;
+          _notified90percent = false;
+          _notified100percent = false;
         });
       }
+      // }
 
-      // 저장 후 데이터 다시 로드 및 상태 업데이트
-      // await _loadSavingGoalData(); // 저장 성공 시 UI는 이미 반영됨, 재로드는 선택사항
+      Map<String, dynamic> dataToSave = {
+        'monthlyAmount': _savingsGoalAmount,
+        'goalAmount': _finalGoalAmount,
+        'selectedAccountId': selectedAccountId,
+        'updatedAt': FieldValue.serverTimestamp(),
+        // 알림 상태도 함께 저장하는 것을 고려할 수 있습니다.
+        // 'notified50percent': _notified50percent,
+        // 'notified90percent': _notified90percent,
+        // 'notified100percent': _notified100percent,
+      };
 
-      // await 이후 mounted 확인
+      if (savingQuery.docs.isNotEmpty) {
+        String docId = savingQuery.docs.first.id;
+        await FirebaseFirestore.instance.collection('saving').doc(docId).update(dataToSave);
+      } else {
+        dataToSave['userId'] = currentUser.uid;
+        dataToSave['createdAt'] = FieldValue.serverTimestamp();
+        await FirebaseFirestore.instance.collection('saving').add(dataToSave);
+      }
+
+      // 저장 후 데이터 다시 로드 및 상태 업데이트 (이 과정에서 _loadSavingGoalData 내부의 알림 로직이 실행됨)
+      await _loadSavingGoalData();
+
+
+      // 달성률 계산 및 알림 로직은 _loadSavingGoalData로 이동됨
+
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar( // context 직접 사용
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('저축 목표가 저장되었습니다.')),
         );
-        // 저장 후 상태를 다시 로드하여 최신화 (선택적)
-        await _loadSavingGoalData();
       }
 
     } catch (e) {
@@ -1645,7 +1713,7 @@ Future<void> _loadBudgetData() async {
       accountBalanceText = inTenThousand.toStringAsFixed(inTenThousand >= 10 ? 0 : 1);
     }
 
-    // 최종 목표 금액 텍스트 (만 단위로 변환)
+    // 최종 목표 금액 텍스트 (만 단위로 변환) - _finalGoalAmount 사용 (Firestore의 goalAmount와 동기화됨)
     String finalGoalText = '0';
     if (_finalGoalAmount > 0) {
       double inTenThousand = _finalGoalAmount / 10000.0;
@@ -1693,7 +1761,7 @@ Future<void> _loadBudgetData() async {
                 ),
                 // 최종 목표 금액 (초록색)
                 Text(
-                  '$finalGoalText만원',
+                  '$finalGoalText만원', // _finalGoalAmount가 goalAmount를 반영
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1732,7 +1800,8 @@ Future<void> _loadBudgetData() async {
   // 월 저축 목표 설정 시트 표시
   void _showMonthlySavingsGoalSheet() {
     // 시트가 열릴 때 현재 상태를 기반으로 지역 변수 설정
-    int currentGoalAmount = _savingsGoalAmount;
+    int currentMonthlySavingAmount = _savingsGoalAmount; // 월 저축액
+    int currentFinalGoal = _finalGoalAmount; // 최종 목표액
     Map<String, dynamic>? currentSelectedAccount = _selectedSavingAccount;
 
     showModalBottomSheet(
@@ -1746,14 +1815,18 @@ Future<void> _loadBudgetData() async {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
             // 목표 금액 텍스트 포맷팅
-            String goalAmountText = currentGoalAmount > 0
-                ? '${_numberFormat(currentGoalAmount)}원'
+            String monthlyGoalAmountText = currentMonthlySavingAmount > 0
+                ? '${_numberFormat(currentMonthlySavingAmount)}원'
+                : '0원';
+            
+            String finalGoalAmountText = currentFinalGoal > 0
+                ? '${_numberFormat(currentFinalGoal)}원'
                 : '0원';
 
-            // 수입 대비 퍼센트 계산
+            // 수입 대비 퍼센트 계산 (월 저축액 기준)
             String percentageText = '월 수입의 0%';
-            if (_incomeAmount > 0 && currentGoalAmount > 0) {
-              int percentage = ((currentGoalAmount / _incomeAmount) * 100).round();
+            if (_incomeAmount > 0 && currentMonthlySavingAmount > 0) {
+              int percentage = ((currentMonthlySavingAmount / _incomeAmount) * 100).round();
               percentageText = '월 수입의 $percentage%';
             } else if (_incomeAmount <= 0) {
               percentageText = '월 수입 없음';
@@ -1797,10 +1870,10 @@ Future<void> _loadBudgetData() async {
                     InkWell(
                       onTap: () async {
                         // 월 저축 금액 입력 다이얼로그
-                        final result = await _showSavingsGoalInputDialog(currentGoalAmount);
+                        final result = await _showSavingsGoalInputDialog(currentMonthlySavingAmount);
                         if (result != null) {
                           setSheetState(() {
-                            currentGoalAmount = result;
+                            currentMonthlySavingAmount = result;
                           });
                         }
                       },
@@ -1817,7 +1890,7 @@ Future<void> _loadBudgetData() async {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    goalAmountText,
+                                    monthlyGoalAmountText, // 월 저축액 표시
                                     style: const TextStyle(
                                       fontSize: 16,
                                       color: Colors.blue,
@@ -1899,10 +1972,10 @@ Future<void> _loadBudgetData() async {
                     InkWell(
                       onTap: () async {
                         // 목표 금액 입력 다이얼로그
-                        final result = await _showFinalGoalInputDialog(_finalGoalAmount);
+                        final result = await _showFinalGoalInputDialog(currentFinalGoal);
                         if (result != null) {
                           setSheetState(() {
-                            _finalGoalAmount = result;
+                            currentFinalGoal = result; // 시트 내 최종 목표액 업데이트
                           });
                         }
                       },
@@ -1916,7 +1989,7 @@ Future<void> _loadBudgetData() async {
                           Row(
                             children: [
                               Text(
-                                _finalGoalAmount > 0 ? '${_numberFormat(_finalGoalAmount)}원' : '0원',
+                                finalGoalAmountText, // 최종 목표액 표시
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.blue,
@@ -1940,7 +2013,8 @@ Future<void> _loadBudgetData() async {
                         final BuildContext currentContext = context;
                         
                         setState(() {
-                          _savingsGoalAmount = currentGoalAmount;
+                          _savingsGoalAmount = currentMonthlySavingAmount; // 월 저축액 업데이트
+                          _finalGoalAmount = currentFinalGoal; // 최종 목표액 업데이트
                           _selectedSavingAccount = currentSelectedAccount;
                         });
                         // Firestore에 저장
@@ -2113,9 +2187,8 @@ Future<void> _loadBudgetData() async {
                                      tempSelectedAccount = account;
                                   });
                                 },
-                                activeColor: const Color(0xFF73AD13),
-                              ),
-                               onTap: () { // ListTile 탭으로도 선택 가능
+                              ), // Radio 위젯을 여기서 닫습니다.
+                              onTap: () { // ListTile의 onTap 핸들러를 여기에 추가합니다.
                                  setDialogState(() {
                                     tempSelectedAccount = account;
                                   });
