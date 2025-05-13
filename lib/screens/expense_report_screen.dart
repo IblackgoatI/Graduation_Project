@@ -9,6 +9,62 @@ class ExpenseReportScreen extends StatefulWidget {
 
   @override
   State<ExpenseReportScreen> createState() => _ExpenseReportScreenState();
+
+  // Static method to generate, save report, and return data for community post
+  // 이 메서드를 ExpenseReportScreen 클래스 내부로 이동
+  static Future<Map<String, dynamic>?> generateAndSaveReportDataForCommunityPost(User currentUser, String authorNameFromWriteScreen) async {
+    try {
+      String currentMonthNumber = DateFormat('M').format(DateTime.now());
+      String currentYear = DateFormat('yyyy').format(DateTime.now());
+      DateTime startDate = DateTime(int.parse(currentYear), int.parse(currentMonthNumber), 1);
+      DateTime endDate = DateTime(int.parse(currentYear), int.parse(currentMonthNumber) + 1, 0);
+      String currentMonthTextForDisplay = DateFormat('MM월').format(DateTime.now());
+
+      QuerySnapshot ledgerSnapshot = await FirebaseFirestore.instance
+          .collection('ledger')
+          .where('userId', isEqualTo: currentUser.uid)
+          .where('type', isEqualTo: '지출')
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .get();
+
+      double calculatedTotalExpense = 0;
+      Map<String, double> calculatedCategoryExpenses = {};
+
+      for (var doc in ledgerSnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data.containsKey('amount') && data.containsKey('category')) {
+          double amount = (data['amount'] as num).toDouble();
+          String category = data['category'] as String;
+          calculatedTotalExpense += amount;
+          calculatedCategoryExpenses.update(category, (value) => value + amount, ifAbsent: () => amount);
+        }
+      }
+
+      final Map<String, dynamic> reportCollectionDocument = {
+        'author_name': authorNameFromWriteScreen,
+        'createdAt': Timestamp.now(),
+        'month': int.tryParse(currentMonthNumber) ?? DateTime.now().month,
+        'report_data': {
+          'categories': calculatedCategoryExpenses,
+          'total_expense': calculatedTotalExpense,
+        },
+        'userId': currentUser.uid,
+      };
+
+      await FirebaseFirestore.instance.collection('report').add(reportCollectionDocument);
+
+      return {
+        'categories': calculatedCategoryExpenses,
+        'total_expense': calculatedTotalExpense,
+        'month_text': currentMonthTextForDisplay,
+      };
+
+    } catch (e) {
+      print('Error in generateAndSaveReportDataForCommunityPost: $e');
+      return null;
+    }
+  }
 }
 
 class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
@@ -19,6 +75,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
   String currentMonth = DateFormat('M').format(DateTime.now()); // 현재 월 (숫자)
   String currentMonthText = DateFormat('MM월').format(DateTime.now()); // 월 표시용 텍스트
   bool _showAllCategories = false; // 모든 카테고리 표시 여부
+  final User? _currentUser = FirebaseAuth.instance.currentUser; // 현재 사용자 정보 추가
   
   // 화면에 표시할 카테고리 목록
   List<MapEntry<String, double>> sortedCategories = [];
@@ -60,12 +117,11 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
   // 사용자 정보와 지출 데이터 로드
   Future<void> _loadUserInfo() async {
     try {
-      final User? currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
+      if (_currentUser != null) {
         // 사용자 이름 가져오기
         final userDoc = await FirebaseFirestore.instance
             .collection('Users')
-            .doc(currentUser.uid)
+            .doc(_currentUser!.uid)
             .get();
         
         if (userDoc.exists) {
@@ -76,7 +132,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         }
         
         // 현재 월의 거래 내역 가져오기
-        await _loadExpenseData(currentUser.uid);
+        await _loadExpenseData(_currentUser!.uid);
       }
       
       setState(() {
@@ -477,17 +533,47 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
     );
   }
   
-  // 리포트 공유 기능
-  void _shareExpenseReport() {
-    // 리포트 데이터 생성
-    Map<String, dynamic> reportData = {
-      'total_expense': totalExpense,
-      'categories': categoryExpenses,
-      'month': currentMonthText,
-      'timestamp': DateTime.now(),
+  // 리포트 공유 기능 (ExpenseReportScreen UI에서 직접 사용할 경우)
+  Future<void> _shareExpenseReport() async {
+    if (_currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다.')),
+      );
+      return;
+    }
+
+    // Firestore 'report' 컬렉션에 저장할 데이터
+    final Map<String, dynamic> reportDocumentData = {
+      'author_name': userName,
+      'createdAt': Timestamp.now(),
+      'month': int.tryParse(currentMonth) ?? DateTime.now().month, // 숫자 월
+      'report_data': {
+        'categories': categoryExpenses,
+        'total_expense': totalExpense,
+        // 'month_text': currentMonthText, // 상세 화면 표시에 필요하면 이것도 포함
+      },
+      'userId': _currentUser!.uid,
     };
-    
-    // 리포트 데이터를 이전 화면으로 반환
-    Navigator.pop(context, reportData);
+
+    try {
+      // 'report' 컬렉션에 저장
+      await FirebaseFirestore.instance.collection('report').add(reportDocumentData);
+
+      // 이전 화면으로 전달할 데이터 (community 게시글의 report_data 필드에 들어갈 내용)
+      Map<String, dynamic> resultData = {
+        'categories': categoryExpenses,
+        'total_expense': totalExpense,
+        'month_text': currentMonthText, // "MM월" 형태
+      };
+      
+      // 리포트 데이터를 이전 화면으로 반환
+      Navigator.pop(context, resultData);
+
+    } catch (e) {
+      print('리포트 저장 또는 반환 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('리포트 처리 중 오류가 발생했습니다: $e')),
+      );
+    }
   }
-} 
+}

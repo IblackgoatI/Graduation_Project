@@ -79,27 +79,56 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     }
   }
   
-  // 소비 리포트 화면으로 이동
-  Future<void> _navigateToExpenseReport() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ExpenseReportScreen(),
-      ),
-    );
-    
-    // 리포트 데이터가 반환되면 저장
-    if (result != null && result is Map<String, dynamic>) {
-      setState(() {
-        _reportData = result;
-      });
-      
+  // "불러오기" 버튼 클릭 시 ExpenseReportScreen의 로직을 실행하고 결과 받기
+  Future<void> _fetchAndAttachReportData() async {
+    if (_currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('소비 리포트가 불러와졌습니다'),
+          content: Text('로그인이 필요합니다.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
+      return;
+    }
+
+    setState(() {
+      _isUploading = true; // 로딩 시작
+    });
+
+    try {
+      // ExpenseReportScreenState의 static 메소드 호출을 ExpenseReportScreen으로 변경
+      final result = await ExpenseReportScreen.generateAndSaveReportDataForCommunityPost(_currentUser!, _userName);
+
+      if (result != null) {
+        setState(() {
+          _reportData = result; // 반환된 데이터 저장
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('소비 리포트가 생성 및 첨부되었습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('소비 리포트 생성 중 오류가 발생했습니다.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      print('소비 리포트 처리 중 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('소비 리포트 처리 중 오류가 발생했습니다: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isUploading = false; // 로딩 종료
+      });
     }
   }
   
@@ -159,9 +188,9 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
           'Content': _contentController.text.trim(),
           'userId': _currentUser!.uid,
           'author_name': _userName,
-          'Month': currentMonth,
+          'Month': _reportData?['month_text']?.replaceAll('월', '') ?? DateFormat('M').format(DateTime.now()), // 리포트 데이터의 월 또는 현재 월
           'writeNumber': random.toString(),
-          'report_data': _reportData,
+          'report_data': _reportData, // 불러온 리포트 데이터 첨부
           'created_at': Timestamp.now(),
         };
         
@@ -191,7 +220,6 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('리포트 업로드 중 오류가 발생했습니다'),
-            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -224,20 +252,36 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
         throw Exception('로그인이 필요합니다.');
       }
 
-      final postData = {
+      final String currentMonthString = DateFormat('M').format(DateTime.now());
+
+      final Map<String, dynamic> postData = {
         'Heading': _titleController.text.trim(),
         'Content': _contentController.text.trim(),
         'userId': currentUser.uid,
+        'author_name': _userName, // _userName 사용 (initState에서 로드됨)
+        'Month': _reportData?['month_text']?.replaceAll('월', '') ?? currentMonthString, // 리포트 데이터의 월 또는 현재 월
         'created_at': Timestamp.now(),
-        'updated_at': Timestamp.now(),
+        'updated_at': Timestamp.now(), 
       };
+
+      if (_reportData != null) {
+        // _reportData는 이미 {'categories': ..., 'total_expense': ..., 'month_text': ...} 형태
+        postData['report_data'] = _reportData; 
+      }
 
       if (widget.isEditing) {
         // 게시글 수정
+        // 수정 시에는 updated_at만 변경하는 것이 일반적
+        postData['updated_at'] = Timestamp.now(); 
+        // created_at은 기존 값 유지 또는 제거 후 서버에서 처리하도록 할 수 있음
+        // 여기서는 기존 로직대로 updated_at만 갱신
+        final Map<String, dynamic> updateData = Map.from(postData);
+        updateData.remove('created_at'); // 수정 시 created_at은 변경하지 않음
+
         await FirebaseFirestore.instance
             .collection('community')
             .doc(widget.postData!['id'])
-            .update(postData);
+            .update(updateData);
       } else {
         // 새 게시글 작성
         await FirebaseFirestore.instance
@@ -270,7 +314,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String currentMonth = DateFormat('M월').format(DateTime.now());
+    String currentMonthDisplay = DateFormat('M월').format(DateTime.now()); // UI 표시용
     
     // 제목과 내용이 비어있는지 확인하는 변수
     bool isFormValid = _titleController.text.trim().isNotEmpty && 
@@ -410,7 +454,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
                           
                           // 소비 리포트 불러오기 버튼
                           InkWell(
-                            onTap: _navigateToExpenseReport,
+                            onTap: _isUploading ? null : _fetchAndAttachReportData, // 변경된 함수 호출
                             child: Container(
                               width: 80,
                               height: 80,
@@ -525,4 +569,4 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
       ),
     );
   }
-} 
+}

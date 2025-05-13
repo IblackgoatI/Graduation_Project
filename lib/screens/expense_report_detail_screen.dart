@@ -574,10 +574,16 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reportData = widget.postData['report_data'] as Map<String, dynamic>?;
-    final totalAmount = reportData?['total_expense'] ?? 0;
+    // report_data는 이제 {'categories': ..., 'total_expense': ..., 'month_text': ...} 구조를 가짐
+    final reportDataMap = widget.postData['report_data'] as Map<String, dynamic>?;
+    
+    // totalAmount는 report_data 안의 total_expense 사용
+    final totalAmount = reportDataMap?['total_expense'] ?? 0;
     final formattedAmount = NumberFormat('#,###').format(totalAmount);
     
+    // month는 report_data 안의 month_text 또는 postData의 Month 필드 사용
+    final reportMonthText = reportDataMap?['month_text'] ?? widget.postData['Month'] ?? DateFormat('M월').format(DateTime.now());
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -661,7 +667,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                     const SizedBox(height: 24),
                     
                     // 소비 리포트 카드
-                    _buildExpenseReportCard(reportData),
+                    _buildExpenseReportCard(reportDataMap, reportMonthText, formattedAmount), // reportDataMap과 reportMonthText 전달
                     
                     const SizedBox(height: 24),
                     
@@ -800,17 +806,19 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     );
   }
 
-  Widget _buildExpenseReportCard(Map<String, dynamic>? reportData) {
+  Widget _buildExpenseReportCard(Map<String, dynamic>? reportData, String displayMonth, String displayFormattedAmount) {
     if (reportData == null) {
       return const Center(
         child: Text('소비 리포트 데이터가 없습니다'),
       );
     }
 
-    final totalAmount = reportData['total_expense'] ?? 0;
-    final formattedAmount = NumberFormat('#,###').format(totalAmount);
+    // totalAmount는 reportData에서 직접 가져오거나, 이미 계산된 displayFormattedAmount 사용 가능
+    // final totalAmount = reportData['total_expense'] ?? 0;
+    // final formattedAmount = NumberFormat('#,###').format(totalAmount);
+    
     final categories = reportData['categories'] as Map<String, dynamic>? ?? {};
-    final month = widget.postData['Month'] ?? '1';
+    // final month = widget.postData['Month'] ?? '1'; // displayMonth 사용으로 변경
     
     // 카테고리 데이터를 금액 기준으로 정렬
     List<MapEntry<String, dynamic>> sortedCategories = [];
@@ -840,7 +848,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           Row(
             children: [
               Text(
-                '${_authorName}님의 ${month}월 소비 리포트',
+                '${_authorName}님의 $displayMonth 소비 리포트', // displayMonth 사용
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -860,7 +868,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             child: Container(
               height: 160,
               width: 160,
-              child: _buildPieChart(reportData, categories, month, formattedAmount),
+              child: _buildPieChart(reportData, categories, displayMonth, displayFormattedAmount), // displayMonth, displayFormattedAmount 전달
             ),
           ),
           const SizedBox(height: 24),
@@ -896,7 +904,8 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                 final color = colors[index % colors.length];
                 final categoryName = entry.key;
                 final amount = (entry.value is int) ? entry.value.toDouble() : (entry.value as num).toDouble();
-                final percent = totalAmount > 0 ? amount / totalAmount * 100 : 0;
+                final totalReportExpense = reportData['total_expense'] ?? 0; // reportData에서 총액 다시 참조
+                final percent = totalReportExpense > 0 ? amount / totalReportExpense * 100 : 0;
                 
                 // 카테고리 아이콘 매핑
                 IconData categoryIcon;
@@ -990,7 +999,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
   }
 
   // 파이 차트 위젯
-  Widget _buildPieChart(Map<String, dynamic> reportData, Map<String, dynamic> categories, String month, String formattedAmount) {
+  Widget _buildPieChart(Map<String, dynamic> reportData, Map<String, dynamic> categories, String displayMonth, String displayFormattedAmount) {
     if (categories.isEmpty) {
       return Center(
         child: Column(
@@ -999,14 +1008,14 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             Icon(Icons.pie_chart, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 8),
             Text(
-              '${month}월 총 소비',
+              '${displayMonth} 총 소비', // displayMonth 사용
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
               ),
             ),
             Text(
-              '${formattedAmount}원',
+              '${displayFormattedAmount}원', // displayFormattedAmount 사용
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1018,7 +1027,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     }
     
     // 총 금액
-    final totalAmount = reportData['total_expense'] ?? 0;
+    final totalAmount = reportData['total_expense'] ?? 0; // reportData에서 직접 가져옴
     
     // 카테고리 데이터 변환
     List<Map<String, dynamic>> sections = [];
@@ -1069,14 +1078,14 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '${month}월 총 소비: ',
+              '${displayMonth} 총 소비: ', // displayMonth 사용
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
               ),
             ),
             Text(
-              '${formattedAmount}원',
+              '${displayFormattedAmount}원', // displayFormattedAmount 사용
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -1087,4 +1096,4 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       ],
     );
   }
-} 
+}
