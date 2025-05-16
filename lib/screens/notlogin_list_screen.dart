@@ -67,8 +67,11 @@ class NotloginListScreenState extends State<NotloginListScreen> {
         _isLoading = false;
       });
 
-      Provider.of<TransactionProvider>(context, listen: false)
-          .setTransactions(transactions);
+      // 거래내역을 Provider에 저장
+      final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+      transactionProvider.setTransactions(transactions);
+      
+      debugPrint('notlogin_list_screen: ${transactions.length}개 거래내역 로드 및 Provider 설정 완료');
 
     } catch (e) {
       debugPrint('트랜잭션 불러오기 오류: $e');

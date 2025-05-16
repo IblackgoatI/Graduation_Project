@@ -22,9 +22,10 @@ class TransactionProvider with ChangeNotifier {
   }
 
   void setTransactions(List<FinancialTransaction> newTransactions) {
-    transactions.clear();  // 기존 리스트를 비움
-    transactions.addAll(newTransactions);  // 새 트랜잭션을 추가
+    _transactions.clear();  // 기존 리스트를 비움
+    _transactions.addAll(newTransactions);  // 새 트랜잭션을 추가
     notifyListeners();
+    debugPrint('TransactionProvider: ${_transactions.length}개 트랜잭션 설정됨');
   }
 
   void updateTransaction(FinancialTransaction updatedTransaction) {
