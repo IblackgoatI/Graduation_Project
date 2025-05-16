@@ -7,6 +7,7 @@ import 'dart:math' show min;
 import 'transaction_provider.dart';
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 import 'asset.dart' as asset_screen; // _showLocalNotification 함수를 사용하기 위해 임포트
+import 'fixed_expense_list_screen.dart';
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -1126,6 +1127,12 @@ Future<void> _loadBudgetData() async {
                         ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const FixedExpenseListScreen(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF73AD13),
