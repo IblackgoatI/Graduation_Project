@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'expense_report_screen.dart';
 import 'expense_report_detail_screen.dart';
+import 'transaction_provider.dart';
+import 'transaction.dart';
 
 class ExpenseReportWriteScreen extends StatefulWidget {
   final bool isEditing;
@@ -31,10 +34,16 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
   String _userName = '부린이님';
   Map<String, dynamic>? _reportData; // 소비 리포트 데이터 저장용 변수
   
+  // 선택 가능한 월 목록 (최근 6개월)
+  List<DateTime> _availableMonths = [];
+  // 실제 거래 내역이 있는 월 목록
+  List<DateTime> _monthsWithTransactions = [];
+  
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _generateAvailableMonths();
     
     // 텍스트 필드 리스너 추가
     _titleController.addListener(_updateFormState);
@@ -44,6 +53,60 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     if (widget.isEditing && widget.postData != null) {
       _titleController.text = widget.postData!['Heading'] ?? '';
       _contentController.text = widget.postData!['Content'] ?? '';
+    }
+    
+    // UI 갱신 후 데이터가 있는 월 확인
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkMonthsWithTransactions();
+    });
+  }
+  
+  // 선택 가능한 월 목록 생성 (최근 6개월)
+  void _generateAvailableMonths() {
+    final now = DateTime.now();
+    _availableMonths = List.generate(6, (index) {
+      final year = now.month - index <= 0 ? now.year - 1 : now.year;
+      final month = now.month - index <= 0 ? 12 + (now.month - index) : now.month - index;
+      return DateTime(year, month, 1);
+    });
+  }
+  
+  // 트랜잭션이 존재하는 월만 필터링
+  void _checkMonthsWithTransactions() {
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+    final transactions = transactionProvider.transactions;
+    
+    _monthsWithTransactions.clear();
+    
+    // 각 월별로 거래내역이 있는지 확인
+    for (DateTime month in _availableMonths) {
+      // 해당 월의 시작일과 끝일
+      final startDate = DateTime(month.year, month.month, 1);
+      final endDate = DateTime(month.year, month.month + 1, 0);
+      
+      // 해당 월에 유효한 지출 트랜잭션이 있는지 확인
+      bool hasTransactions = transactions.any((transaction) {
+        return transaction.date.isAfter(startDate.subtract(const Duration(days: 1))) && 
+               transaction.date.isBefore(endDate.add(const Duration(days: 1))) &&
+               transaction.type == '지출';
+      });
+      
+      if (hasTransactions) {
+        _monthsWithTransactions.add(month);
+      }
+    }
+    
+    setState(() {});
+    
+    if (_monthsWithTransactions.isEmpty) {
+      // 데이터가 없는 경우 안내 메시지 표시
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('거래 내역이 있는 월이 없습니다. 가계부에 지출 내역을 먼저 추가해주세요.'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
   
@@ -90,22 +153,42 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
       );
       return;
     }
+    
+    // 데이터가 있는 월이 없는 경우
+    if (_monthsWithTransactions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('거래 내역이 있는 월이 없습니다. 가계부에 지출 내역을 먼저 추가해주세요.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
+    // 월 선택 다이얼로그 표시
+    final selectedMonth = await _showMonthPickerDialog();
+    if (selectedMonth == null) return; // 사용자가 취소한 경우
+    
     setState(() {
       _isUploading = true; // 로딩 시작
     });
 
     try {
-      // ExpenseReportScreenState의 static 메소드 호출을 ExpenseReportScreen으로 변경
-      final result = await ExpenseReportScreen.generateAndSaveReportDataForCommunityPost(_currentUser!, _userName);
+      // 선택한 월로 소비 리포트 생성
+      final result = await ExpenseReportScreen.generateAndSaveReportDataForCommunityPost(
+        _currentUser!, 
+        _userName,
+        selectedMonth.month, // 선택한 월 전달
+        selectedMonth.year,  // 선택한 년도 전달
+      );
 
       if (result != null) {
         setState(() {
           _reportData = result; // 반환된 데이터 저장
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('소비 리포트가 생성 및 첨부되었습니다.'),
+          SnackBar(
+            content: Text('${result['month_text']} 소비 리포트가 첨부되었습니다.'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -130,6 +213,57 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
         _isUploading = false; // 로딩 종료
       });
     }
+  }
+  
+  // 월 선택 다이얼로그
+  Future<DateTime?> _showMonthPickerDialog() async {
+    return showDialog<DateTime>(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  '소비 리포트 월 선택',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _monthsWithTransactions.map((month) {
+                    return ListTile(
+                      title: Text(
+                        '${month.year}년 ${month.month}월',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context, month);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('취소'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
   
   // 리포트 글 업로드
@@ -315,6 +449,40 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     }
   }
 
+  // "불러오기" 버튼 UI
+  Widget _buildImportButton() {
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[400]!,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.upload_outlined,
+            size: 32,
+            color: Colors.grey[700],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '불러오기',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     String currentMonthDisplay = DateFormat('M월').format(DateTime.now()); // UI 표시용
@@ -445,7 +613,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
                                 const SizedBox(width: 4),
                                 Text(
                                   _reportData != null 
-                                      ? '소비 리포트가 첨부되었습니다' 
+                                      ? '${_reportData!['month_text']} 소비 리포트가 첨부되었습니다' 
                                       : '소비 리포트를 첨부해주세요',
                                   style: TextStyle(
                                     fontSize: 14,
@@ -458,37 +626,8 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
                           
                           // 소비 리포트 불러오기 버튼
                           InkWell(
-                            onTap: _isUploading ? null : _fetchAndAttachReportData, // 변경된 함수 호출
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.grey[400]!,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.upload_outlined,
-                                    size: 32,
-                                    color: Colors.grey[700],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '불러오기',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+                            onTap: _isUploading ? null : _fetchAndAttachReportData,
+                            child: _buildImportButton(),
                           ),
                         ],
                       ),

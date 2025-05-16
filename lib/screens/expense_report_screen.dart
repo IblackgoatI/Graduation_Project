@@ -12,13 +12,22 @@ class ExpenseReportScreen extends StatefulWidget {
 
   // Static method to generate, save report, and return data for community post
   // 이 메서드를 ExpenseReportScreen 클래스 내부로 이동
-  static Future<Map<String, dynamic>?> generateAndSaveReportDataForCommunityPost(User currentUser, String authorNameFromWriteScreen) async {
+  static Future<Map<String, dynamic>?> generateAndSaveReportDataForCommunityPost(
+    User currentUser, 
+    String authorNameFromWriteScreen,
+    [int? month, int? year]
+  ) async {
     try {
-      String currentMonthNumber = DateFormat('M').format(DateTime.now());
-      String currentYear = DateFormat('yyyy').format(DateTime.now());
-      DateTime startDate = DateTime(int.parse(currentYear), int.parse(currentMonthNumber), 1);
-      DateTime endDate = DateTime(int.parse(currentYear), int.parse(currentMonthNumber) + 1, 0);
-      String currentMonthTextForDisplay = DateFormat('MM월').format(DateTime.now());
+      // 월과 년도가 지정되지 않은 경우 현재 월과 년도를 사용
+      final targetMonth = month ?? int.parse(DateFormat('M').format(DateTime.now()));
+      final targetYear = year ?? int.parse(DateFormat('yyyy').format(DateTime.now()));
+      
+      // 지정된 월의 시작일과 종료일 계산
+      DateTime startDate = DateTime(targetYear, targetMonth, 1);
+      DateTime endDate = DateTime(targetYear, targetMonth + 1, 0); // 해당 월의 마지막 날
+      
+      // 월 표시용 텍스트 생성 (05월 형식)
+      String monthTextForDisplay = DateFormat('MM월').format(startDate);
 
       QuerySnapshot ledgerSnapshot = await FirebaseFirestore.instance
           .collection('ledger')
@@ -44,7 +53,8 @@ class ExpenseReportScreen extends StatefulWidget {
       final Map<String, dynamic> reportCollectionDocument = {
         'author_name': authorNameFromWriteScreen,
         'createdAt': Timestamp.now(),
-        'month': int.tryParse(currentMonthNumber) ?? DateTime.now().month,
+        'month': targetMonth,
+        'year': targetYear, // 년도 정보 추가
         'report_data': {
           'categories': calculatedCategoryExpenses,
           'total_expense': calculatedTotalExpense,
@@ -58,7 +68,9 @@ class ExpenseReportScreen extends StatefulWidget {
       return {
         'categories': calculatedCategoryExpenses,
         'total_expense': calculatedTotalExpense,
-        'month_text': currentMonthTextForDisplay,
+        'month_text': monthTextForDisplay,
+        'year': targetYear,
+        'month': targetMonth,
         'report_id': docRef.id, // 생성된 문서(소비리포트)의 ID를 추가합니다.
       };
 
@@ -535,47 +547,92 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
     );
   }
   
-  // 리포트 공유 기능 (ExpenseReportScreen UI에서 직접 사용할 경우)
+  // 리포트 저장 및 공유 메서드
   Future<void> _shareExpenseReport() async {
-    if (_currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인이 필요합니다.')),
-      );
-      return;
-    }
-
-    // Firestore 'report' 컬렉션에 저장할 데이터
-    final Map<String, dynamic> reportDocumentData = {
-      'author_name': userName,
-      'createdAt': Timestamp.now(),
-      'month': int.tryParse(currentMonth) ?? DateTime.now().month, // 숫자 월
-      'report_data': {
-        'categories': categoryExpenses,
-        'total_expense': totalExpense,
-        // 'month_text': currentMonthText, // 상세 화면 표시에 필요하면 이것도 포함
-      },
-      'userId': _currentUser!.uid,
-    };
-
     try {
-      // 'report' 컬렉션에 저장
-      await FirebaseFirestore.instance.collection('report').add(reportDocumentData);
-
-      // 이전 화면으로 전달할 데이터 (community 게시글의 report_data 필드에 들어갈 내용)
-      Map<String, dynamic> resultData = {
-        'categories': categoryExpenses,
-        'total_expense': totalExpense,
-        'month_text': currentMonthText, // "MM월" 형태
-      };
-      
-      // 리포트 데이터를 이전 화면으로 반환
-      Navigator.pop(context, resultData);
-
+      if (_currentUser != null) {
+        // 소비 리포트 데이터 수집
+        final Map<String, dynamic> reportData = {
+          'author_name': userName,
+          'createdAt': Timestamp.now(),
+          'month': int.tryParse(currentMonth) ?? DateTime.now().month, // 숫자 월
+          'year': int.parse(DateFormat('yyyy').format(DateTime.now())), // 년도 정보 추가
+          'report_data': {
+            'categories': categoryExpenses,
+            'total_expense': totalExpense,
+          },
+          'userId': _currentUser!.uid,
+        };
+        
+        // Firestore에 리포트 저장
+        DocumentReference docRef = await FirebaseFirestore.instance
+            .collection('report')
+            .add(reportData);
+        
+        // 저장된 리포트의 데이터와 ID를 포함한 결과 객체 생성
+        Map<String, dynamic> result = {
+          'categories': categoryExpenses,
+          'total_expense': totalExpense,
+          'month_text': currentMonthText, // "MM월" 형태
+          'year': int.parse(DateFormat('yyyy').format(DateTime.now())), // 년도 정보 추가
+          'report_id': docRef.id, // 새로 생성된 리포트 문서의 ID
+          'month': int.tryParse(currentMonth), // 숫자 월
+        };
+        
+        // 리포트 저장 성공 메시지 표시
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('소비 리포트가 저장되었습니다'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        
+        // 커뮤니티로 리포트 공유 옵션 제공
+        _showShareOptionsDialog(result);
+      }
     } catch (e) {
-      print('리포트 저장 또는 반환 중 오류: $e');
+      print('소비 리포트 공유 중 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('리포트 처리 중 오류가 발생했습니다: $e')),
+        SnackBar(
+          content: Text('소비 리포트 공유 중 오류가 발생했습니다: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
+  }
+  
+  // 소비 리포트 공유 옵션 다이얼로그
+  void _showShareOptionsDialog(Map<String, dynamic> reportData) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('소비 리포트 공유'),
+        content: const Text('이 소비 리포트를 커뮤니티에 공유하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // 다이얼로그 닫기
+            },
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // 다이얼로그 닫기
+              _navigateToPostWriteScreen(reportData); // 게시글 작성 화면으로 이동
+            },
+            child: const Text('공유하기'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // 게시글 작성 화면으로 이동
+  void _navigateToPostWriteScreen(Map<String, dynamic> reportData) {
+    Navigator.pushNamed(
+      context, 
+      '/expense_report_write', 
+      arguments: {'report_data': reportData}
+    );
   }
 }
