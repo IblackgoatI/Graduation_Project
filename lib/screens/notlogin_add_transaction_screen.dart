@@ -36,6 +36,10 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // 선택된 결제 수단 이름 및 ID
+  String _selectedPaymentMethodName = '선택하세요';
+  String? _selectedPaymentMethodId;
+
   // 금액 입력 포맷터 추가
   final List<TextInputFormatter> _amountInputFormatters = [
     FilteringTextInputFormatter.digitsOnly,
@@ -228,18 +232,25 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
   // 날짜 및 시간 선택 메서드
   void _selectDateTime(BuildContext context) async {
+    if (!mounted) return;
+    final currentContext = context; // 현재 컨텍스트 저장
+
     final DateTime? pickedDate = await showDatePicker(
-      context: context,
+      context: currentContext, // 저장된 컨텍스트 사용
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
 
+    if (!mounted) return; // async gap 이후 mounted 확인
+
     if (pickedDate != null) {
       final TimeOfDay? pickedTime = await showTimePicker(
-        context: context,
+        context: currentContext, // 저장된 컨텍스트 사용
         initialTime: TimeOfDay.fromDateTime(_selectedDate),
       );
+
+      if (!mounted) return; // async gap 이후 mounted 확인
 
       if (pickedTime != null) {
         setState(() {
@@ -258,12 +269,23 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
   // Firestore에 데이터 저장 메서드
   Future<void> _saveTransactionToFirestore() async {
+    // 컨텍스트를 미리 가져옴
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+
     try {
       // 금액 변환 (쉼표나 '원' 단위 제거)
       final amount = double.tryParse(_amountController.text.replaceAll(",", "").replaceAll("원", "")) ?? 0;
       if (amount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
+        );
+        return;
+      }
+      if (_selectedPaymentMethodId == null) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('결제수단을 선택해주세요.')),
         );
         return;
       }
@@ -281,6 +303,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         memo: _memoController.text,
         tags: _tags,
         category: _selectedCategory, // 카테고리 정보 추가
+        paymentMethod: _selectedPaymentMethodId ?? '', // 선택된 결제수단 ID 저장
       );
 
       // Transaction 객체에서 Firestore 데이터 형식 생성
@@ -300,8 +323,13 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       // Firestore의 ledger 컬렉션에 데이터 추가
       final docRef = await _firestore.collection('ledger').add(transactionData);
 
+      if (!mounted) return; // async gap 이후 mounted 확인
+
       // Firestore에서 해당 document를 다시 읽어옴 (동기화)
       final docSnap = await docRef.get();
+
+      if (!mounted) return; // async gap 이후 mounted 확인
+
       if (docSnap.exists) {
         final data = docSnap.data() as Map<String, dynamic>;
         final syncedTransaction = FinancialTransaction(
@@ -318,17 +346,80 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
           paymentMethod: data['paymentMethod'] ?? '',
         );
         // Provider에 동기화된 트랜잭션 추가
-        Provider.of<TransactionProvider>(context, listen: false).addTransaction(syncedTransaction);
+        transactionProvider.addTransaction(syncedTransaction);
       }
 
       // 저장 후 화면 닫기 (true를 반환하여 저장이 성공했음을 알림)
-      Navigator.pop(context, true);
+      navigator.pop(true);
     } catch (e) {
+      if (!mounted) return; // async gap 이후 mounted 확인
       // 오류 메시지 표시
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
     }
+  }
+
+  // 결제 수단 선택 다이얼로그 표시 메서드
+  void _showPaymentMethodDialog() async {
+    if (!mounted) return; // async gap 이전 mounted 확인
+    final currentContext = context; // 현재 컨텍스트 저장
+    String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+    QuerySnapshot assetsSnapshot = await _firestore
+        .collection('assets')
+        .where('userId', isEqualTo: userId)
+        .get();
+
+    if (!mounted) return; // async gap 이후 mounted 확인
+
+    List<Map<String, String>> paymentMethods = assetsSnapshot.docs.map((doc) {
+      return {
+        'id': doc.id,
+        'bank': doc['bank'] as String? ?? '이름 없음',
+      };
+    }).toList();
+
+    showModalBottomSheet(
+      context: currentContext, // 저장된 컨텍스트 사용
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '계좌 선택',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: paymentMethods.length,
+                  itemBuilder: (context, index) {
+                    final method = paymentMethods[index];
+                    return ListTile(
+                      title: Text(method['bank']!),
+                      onTap: () {
+                        setState(() {
+                          _selectedPaymentMethodName = method['bank']!;
+                          _selectedPaymentMethodId = method['id']!;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -410,7 +501,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
                     const SizedBox(height: 24.0),
                     _buildRowWithInputController('거래처', '입력하세요', _merchantController, maxLength: 10),
                     const SizedBox(height: 24.0),
-                    _buildRowWithText('결제수단', '선택하세요'),
+                    _buildPaymentMethodRow('결제수단', _selectedPaymentMethodName),
                     const SizedBox(height: 24.0),
                     _buildDateSelector('날짜', _formattedDate),
                     const SizedBox(height: 24.0),
@@ -517,23 +608,6 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     );
   }
 
-  /// '카테고리', '결제수단' 등의 행 생성
-  Widget _buildRowWithText(String title, String text) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          text,
-          style: const TextStyle(color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
   /// 클릭 가능한 텍스트 버튼이 있는 행 생성 (카테고리용)
   Widget _buildRowWithTextButton(String title, String text) {
     return Row(
@@ -548,6 +622,29 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
           child: Text(
             text,
             style: const TextStyle(color: Colors.grey),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 결제 수단 선택 행 생성
+  Widget _buildPaymentMethodRow(String title, String text) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        TextButton(
+          onPressed: _showPaymentMethodDialog,
+          child: Text(
+            text,
+            style: TextStyle(
+                color: _selectedPaymentMethodId == null
+                    ? Colors.grey
+                    : Colors.black),
           ),
         ),
       ],
