@@ -673,109 +673,175 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   }
 
   Widget _buildMonthlyReportCard() {
-    // 현재 월 가져오기
-    final currentMonth = DateTime.now().month;
-    final monthInKorean = '$currentMonth월';
-
+    // 현재 월과 이전 월 가져오기
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    final previousMonth = currentMonth == 1 ? 12 : currentMonth - 1;
+    final currentYear = now.year;
+    final previousYear = currentMonth == 1 ? currentYear - 1 : currentYear;
+    
+    // 월 표시 상태 변수 (StatefulBuilder에서 사용)
+    bool _showCurrentMonth = true;
+    
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
     final transactions = transactionProvider.transactions;
     
-    // 현재 월의 지출 트랜잭션만 필터링
+    // 현재 월의 지출 트랜잭션 필터링
     final currentMonthExpenses = transactions.where((transaction) {
       return transaction.date.month == currentMonth && 
-             transaction.date.year == DateTime.now().year && 
+             transaction.date.year == currentYear && 
              transaction.type == '지출';
     }).toList();
     
-    // 총 지출 금액 계산
-    final totalExpense = currentMonthExpenses.fold(0.0, 
+    // 이전 월의 지출 트랜잭션 필터링
+    final previousMonthExpenses = transactions.where((transaction) {
+      return transaction.date.month == previousMonth && 
+             transaction.date.year == previousYear && 
+             transaction.type == '지출';
+    }).toList();
+    
+    // 각 월별 총 지출 금액 계산
+    final currentMonthTotalExpense = currentMonthExpenses.fold(0.0, 
       (sum, transaction) => sum + transaction.amount);
     
-    // 카테고리별 지출 금액 계산
-    Map<String, double> categoryExpenses = {};
-    for (var transaction in currentMonthExpenses) {
-      if (categoryExpenses.containsKey(transaction.category)) {
-        categoryExpenses[transaction.category] = 
-          categoryExpenses[transaction.category]! + transaction.amount;
-      } else {
-        categoryExpenses[transaction.category] = transaction.amount;
+    final previousMonthTotalExpense = previousMonthExpenses.fold(0.0, 
+      (sum, transaction) => sum + transaction.amount);
+    
+    // 카테고리별 지출 금액 계산 함수
+    Map<String, double> calculateCategoryExpenses(List<FinancialTransaction> expenses) {
+      Map<String, double> result = {};
+      for (var transaction in expenses) {
+        if (result.containsKey(transaction.category)) {
+          result[transaction.category] = 
+            result[transaction.category]! + transaction.amount;
+        } else {
+          result[transaction.category] = transaction.amount;
+        }
       }
+      return result;
     }
     
-    // 카테고리별 퍼센트 계산 및 정렬
-    List<MapEntry<String, double>> sortedCategories = [];
-    if (totalExpense > 0) {
-      sortedCategories = categoryExpenses.entries.map((entry) {
-        return MapEntry(entry.key, entry.value);
-      }).toList();
-      
-      // 금액이 큰 순서대로 정렬
-      sortedCategories.sort((a, b) => b.value.compareTo(a.value));
+    // 현재 월과 이전 월의 카테고리별 지출
+    final currentMonthCategoryExpenses = calculateCategoryExpenses(currentMonthExpenses);
+    final previousMonthCategoryExpenses = calculateCategoryExpenses(previousMonthExpenses);
+    
+    // 카테고리 정렬 함수
+    List<MapEntry<String, double>> sortCategories(Map<String, double> categoryExpenses, double totalExpense) {
+      List<MapEntry<String, double>> sorted = [];
+      if (totalExpense > 0) {
+        sorted = categoryExpenses.entries.toList();
+        sorted.sort((a, b) => b.value.compareTo(a.value));
+      }
+      return sorted;
     }
     
-    // 원형 차트 색상 매핑
-    final Map<String, Color> categoryColors = {
-      '식비': Colors.red[300]!,
-      '쇼핑': Colors.pink[300]!,
-      '교통': Colors.orange[300]!,
-      '문화생활': Colors.purple[300]!,
-      '의료': Colors.blue[300]!,
-      '여행': Colors.amber[300]!,
-      '용돈': Colors.teal[300]!,
-      '생활용품': Colors.indigo[300]!,
-      '서비스': Colors.lime[300]!,
-      '미분류': Colors.grey[400]!,
-    };
+    // 정렬된 카테고리 목록
+    final sortedCurrentMonthCategories = sortCategories(currentMonthCategoryExpenses, currentMonthTotalExpense);
+    final sortedPreviousMonthCategories = sortCategories(previousMonthCategoryExpenses, previousMonthTotalExpense);
     
-    // 카테고리별 아이콘 매핑
-    final Map<String, IconData> categoryIcons = {
-      '식비': Icons.restaurant,
-      '쇼핑': Icons.shopping_bag,
-      '교통': Icons.directions_car,
-      '문화생활': Icons.movie,
-      '의료': Icons.medical_services,
-      '여행': Icons.flight,
-      '용돈': Icons.attach_money,
-      '생활용품': Icons.home,
-      '서비스': Icons.miscellaneous_services,
-      '미분류': Icons.help_outline,
-    };
+    // 원형 차트 색상 (같은 색상 목록 사용)
+    final colors = [
+      Colors.red[300]!,
+      Colors.pink[300]!,
+      Colors.orange[300]!,
+      Colors.purple[300]!,
+      Colors.blue[300]!,
+      Colors.amber[300]!,
+      Colors.teal[300]!,
+      Colors.indigo[300]!,
+      Colors.lime[300]!,
+      Colors.green[300]!,
+      Colors.cyan[300]!,
+      Colors.brown[300]!,
+    ];
 
     // 표시할 카테고리 수를 관리하는 상태 변수
     bool _showAllCategories = false;
     
     return StatefulBuilder(
       builder: (context, setState) {
-    return SizedBox(
-      width: double.infinity, // 부모 위젯의 너비에 맞춤
-      child: Card(
-        color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        // 현재 표시할 데이터 선택
+        final selectedMonth = _showCurrentMonth ? currentMonth : previousMonth;
+        final selectedYear = _showCurrentMonth ? currentYear : previousYear;
+        final selectedExpenses = _showCurrentMonth ? currentMonthExpenses : previousMonthExpenses;
+        final selectedTotalExpense = _showCurrentMonth 
+            ? currentMonthTotalExpense 
+            : previousMonthTotalExpense;
+        final sortedSelectedCategories = _showCurrentMonth 
+            ? sortedCurrentMonthCategories 
+            : sortedPreviousMonthCategories;
+        
+        // 월 이름 (한국어 표기)
+        final monthInKorean = '$selectedMonth월';
+            
+        return SizedBox(
+          width: double.infinity,
+          child: Card(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.pie_chart, color: Colors.purple, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    "부린이님의 $monthInKorean 소비 리포트",
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  // 헤더 및 월 선택 UI
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // 왼쪽 화살표 (이전 월)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showCurrentMonth = false;
+                          });
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Icon(Icons.chevron_left, size: 20, color: Colors.black),
+                        ),
+                      ),
+                      
+                      // 중앙 제목
+                      Text(
+                        "부린이님의 $monthInKorean 소비 리포트",
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      
+                      // 오른쪽 화살표 (다음 월)
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showCurrentMonth = true;
+                          });
+                        },
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Icon(Icons.chevron_right, size: 20, color: Colors.black),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-                  const SizedBox(height: 30.0), // 상단 여백 조정
-              // 소비 그래프 영역
-                  currentMonthExpenses.isNotEmpty 
+                  const SizedBox(height: 30.0),
+                  
+                  // 소비 그래프 영역
+                  selectedExpenses.isNotEmpty 
                   ? SizedBox(
-                      height: 180, // 그래프 컨테이너 높이 조정
+                      height: 180,
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center, // 세로 중앙 정렬
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // 차트와 범례를 Row로 배치
                           Row(
@@ -784,28 +850,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                               Expanded(
                                 flex: 3,
                                 child: SizedBox(
-                                  height: 150, // 차트 높이 조정
+                                  height: 150,
                                   child: Center(
                                     child: PieChart(
                                       PieChartData(
-                                        sections: sortedCategories.map((entry) {
-                                          final percent = (entry.value / totalExpense) * 100;
-                                          final index = sortedCategories.indexOf(entry);
-                                          // 고정된 색상 목록에서 순서대로 색상 할당 (색상이 부족하면 순환)
-                                          final colors = [
-                                            Colors.red[300]!,
-                                            Colors.pink[300]!,
-                                            Colors.orange[300]!,
-                                            Colors.purple[300]!,
-                                            Colors.blue[300]!,
-                                            Colors.amber[300]!,
-                                            Colors.teal[300]!,
-                                            Colors.indigo[300]!,
-                                            Colors.lime[300]!,
-                                            Colors.green[300]!,
-                                            Colors.cyan[300]!,
-                                            Colors.brown[300]!,
-                                          ];
+                                        sections: sortedSelectedCategories.map((entry) {
+                                          final percent = (entry.value / selectedTotalExpense) * 100;
+                                          final index = sortedSelectedCategories.indexOf(entry);
                                           final color = colors[index % colors.length];
                                           return PieChartSectionData(
                                             color: color,
@@ -826,6 +877,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                   ),
                                 ),
                               ),
+                              
                               // 범례를 오른쪽에 배치
                               Expanded(
                                 flex: 2,
@@ -834,29 +886,15 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: sortedCategories.take(4).map((entry) {
-                                      final index = sortedCategories.indexOf(entry);
-                                      final colors = [
-                                        Colors.red[300]!,
-                                        Colors.pink[300]!,
-                                        Colors.orange[300]!,
-                                        Colors.purple[300]!,
-                                        Colors.blue[300]!,
-                                        Colors.amber[300]!,
-                                        Colors.teal[300]!,
-                                        Colors.indigo[300]!,
-                                        Colors.lime[300]!,
-                                        Colors.green[300]!,
-                                        Colors.cyan[300]!,
-                                        Colors.brown[300]!,
-                                      ];
+                                    children: sortedSelectedCategories.take(4).map((entry) {
+                                      final index = sortedSelectedCategories.indexOf(entry);
                                       final color = colors[index % colors.length];
-                                      final percent = (entry.value / totalExpense) * 100;
+                                      final percent = (entry.value / selectedTotalExpense) * 100;
                                       return Padding(
                                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                                         child: Row(
                                           children: [
-              Container(
+                                            Container(
                                               width: 12,
                                               height: 12,
                                               color: color,
@@ -888,22 +926,23 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     )
                   : Container(
                       height: 150,
-                decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.grey[100],
                         borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: const Center(
-                  child: Text(
-                          "이번 달 소비 내역이 없습니다",
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ),
-              ),
-                  const SizedBox(height: 30.0), // 하단 여백 조정
+                      ),
+                      child: Center(
+                        child: Text(
+                          "$monthInKorean 소비 내역이 없습니다",
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 30.0),
+                  
                   // 현재 월 총 소비
                   Center(
                     child: Text(
-                      "$monthInKorean 총 소비 ${numberFormat(totalExpense.toInt())}원",
+                      "$monthInKorean 총 소비 ${numberFormat(selectedTotalExpense.toInt())}원",
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -912,32 +951,19 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                   ),
                   const SizedBox(height: 16.0),
                   const Divider(),
-                  const SizedBox(height: 16.0), // 구분선과 카테고리 상세 사이 간격 추가
+                  const SizedBox(height: 16.0),
+                  
                   // 카테고리별 지출 내역
-                  if (currentMonthExpenses.isNotEmpty) ...[
+                  if (selectedExpenses.isNotEmpty) ...[
                     const SizedBox(height: 8.0),
                     AnimatedCrossFade(
                       firstChild: Column(
-                        children: sortedCategories.take(4).map((entry) {
+                        children: sortedSelectedCategories.take(4).map((entry) {
                           final categoryName = entry.key;
                           final amount = entry.value;
-                          final percent = (amount / totalExpense) * 100;
+                          final percent = (amount / selectedTotalExpense) * 100;
                           final icon = getCategoryIcon(categoryName);
-                          final index = sortedCategories.indexOf(entry);
-                          final colors = [
-                            Colors.red[300]!,
-                            Colors.pink[300]!,
-                            Colors.orange[300]!,
-                            Colors.purple[300]!,
-                            Colors.blue[300]!,
-                            Colors.amber[300]!,
-                            Colors.teal[300]!,
-                            Colors.indigo[300]!,
-                            Colors.lime[300]!,
-                            Colors.green[300]!,
-                            Colors.cyan[300]!,
-                            Colors.brown[300]!,
-                          ];
+                          final index = sortedSelectedCategories.indexOf(entry);
                           final color = colors[index % colors.length];
                           
                           return Padding(
@@ -988,26 +1014,12 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                         }).toList(),
                       ),
                       secondChild: Column(
-                        children: sortedCategories.map((entry) {
+                        children: sortedSelectedCategories.map((entry) {
                           final categoryName = entry.key;
                           final amount = entry.value;
-                          final percent = (amount / totalExpense) * 100;
+                          final percent = (amount / selectedTotalExpense) * 100;
                           final icon = getCategoryIcon(categoryName);
-                          final index = sortedCategories.indexOf(entry);
-                          final colors = [
-                            Colors.red[300]!,
-                            Colors.pink[300]!,
-                            Colors.orange[300]!,
-                            Colors.purple[300]!,
-                            Colors.blue[300]!,
-                            Colors.amber[300]!,
-                            Colors.teal[300]!,
-                            Colors.indigo[300]!,
-                            Colors.lime[300]!,
-                            Colors.green[300]!,
-                            Colors.cyan[300]!,
-                            Colors.brown[300]!,
-                          ];
+                          final index = sortedSelectedCategories.indexOf(entry);
                           final color = colors[index % colors.length];
                           
                           return Padding(
@@ -1060,7 +1072,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                       crossFadeState: _showAllCategories ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                       duration: const Duration(milliseconds: 300),
                     ),
-                    if (sortedCategories.length > 4)
+                    if (sortedSelectedCategories.length > 4)
                       Center(
                         child: TextButton(
                           onPressed: () {
@@ -1087,26 +1099,26 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                                 color: Colors.grey[600],
                               ),
                             ],
-                  ),
-                ),
-              ),
+                          ),
+                        ),
+                      ),
                   ] else
-              const Center(
+                    const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.0),
-                child: Text(
+                        child: Text(
                           "가계부에 지출 내역을 추가해보세요",
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
                           ),
                         ),
-                ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
         );
       }
     );
