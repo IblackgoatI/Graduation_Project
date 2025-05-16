@@ -327,6 +327,15 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             .doc(widget.postData['id'])
             .delete();
 
+        // 연결된 소비 리포트도 함께 삭제 (report_id 필드가 있는 경우)
+        if (widget.postData.containsKey('report_id') && widget.postData['report_id'] != null) {
+          String reportId = widget.postData['report_id'];
+          await FirebaseFirestore.instance
+              .collection('report')
+              .doc(reportId)
+              .delete();
+        }
+
         // 삭제 성공 메시지 표시
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

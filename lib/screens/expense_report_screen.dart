@@ -52,12 +52,14 @@ class ExpenseReportScreen extends StatefulWidget {
         'userId': currentUser.uid,
       };
 
-      await FirebaseFirestore.instance.collection('report').add(reportCollectionDocument);
+      // 'report_id'를 위해 DocumentReference를 받습니다.
+      DocumentReference docRef = await FirebaseFirestore.instance.collection('report').add(reportCollectionDocument);
 
       return {
         'categories': calculatedCategoryExpenses,
         'total_expense': calculatedTotalExpense,
         'month_text': currentMonthTextForDisplay,
+        'report_id': docRef.id, // 생성된 문서(소비리포트)의 ID를 추가합니다.
       };
 
     } catch (e) {

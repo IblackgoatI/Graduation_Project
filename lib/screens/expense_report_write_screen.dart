@@ -267,6 +267,9 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
       if (_reportData != null) {
         // _reportData는 이미 {'categories': ..., 'total_expense': ..., 'month_text': ...} 형태
         postData['report_data'] = _reportData; 
+        if (_reportData!['report_id'] != null) {
+          postData['report_id'] = _reportData!['report_id']; // report_id 추가
+        }
       }
 
       if (widget.isEditing) {
