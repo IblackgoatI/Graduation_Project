@@ -4,6 +4,7 @@ import 'transaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final FinancialTransaction transaction;
@@ -21,6 +22,7 @@ class TransactionDetailScreen extends StatefulWidget {
 
 class TransactionDetailScreenState extends State<TransactionDetailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance; // FirebaseAuth 인스턴스 추가
   bool _isEditing = false;
   late String _type;
   late String _category;
@@ -31,6 +33,10 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
   final TextEditingController _merchantController = TextEditingController();
   final TextEditingController _memoController = TextEditingController();
   final TextEditingController _tagController = TextEditingController();
+
+  // 결제수단 관련 상태 변수
+  String? _currentPaymentMethodId;
+  String _currentPaymentMethodName = '로딩 중...'; // 초기값
 
   // 수입 카테고리 목록
   final List<String> _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
@@ -52,6 +58,45 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
     _tags = List<String>.from(widget.transaction.tags);
     _merchantController.text = _merchant;
     _memoController.text = _memo;
+
+    _currentPaymentMethodId = widget.transaction.paymentMethod;
+    _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+  }
+
+  Future<void> _fetchAndSetPaymentMethodName(String? paymentMethodId) async {
+    if (paymentMethodId == null || paymentMethodId.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _currentPaymentMethodName = _isEditing ? '선택해주세요' : '없음';
+        });
+      }
+      return;
+    }
+
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('assets').doc(paymentMethodId).get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _currentPaymentMethodName = data['bank'] ?? '선택하세요';
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _currentPaymentMethodName = _isEditing ? '선택해주세요' : '선택하세요';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _currentPaymentMethodName = _isEditing ? '선택해주세요' : '오류 발생';
+        });
+      }
+    }
   }
 
   @override
@@ -132,7 +177,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     const SizedBox(height: 24.0),
                     _buildDetailRow('거래처', currentTransaction.merchant),
                     const SizedBox(height: 24.0),
-                    _buildDetailRow('결제수단', currentTransaction.paymentMethod.isNotEmpty ? currentTransaction.paymentMethod : '없음'),
+                    _buildDetailRow('결제수단', _currentPaymentMethodName), // 수정됨
                     const SizedBox(height: 24.0),
                     _buildDetailRow('날짜', formattedDate),
                     const SizedBox(height: 24.0),
@@ -151,6 +196,8 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                               } else {
                                 setState(() {
                                   _isEditing = true;
+                                  // 편집 모드로 전환 시 결제수단 이름 업데이트
+                                  _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
                                 });
                               }
                             },
@@ -172,7 +219,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                                 ? () {
                                     setState(() {
                                       _isEditing = false;
-                                      _initializeValues();
+                                      _initializeValues(); // 원래 값으로 복원 및 이름 다시 로드
                                     });
                                   }
                                 : () {
@@ -428,9 +475,19 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
           );
           break;
         case '결제수단':
-          editWidget = const Text(
-            '선택해주세요',
-            style: TextStyle(color: Colors.grey),
+          editWidget = GestureDetector(
+            onTap: _showPaymentMethodDialog,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                _currentPaymentMethodName, // 편집 모드에서도 _currentPaymentMethodName 사용
+                style: const TextStyle(color: Colors.black87),
+              ),
+            ),
           );
           break;
         case '날짜':
@@ -541,6 +598,75 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
     }
   }
 
+  // 결제 수단 선택 다이얼로그 (notlogin_add_transaction_screen.dart 참조)
+  void _showPaymentMethodDialog() async {
+    User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정보를 가져올 수 없습니다.')),
+      );
+      return;
+    }
+    String userId = currentUser.uid;
+
+    QuerySnapshot assetsSnapshot = await _firestore
+        .collection('assets')
+        .where('userId', isEqualTo: userId)
+        .get();
+
+    if (!mounted) return;
+
+    List<Map<String, String>> paymentMethods = assetsSnapshot.docs.map((doc) {
+      return {
+        'id': doc.id,
+        'bank': doc['bank'] as String? ?? '이름 없음',
+      };
+    }).toList();
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '계좌 선택',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: paymentMethods.length,
+                  itemBuilder: (context, index) {
+                    final method = paymentMethods[index];
+                    return ListTile(
+                      title: Text(method['bank']!),
+                      onTap: () {
+                        if (mounted) {
+                          setState(() {
+                            _currentPaymentMethodId = method['id']!;
+                            _currentPaymentMethodName = method['bank']!;
+                          });
+                        }
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // 거래 내역 수정 메서드
   Future<void> _updateTransaction() async {
     try {
@@ -554,7 +680,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         memo: _memoController.text,
         tags: _tags,
         category: _category,
-        paymentMethod: widget.transaction.paymentMethod,
+        paymentMethod: _currentPaymentMethodId ?? '', // 수정된 결제수단 ID 사용
       );
 
       if (mounted) {
@@ -570,6 +696,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         'date': _date,
         'memo': _memoController.text,
         'tags': _tags,
+        'paymentMethod': _currentPaymentMethodId ?? '', // 수정된 결제수단 ID 사용
       });
 
       if (mounted) {
