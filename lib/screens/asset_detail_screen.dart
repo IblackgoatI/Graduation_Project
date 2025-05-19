@@ -48,6 +48,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   bool _notified90percent = false;
   bool _notified100percent = false;
 
+  // 고정 지출 관련 상태 변수
+  List<Map<String, dynamic>> _fixedExpensesList = [];
+  double _totalFixedExpenseAmount = 0.0;
+  bool _isLoadingFixedExpenses = true;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +69,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     await _loadBudgetData();
     // 자산 데이터 로드가 완료된 후 저축 목표 데이터 로드
     await _loadSavingGoalData();
+    // 고정 지출 데이터 로드
+    await _loadFixedExpenseData();
   }
 
   @override
@@ -486,6 +493,79 @@ Future<void> _loadBudgetData() async {
         ScaffoldMessenger.of(context).showSnackBar( // context 직접 사용
           const SnackBar(content: Text('저축 목표 저장 중 오류가 발생했습니다.')),
         );
+      }
+    }
+  }
+
+  // 고정 지출 데이터 로드 함수
+  Future<void> _loadFixedExpenseData() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingFixedExpenses = true;
+    });
+
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        QuerySnapshot fixedExpensesSnapshot = await FirebaseFirestore.instance
+            .collection('fixed_expenses')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        List<Map<String, dynamic>> tempList = [];
+        double tempTotalAmount = 0.0;
+
+        for (var doc in fixedExpensesSnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          tempTotalAmount += (data['amount'] as num).toDouble();
+
+          String paymentMethodId = data['paymentMethod'] ?? '';
+          String bankName = '출금 계좌 미설정';
+          if (paymentMethodId.isNotEmpty) {
+            try {
+              // assets 컬렉션에서 paymentMethodId (문서 ID)로 은행 정보 조회
+              DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                  .collection('assets')
+                  .doc(paymentMethodId)
+                  .get();
+              if (assetDoc.exists) {
+                bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
+              }
+            } catch (e) {
+              debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
+            }
+          }
+
+          Timestamp createdAtTimestamp = data['createdAt'] as Timestamp;
+          String formattedDate = DateFormat('d일').format(createdAtTimestamp.toDate());
+
+          tempList.add({
+            'amount': (data['amount'] as num).toDouble(),
+            'merchant': data['merchant'] ?? '정보 없음',
+            'createdAtDay': formattedDate,
+            'paymentBank': bankName,
+          });
+        }
+        if (mounted) {
+          setState(() {
+            _fixedExpensesList = tempList;
+            _totalFixedExpenseAmount = tempTotalAmount;
+            _isLoadingFixedExpenses = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingFixedExpenses = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('고정 지출 정보 로드 오류: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingFixedExpenses = false;
+        });
       }
     }
   }
@@ -1046,13 +1126,33 @@ Future<void> _loadBudgetData() async {
             ),
           ),
           const Spacer(),
-          const Text(
-            '고정지출을 추가하세요',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
-            ),
-          ),
+          _isLoadingFixedExpenses
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFF73AD13)))
+              : _fixedExpensesList.isEmpty
+                  ? const Text(
+                      '고정지출을 추가하세요',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    )
+                  : InkWell(
+                      onTap: () {
+                        if (_fixedExpensesList.isNotEmpty) {
+                          _showFixedExpenseDetailsSheet();
+                        }
+                      },
+                      child: Center( // 텍스트를 중앙 정렬하기 위해 Center 위젯 추가
+                        child: Text(
+                          '${_numberFormat(_totalFixedExpenseAmount.toInt())}원',
+                          style: const TextStyle(
+                            fontSize: 18, // 필요에 따라 폰트 크기 조절
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black, // 필요에 따라 색상 조절
+                          ),
+                        ),
+                      ),
+                    ),
           const Spacer(),
           ElevatedButton(
             onPressed: () {
@@ -1076,6 +1176,81 @@ Future<void> _loadBudgetData() async {
           ),
         ],
       ),
+    );
+  }
+
+  // 고정지출 상세 내역 표시 시트
+  void _showFixedExpenseDetailsSheet() {
+    if (!mounted) return;
+    final currentContext = context;
+
+    showModalBottomSheet(
+      context: currentContext,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(currentContext).size.height * 0.6,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '고정 지출 상세 내역',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _fixedExpensesList.isEmpty
+                      ? const Center(child: Text('표시할 고정 지출 내역이 없습니다.'))
+                      : ListView.separated(
+                          itemCount: _fixedExpensesList.length,
+                          itemBuilder: (context, index) {
+                            final expense = _fixedExpensesList[index];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                expense['merchant'],
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text(
+                                '${expense['createdAtDay']} • ${expense['paymentBank']}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                              trailing: Text(
+                                '${_numberFormat((expense['amount'] as double).toInt())}원',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red, // 지출이므로 빨간색으로 표시
+                                ),
+                              ),
+                            );
+                          },
+                          separatorBuilder: (context, index) => const Divider(),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
