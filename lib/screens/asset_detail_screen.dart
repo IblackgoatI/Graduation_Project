@@ -11,8 +11,13 @@ import 'fixed_expense_list_screen.dart';
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
+  final int initialTabIndex; // 추가된 파라미터
 
-  const AssetDetailScreen({super.key, this.user});
+  const AssetDetailScreen({
+    super.key,
+    this.user,
+    this.initialTabIndex = 0, // 기본값 0으로 설정
+  });
 
   @override
   State<AssetDetailScreen> createState() => _AssetDetailScreenState();
@@ -57,6 +62,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    // 초기 탭 인덱스 설정
+    _tabController.animateTo(widget.initialTabIndex);
     // 비동기 데이터 로드를 위한 별도 함수 호출
     _loadInitialData();
   }
@@ -1625,7 +1632,7 @@ Future<void> _loadBudgetData() async {
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.pop(context), // 변경 없이 닫기
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           iconSize: 24,
