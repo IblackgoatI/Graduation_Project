@@ -554,90 +554,100 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     final totalExpense = currentMonthExpenses.fold(0.0, 
       (sum, transaction) => sum + transaction.amount);
     
-    // 고정 지출 계산 (예: 매달 같은 금액으로 지출되는 카테고리만 계산)
-    // 여기서는 예시로 '생활용품', '서비스' 카테고리를 고정 지출로 간주
-    final fixedExpenseCategories = ['생활용품', '서비스', '교통', '의료'];
-    final fixedExpenses = 0.0; // 고정 지출 금액을 0원으로 설정
+    // 고정지출 금액을 가져오기 위한 StreamBuilder 추가
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('fixed_expenses')
+          .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        double fixedExpenses = 0.0;
+        
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            fixedExpenses += (data['amount'] as num).toDouble();
+          }
+        }
 
-    return SizedBox(
-      width: double.infinity, // 부모 위젯의 너비에 맞춤
-      child: Card(
-        color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0), // 기존 카드뷰와 동일한 패딩 적용
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        return SizedBox(
+          width: double.infinity,
+          child: Card(
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.trending_down, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  // 이번 달 지출 전체를 버튼으로 만들기
-                  InkWell(
-                    onTap: () {
-                      // 가계부 탭으로 이동 (인덱스 1)
-                      _onItemTapped(1);
-                    },
-                    child: Row(
-                      children: [
-                        const Text(
-                          "이번 달 지출 ",
+                  Row(
+                    children: [
+                      Icon(Icons.trending_down, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          _onItemTapped(1);
+                        },
+                        child: Row(
+                          children: [
+                            const Text(
+                              "이번 달 지출 ",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              ">",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8.0),
+                  Text(
+                    "${numberFormat(totalExpense.toInt())}원",
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20.0),
+                  Row(
+                    children: [
+                      Icon(Icons.repeat, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AssetDetailScreen(
+                                initialTabIndex: 1,
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          "나의 고정지출 >",
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          ">",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8.0),
+                  Text(
+                    "${numberFormat(fixedExpenses.toInt())}원",
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-              const SizedBox(height: 8.0),
-              Text(
-                "${numberFormat(totalExpense.toInt())}원",
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20.0), // 섹션 간 간격
-              Row(
-                children: [
-                  Icon(Icons.repeat, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      // 자산의 목표 탭으로 이동
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AssetDetailScreen(
-                            initialTabIndex: 1, // 목표 탭 인덱스
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "나의 고정지출 >",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                "${numberFormat(fixedExpenses.toInt())}원",
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
