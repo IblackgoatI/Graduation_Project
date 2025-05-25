@@ -514,52 +514,66 @@ Future<void> _loadBudgetData() async {
     try {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
-        QuerySnapshot fixedExpensesSnapshot = await FirebaseFirestore.instance
+        debugPrint('고정지출 데이터 로드 시작 - 사용자 ID: ${currentUser.uid}');
+        
+        // 실시간 업데이트를 위한 스트림 리스너 설정
+        FirebaseFirestore.instance
             .collection('fixed_expenses')
             .where('userId', isEqualTo: currentUser.uid)
-            .get();
+            .snapshots()
+            .listen((snapshot) async {
+          debugPrint('고정지출 데이터 변경 감지 - 문서 수: ${snapshot.docs.length}');
 
-        List<Map<String, dynamic>> tempList = [];
-        double tempTotalAmount = 0.0;
+          List<Map<String, dynamic>> tempList = [];
+          double tempTotalAmount = 0.0;
 
-        for (var doc in fixedExpensesSnapshot.docs) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          tempTotalAmount += (data['amount'] as num).toDouble();
+          for (var doc in snapshot.docs) {
+            Map<String, dynamic> data = doc.data();
+            debugPrint('고정지출 데이터 처리: $data');
+            
+            tempTotalAmount += (data['amount'] as num).toDouble();
 
-          String paymentMethodId = data['paymentMethod'] ?? '';
-          String bankName = '출금 계좌 미설정';
-          if (paymentMethodId.isNotEmpty) {
-            try {
-              // assets 컬렉션에서 paymentMethodId (문서 ID)로 은행 정보 조회
-              DocumentSnapshot assetDoc = await FirebaseFirestore.instance
-                  .collection('assets')
-                  .doc(paymentMethodId)
-                  .get();
-              if (assetDoc.exists) {
-                bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
+            String paymentMethodId = data['paymentMethod'] ?? '';
+            String bankName = '출금 계좌 미설정';
+            if (paymentMethodId.isNotEmpty) {
+              try {
+                DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                    .collection('assets')
+                    .doc(paymentMethodId)
+                    .get();
+                if (assetDoc.exists) {
+                  bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
+                }
+              } catch (e) {
+                debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
               }
-            } catch (e) {
-              debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
+            }
+
+            Timestamp? timestamp = data['date'] as Timestamp? ?? data['createdAt'] as Timestamp?;
+            if (timestamp != null) {
+              String formattedDate = DateFormat('d일').format(timestamp.toDate());
+              tempList.add({
+                'amount': (data['amount'] as num).toDouble(),
+                'merchant': data['merchant'] ?? '정보 없음',
+                'createdAtDay': formattedDate,
+                'paymentBank': bankName,
+              });
+            } else {
+              debugPrint('날짜 정보가 없는 고정지출 데이터 발견: $data');
             }
           }
 
-          Timestamp createdAtTimestamp = data['createdAt'] as Timestamp;
-          String formattedDate = DateFormat('d일').format(createdAtTimestamp.toDate());
+          debugPrint('처리된 고정지출 목록: $tempList');
+          debugPrint('총 고정지출 금액: $tempTotalAmount');
 
-          tempList.add({
-            'amount': (data['amount'] as num).toDouble(),
-            'merchant': data['merchant'] ?? '정보 없음',
-            'createdAtDay': formattedDate,
-            'paymentBank': bankName,
-          });
-        }
-        if (mounted) {
-          setState(() {
-            _fixedExpensesList = tempList;
-            _totalFixedExpenseAmount = tempTotalAmount;
-            _isLoadingFixedExpenses = false;
-          });
-        }
+          if (mounted) {
+            setState(() {
+              _fixedExpensesList = tempList;
+              _totalFixedExpenseAmount = tempTotalAmount;
+              _isLoadingFixedExpenses = false;
+            });
+          }
+        });
       } else {
         if (mounted) {
           setState(() {
@@ -568,7 +582,7 @@ Future<void> _loadBudgetData() async {
         }
       }
     } catch (e) {
-      debugPrint('고정 지출 정보 로드 오류: $e');
+      debugPrint('고정지출 정보 로드 오류: $e');
       if (mounted) {
         setState(() {
           _isLoadingFixedExpenses = false;
