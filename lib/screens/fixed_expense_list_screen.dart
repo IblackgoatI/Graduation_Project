@@ -119,7 +119,7 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
           'category': transaction.category,
           'memo': transaction.memo,
           'paymentMethod': transaction.paymentMethod,
-          'createdAt': FieldValue.serverTimestamp(),
+          'date': transaction.date,
         });
       }
 
