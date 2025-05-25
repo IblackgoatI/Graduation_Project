@@ -524,55 +524,55 @@ Future<void> _loadBudgetData() async {
             .listen((snapshot) async {
           debugPrint('고정지출 데이터 변경 감지 - 문서 수: ${snapshot.docs.length}');
 
-          List<Map<String, dynamic>> tempList = [];
-          double tempTotalAmount = 0.0;
+        List<Map<String, dynamic>> tempList = [];
+        double tempTotalAmount = 0.0;
 
           for (var doc in snapshot.docs) {
             Map<String, dynamic> data = doc.data();
             debugPrint('고정지출 데이터 처리: $data');
-            
-            tempTotalAmount += (data['amount'] as num).toDouble();
+          
+          tempTotalAmount += (data['amount'] as num).toDouble();
 
-            String paymentMethodId = data['paymentMethod'] ?? '';
-            String bankName = '출금 계좌 미설정';
-            if (paymentMethodId.isNotEmpty) {
-              try {
-                DocumentSnapshot assetDoc = await FirebaseFirestore.instance
-                    .collection('assets')
-                    .doc(paymentMethodId)
-                    .get();
-                if (assetDoc.exists) {
-                  bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
-                }
-              } catch (e) {
-                debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
+          String paymentMethodId = data['paymentMethod'] ?? '';
+          String bankName = '출금 계좌 미설정';
+          if (paymentMethodId.isNotEmpty) {
+            try {
+              DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                  .collection('assets')
+                  .doc(paymentMethodId)
+                  .get();
+              if (assetDoc.exists) {
+                bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
               }
-            }
-
-            Timestamp? timestamp = data['date'] as Timestamp? ?? data['createdAt'] as Timestamp?;
-            if (timestamp != null) {
-              String formattedDate = DateFormat('d일').format(timestamp.toDate());
-              tempList.add({
-                'amount': (data['amount'] as num).toDouble(),
-                'merchant': data['merchant'] ?? '정보 없음',
-                'createdAtDay': formattedDate,
-                'paymentBank': bankName,
-              });
-            } else {
-              debugPrint('날짜 정보가 없는 고정지출 데이터 발견: $data');
+            } catch (e) {
+              debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
             }
           }
+
+          Timestamp? timestamp = data['date'] as Timestamp? ?? data['createdAt'] as Timestamp?;
+          if (timestamp != null) {
+            String formattedDate = DateFormat('d일').format(timestamp.toDate());
+            tempList.add({
+              'amount': (data['amount'] as num).toDouble(),
+              'merchant': data['merchant'] ?? '정보 없음',
+              'createdAtDay': formattedDate,
+              'paymentBank': bankName,
+            });
+          } else {
+            debugPrint('날짜 정보가 없는 고정지출 데이터 발견: $data');
+          }
+        }
 
           debugPrint('처리된 고정지출 목록: $tempList');
           debugPrint('총 고정지출 금액: $tempTotalAmount');
 
-          if (mounted) {
-            setState(() {
-              _fixedExpensesList = tempList;
-              _totalFixedExpenseAmount = tempTotalAmount;
-              _isLoadingFixedExpenses = false;
-            });
-          }
+        if (mounted) {
+          setState(() {
+            _fixedExpensesList = tempList;
+            _totalFixedExpenseAmount = tempTotalAmount;
+            _isLoadingFixedExpenses = false;
+          });
+        }
         });
       } else {
         if (mounted) {
@@ -1321,14 +1321,19 @@ Future<void> _loadBudgetData() async {
                         ),
                         const SizedBox(height: 10),
                         ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(context);
-                            Navigator.push(
+                            final result = await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const FixedExpenseListScreen(),
                               ),
                             );
+                            
+                            // 고정지출이 추가되었다면 데이터 새로고침
+                            if (result == true) {
+                              _loadFixedExpenseData();
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF73AD13),

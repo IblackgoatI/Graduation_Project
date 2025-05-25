@@ -126,7 +126,9 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('선택한 내역이 고정지출로 등록되었습니다')),
       );
-      Navigator.pop(context); // 저장 후 이전 화면으로 돌아가기
+      
+      // 이전 화면으로 돌아갈 때 true를 반환하여 데이터 새로고침 트리거
+      Navigator.pop(context, true);
       
     } catch (e) {
       debugPrint('고정지출 저장 오류: $e');
