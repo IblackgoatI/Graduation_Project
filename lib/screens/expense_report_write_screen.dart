@@ -34,8 +34,6 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
   String _userName = '부린이님';
   Map<String, dynamic>? _reportData; // 소비 리포트 데이터 저장용 변수
   
-  // 선택 가능한 월 목록 (최근 6개월)
-  List<DateTime> _availableMonths = [];
   // 실제 거래 내역이 있는 월 목록
   List<DateTime> _monthsWithTransactions = [];
   
@@ -43,7 +41,6 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
   void initState() {
     super.initState();
     _loadUserInfo();
-    _generateAvailableMonths();
     
     // 텍스트 필드 리스너 추가
     _titleController.addListener(_updateFormState);
@@ -61,40 +58,35 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     });
   }
   
-  // 선택 가능한 월 목록 생성 (최근 6개월)
-  void _generateAvailableMonths() {
-    final now = DateTime.now();
-    _availableMonths = List.generate(6, (index) {
-      final year = now.month - index <= 0 ? now.year - 1 : now.year;
-      final month = now.month - index <= 0 ? 12 + (now.month - index) : now.month - index;
-      return DateTime(year, month, 1);
-    });
-  }
-  
   // 트랜잭션이 존재하는 월만 필터링
   void _checkMonthsWithTransactions() {
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final transactions = transactionProvider.transactions;
     
-    _monthsWithTransactions.clear();
+    // 거래 내역이 있는 월을 저장할 Set (중복 방지)
+    Set<String> monthsWithData = {};
     
-    // 각 월별로 거래내역이 있는지 확인
-    for (DateTime month in _availableMonths) {
-      // 해당 월의 시작일과 끝일
-      final startDate = DateTime(month.year, month.month, 1);
-      final endDate = DateTime(month.year, month.month + 1, 0);
-      
-      // 해당 월에 유효한 지출 트랜잭션이 있는지 확인
-      bool hasTransactions = transactions.any((transaction) {
-        return transaction.date.isAfter(startDate.subtract(const Duration(days: 1))) && 
-               transaction.date.isBefore(endDate.add(const Duration(days: 1))) &&
-               transaction.type == '지출';
-      });
-      
-      if (hasTransactions) {
-        _monthsWithTransactions.add(month);
+    // 각 거래 내역을 순회하며 지출이 있는 월 확인
+    for (var transaction in transactions) {
+      if (transaction.type == '지출') {
+        String monthKey = '${transaction.date.year}-${transaction.date.month}';
+        monthsWithData.add(monthKey);
       }
     }
+    
+    // _monthsWithTransactions 초기화
+    _monthsWithTransactions.clear();
+    
+    // Set에 저장된 월 정보를 DateTime 객체로 변환하여 _monthsWithTransactions에 추가
+    for (String monthKey in monthsWithData) {
+      List<String> parts = monthKey.split('-');
+      int year = int.parse(parts[0]);
+      int month = int.parse(parts[1]);
+      _monthsWithTransactions.add(DateTime(year, month, 1));
+    }
+    
+    // 날짜 기준 내림차순 정렬 (최신 달이 위로)
+    _monthsWithTransactions.sort((a, b) => b.compareTo(a));
     
     setState(() {});
     
