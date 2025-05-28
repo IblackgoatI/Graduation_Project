@@ -1290,7 +1290,7 @@ Future<void> _loadBudgetData() async {
                                   border: Border(
                                     bottom: BorderSide(
                                       color: index < _fixedExpensesList.length - 1 
-                                          ? Colors.grey.withOpacity(0.2) 
+                                          ? Colors.grey.withAlpha(51)  // 0.2 opacity = 51 in alpha (0.2 * 255)
                                           : Colors.transparent,
                                       width: 0.5,
                                     ),
