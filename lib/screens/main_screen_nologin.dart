@@ -43,6 +43,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   int currentMonth = DateTime.now().month;
   List<int> availableMonths = [];
   bool _showAllCategories = false; // 더보기 상태를 클래스 레벨로 이동
+  String _userName = ''; // 사용자 이름을 저장할 변수 추가
   
   // 월별 리포트 상태를 저장하는 Map
   final Map<BuildContext, int> _monthlyReportYearMonth = {};
@@ -71,6 +72,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       curve: Curves.easeOutCubic,
     );
     _loadUserAccounts();
+    _loadUserName(); // 사용자 이름 로드 함수 호출
     
     // 초기 거래 내역이 있는 월 목록 계산
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -147,6 +149,37 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // 사용자 이름을 로드하는 함수 추가
+  Future<void> _loadUserName() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Firestore에서 사용자 정보 가져오기
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userDoc.exists) {
+          setState(() {
+            // 사용자 문서에서 이름 필드를 가져옴
+            _userName = (userDoc.data() as Map<String, dynamic>)['name'] ?? '사용자';
+          });
+        } else {
+          // Firestore에 사용자 정보가 없는 경우 Auth 디스플레이네임 사용
+          setState(() {
+            _userName = currentUser.displayName ?? '사용자';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('사용자 이름 로드 오류: $e');
+      setState(() {
+        _userName = '사용자';
+      });
     }
   }
 
@@ -786,7 +819,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
-                    "부린이님의 $monthInKorean 소비 리포트",
+                    "$_userName님의 $monthInKorean 소비 리포트",
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
@@ -907,7 +940,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                     ),
                     // 중앙 제목
                     Text(
-                      "부린이님의 $selectedMonth월 소비 리포트",
+                      "$_userName님의 $selectedMonth월 소비 리포트",
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
