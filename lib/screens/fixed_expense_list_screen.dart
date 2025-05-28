@@ -21,6 +21,7 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
   List<FinancialTransaction> _filteredTransactions = []; // 검색 결과를 위한 리스트
   final TextEditingController _searchController = TextEditingController(); // 검색어 컨트롤러
   Set<String> _existingFixedExpenseIds = {}; // 기존 고정지출 ID 저장
+  DateTime _selectedDate = DateTime.now(); // 선택된 날짜 상태 추가
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -58,30 +59,55 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
     }
   }
 
+  // 월 변경 함수 추가
+  void _changeMonth(int monthDelta) {
+    setState(() {
+      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + monthDelta, 1);
+      loadTransactions();
+    });
+  }
+
+  // 월 선택 달력 표시 함수
+  Future<void> _selectMonth(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDatePickerMode: DatePickerMode.year,
+      locale: const Locale('ko', 'KR'),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = DateTime(picked.year, picked.month, 1);
+        loadTransactions();
+      });
+    }
+  }
+
   Future<void> loadTransactions() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // 현재 월의 시작일과 마지막일 계산
-      DateTime now = DateTime.now();
-      DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
-      DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      // 선택된 월의 시작일과 마지막일 계산
+      DateTime firstDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      DateTime firstDayOfNextMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
 
-      debugPrint('조회 기간: ${firstDayOfMonth.toString()} ~ ${lastDayOfMonth.toString()}');
+      debugPrint('조회 기간: ${firstDayOfMonth.toString()} ~ ${firstDayOfNextMonth.toString()}');
 
       // Provider에서 먼저 데이터를 가져옵니다
       final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
       final providerTransactions = transactionProvider.transactions;
       
-      // Provider에 데이터가 있으면 현재 월의 지출 데이터만 필터링하여 사용
       if (providerTransactions.isNotEmpty) {
         final filteredTransactions = providerTransactions
             .where((transaction) => 
                 transaction.type == '지출' &&
                 transaction.date.isAfter(firstDayOfMonth.subtract(const Duration(seconds: 1))) &&
-                transaction.date.isBefore(DateTime(now.year, now.month + 1, 1)))
+                transaction.date.isBefore(firstDayOfNextMonth))
             .toList();
             
         debugPrint('Provider에서 이번 달 거래내역 ${filteredTransactions.length}개 로드 완료');
@@ -103,8 +129,8 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
           .collection('ledger')
           .where('userId', isEqualTo: userId)
           .where('type', isEqualTo: '지출')
-          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
-          .where('date', isLessThan: DateTime(now.year, now.month + 1, 1))
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfMonth))
+          .where('date', isLessThan: Timestamp.fromDate(firstDayOfNextMonth))
           .orderBy('date', descending: true)
           .get();
 
@@ -264,6 +290,36 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
       ),
       body: Column(
         children: [
+          // 월 선택 UI 추가
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios),
+                  onPressed: () => _changeMonth(-1),
+                  color: Colors.grey[600],
+                ),
+                GestureDetector(
+                  onTap: () => _selectMonth(context),
+                  child: Text(
+                    DateFormat('yyyy년 M월', 'ko_KR').format(_selectedDate),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward_ios),
+                  onPressed: () => _changeMonth(1),
+                  color: Colors.grey[600],
+                ),
+              ],
+            ),
+          ),
+          
           // 검색창 추가
           Padding(
             padding: const EdgeInsets.all(16.0),
