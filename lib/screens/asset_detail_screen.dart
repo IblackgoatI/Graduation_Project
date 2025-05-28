@@ -2040,7 +2040,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           ),
           child: Center(
             child: Text(
-              '$spent만원',
+              '${_numberFormat((spent * 10000).toInt())}원',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -2159,12 +2159,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           height: 25,
           width: MediaQuery.of(context).size.width * 0.35 * progress, // 화면 너비에 비례하게 조정
           decoration: BoxDecoration(
-            color: Colors.blue, // 메인 컬러를 파란색으로 변경
+            color: Colors.blue,
             borderRadius: BorderRadius.circular(12.5),
           ),
           child: Center(
             child: Text(
-              '$current만원',
+              '${_numberFormat((current * 10000).toInt())}원',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
