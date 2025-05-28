@@ -1967,17 +1967,19 @@ Future<void> _loadBudgetData() async {
   Widget _buildMonthlySavingsCard() {
     // 선택된 계좌의 잔액 텍스트 (만 단위로 변환)
     String accountBalanceText = '0';
+    double balanceInTenThousand = 0;
     if (_selectedSavingAccount != null) {
       int balance = _selectedSavingAccount!['balance'];
-      double inTenThousand = balance / 10000.0;
-      accountBalanceText = inTenThousand.toStringAsFixed(inTenThousand >= 10 ? 0 : 1);
+      balanceInTenThousand = balance / 10000.0;
+      accountBalanceText = balanceInTenThousand.toStringAsFixed(balanceInTenThousand >= 10 ? 0 : 1);
     }
 
-    // 최종 목표 금액 텍스트 (만 단위로 변환) - _finalGoalAmount 사용 (Firestore의 goalAmount와 동기화됨)
+    // 최종 목표 금액 텍스트 (만 단위로 변환)
     String finalGoalText = '0';
+    double goalInTenThousand = 0;
     if (_finalGoalAmount > 0) {
-      double inTenThousand = _finalGoalAmount / 10000.0;
-      finalGoalText = inTenThousand.toStringAsFixed(inTenThousand >= 10 ? 0 : 1);
+      goalInTenThousand = _finalGoalAmount / 10000.0;
+      finalGoalText = goalInTenThousand.toStringAsFixed(goalInTenThousand >= 10 ? 0 : 1);
     }
 
     // 버튼 텍스트 설정
@@ -1999,33 +2001,24 @@ Future<void> _loadBudgetData() async {
           const Spacer(),
           // 저축 계좌 잔액과 목표 금액을 n원/n원 형식으로 표시
           Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
               children: [
-                // 현재 저축 계좌 잔액 (회색)
                 Text(
                   '$accountBalanceText만원',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey,
+                    color: Colors.black,
                   ),
                 ),
-                const Text(
-                  ' / ',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
-                  ),
-                ),
-                // 최종 목표 금액 (초록색)
+                const SizedBox(height: 12),
+                _buildSavingsProgressBar(balanceInTenThousand, goalInTenThousand),
+                const SizedBox(height: 12),
                 Text(
-                  '$finalGoalText만원', // _finalGoalAmount가 goalAmount를 반영
+                  '목표: $finalGoalText만원',
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF73AD13),
+                    fontSize: 14,
+                    color: Colors.black,
                   ),
                 ),
               ],
@@ -2034,7 +2027,6 @@ Future<void> _loadBudgetData() async {
           const Spacer(),
           ElevatedButton(
             onPressed: () {
-              // 월 저축 목표 설정 시트 표시
               _showMonthlySavingsGoalSheet();
             },
             style: ElevatedButton.styleFrom(
@@ -2045,7 +2037,7 @@ Future<void> _loadBudgetData() async {
               minimumSize: const Size(double.infinity, 36),
             ),
             child: Text(
-              buttonText, // 동적 버튼 텍스트 사용
+              buttonText,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -2054,6 +2046,44 @@ Future<void> _loadBudgetData() async {
           ),
         ],
       ),
+    );
+  }
+
+  // 저축 진행 상황 바 위젯
+  Widget _buildSavingsProgressBar(double current, double goal) {
+    double progress = goal > 0 ? (current / goal) : 0;
+    progress = progress.clamp(0.0, 1.0); // 1.0을 넘지 않도록 제한
+    
+    return Stack(
+      children: [
+        // 배경(전체 목표)
+        Container(
+          height: 25,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(12.5),
+          ),
+        ),
+        // 진행 바(현재 저축액)
+        Container(
+          height: 25,
+          width: MediaQuery.of(context).size.width * 0.35 * progress, // 화면 너비에 비례하게 조정
+          decoration: BoxDecoration(
+            color: Colors.blue, // 메인 컬러를 파란색으로 변경
+            borderRadius: BorderRadius.circular(12.5),
+          ),
+          child: Center(
+            child: Text(
+              '$current만원',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
