@@ -524,55 +524,56 @@ Future<void> _loadBudgetData() async {
             .listen((snapshot) async {
           debugPrint('고정지출 데이터 변경 감지 - 문서 수: ${snapshot.docs.length}');
 
-        List<Map<String, dynamic>> tempList = [];
-        double tempTotalAmount = 0.0;
+          List<Map<String, dynamic>> tempList = [];
+          double tempTotalAmount = 0.0;
 
           for (var doc in snapshot.docs) {
             Map<String, dynamic> data = doc.data();
             debugPrint('고정지출 데이터 처리: $data');
           
-          tempTotalAmount += (data['amount'] as num).toDouble();
+            tempTotalAmount += (data['amount'] as num).toDouble();
 
-          String paymentMethodId = data['paymentMethod'] ?? '';
-          String bankName = '출금 계좌 미설정';
-          if (paymentMethodId.isNotEmpty) {
-            try {
-              DocumentSnapshot assetDoc = await FirebaseFirestore.instance
-                  .collection('assets')
-                  .doc(paymentMethodId)
-                  .get();
-              if (assetDoc.exists) {
-                bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
+            String paymentMethodId = data['paymentMethod'] ?? '';
+            String bankName = '출금 계좌 미설정';
+            if (paymentMethodId.isNotEmpty) {
+              try {
+                DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                    .collection('assets')
+                    .doc(paymentMethodId)
+                    .get();
+                if (assetDoc.exists) {
+                  bankName = (assetDoc.data() as Map<String, dynamic>)['bank'] ?? '은행 정보 없음';
+                }
+              } catch (e) {
+                debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
               }
-            } catch (e) {
-              debugPrint('은행 정보 조회 오류 (ID: $paymentMethodId): $e');
+            }
+
+            Timestamp? timestamp = data['date'] as Timestamp? ?? data['createdAt'] as Timestamp?;
+            if (timestamp != null) {
+              String formattedDate = DateFormat('d일').format(timestamp.toDate());
+              tempList.add({
+                'id': doc.id, // 문서 ID 추가
+                'amount': (data['amount'] as num).toDouble(),
+                'merchant': data['merchant'] ?? '정보 없음',
+                'createdAtDay': formattedDate,
+                'paymentBank': bankName,
+              });
+            } else {
+              debugPrint('날짜 정보가 없는 고정지출 데이터 발견: $data');
             }
           }
-
-          Timestamp? timestamp = data['date'] as Timestamp? ?? data['createdAt'] as Timestamp?;
-          if (timestamp != null) {
-            String formattedDate = DateFormat('d일').format(timestamp.toDate());
-            tempList.add({
-              'amount': (data['amount'] as num).toDouble(),
-              'merchant': data['merchant'] ?? '정보 없음',
-              'createdAtDay': formattedDate,
-              'paymentBank': bankName,
-            });
-          } else {
-            debugPrint('날짜 정보가 없는 고정지출 데이터 발견: $data');
-          }
-        }
 
           debugPrint('처리된 고정지출 목록: $tempList');
           debugPrint('총 고정지출 금액: $tempTotalAmount');
 
-        if (mounted) {
-          setState(() {
-            _fixedExpensesList = tempList;
-            _totalFixedExpenseAmount = tempTotalAmount;
-            _isLoadingFixedExpenses = false;
-          });
-        }
+          if (mounted) {
+            setState(() {
+              _fixedExpensesList = tempList;
+              _totalFixedExpenseAmount = tempTotalAmount;
+              _isLoadingFixedExpenses = false;
+            });
+          }
         });
       } else {
         if (mounted) {
@@ -1241,30 +1242,81 @@ Future<void> _loadBudgetData() async {
                 Expanded(
                   child: _fixedExpensesList.isEmpty
                       ? const Center(child: Text('표시할 고정 지출 내역이 없습니다.'))
-                      : ListView.separated(
+                      : ListView.builder(
                           itemCount: _fixedExpensesList.length,
                           itemBuilder: (context, index) {
                             final expense = _fixedExpensesList[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                expense['merchant'],
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                            return Dismissible(
+                              key: Key(expense['id']),
+                              background: Container(
+                                color: Colors.red,
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20.0),
+                                child: const Icon(
+                                  Icons.delete,
+                                  color: Colors.white,
+                                ),
                               ),
-                              subtitle: Text(
-                                '${expense['createdAtDay']} • ${expense['paymentBank']}',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              trailing: Text(
-                                '${_numberFormat((expense['amount'] as double).toInt())}원',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red, // 지출이므로 빨간색으로 표시
+                              direction: DismissDirection.endToStart,
+                              confirmDismiss: (direction) async {
+                                return await showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('고정지출 삭제'),
+                                      content: const Text('이 고정지출을 삭제하시겠습니까?'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                          child: const Text('취소'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                          child: const Text(
+                                            '삭제',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                              onDismissed: (direction) {
+                                _deleteFixedExpense(expense['id'], index);
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: index < _fixedExpensesList.length - 1 
+                                          ? Colors.grey.withOpacity(0.2) 
+                                          : Colors.transparent,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    expense['merchant'],
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(
+                                    '${expense['createdAtDay']} • ${expense['paymentBank']}',
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                  trailing: Text(
+                                    '${_numberFormat((expense['amount'] as double).toInt())}원',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red,
+                                    ),
+                                  ),
                                 ),
                               ),
                             );
                           },
-                          separatorBuilder: (context, index) => const Divider(),
                         ),
                 ),
               ],
@@ -3170,6 +3222,42 @@ Future<void> _loadBudgetData() async {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
     );
+  }
+
+  // 고정지출 삭제 함수 수정
+  Future<void> _deleteFixedExpense(String docId, int index) async {
+    try {
+      // 먼저 UI에서 항목 제거
+      setState(() {
+        _fixedExpensesList.removeAt(index);
+        // 총액 다시 계산
+        _totalFixedExpenseAmount = _fixedExpensesList.fold(
+          0.0,
+          (sum, item) => sum + (item['amount'] as double),
+        );
+      });
+
+      // 그 다음 Firestore에서 삭제
+      await FirebaseFirestore.instance
+          .collection('fixed_expenses')
+          .doc(docId)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고정지출이 삭제되었습니다')),
+        );
+      }
+    } catch (e) {
+      debugPrint('고정지출 삭제 오류: $e');
+      if (mounted) {
+        // 삭제 실패 시 목록 다시 로드
+        await _loadFixedExpenseData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('고정지출 삭제 중 오류가 발생했습니다')),
+        );
+      }
+    }
   }
 }
 
