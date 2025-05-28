@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
+import 'settings_screen.dart'; // SettingsScreen import 추가
 
 class AllScreen extends StatefulWidget {
   const AllScreen({super.key});
@@ -23,7 +24,12 @@ class _AllScreenState extends State<AllScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              // TODO: 설정 화면으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
             },
           ),
         ],
