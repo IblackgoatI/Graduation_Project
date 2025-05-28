@@ -80,8 +80,8 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
         final filteredTransactions = providerTransactions
             .where((transaction) => 
                 transaction.type == '지출' &&
-                transaction.date.isAfter(firstDayOfMonth.subtract(const Duration(days: 1))) &&
-                transaction.date.isBefore(lastDayOfMonth.add(const Duration(days: 1))))
+                transaction.date.isAfter(firstDayOfMonth.subtract(const Duration(seconds: 1))) &&
+                transaction.date.isBefore(DateTime(now.year, now.month + 1, 1)))
             .toList();
             
         debugPrint('Provider에서 이번 달 거래내역 ${filteredTransactions.length}개 로드 완료');
@@ -104,7 +104,7 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
           .where('userId', isEqualTo: userId)
           .where('type', isEqualTo: '지출')
           .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
-          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+          .where('date', isLessThan: DateTime(now.year, now.month + 1, 1))
           .orderBy('date', descending: true)
           .get();
 
@@ -271,11 +271,11 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '고정지출에 포함할 내역을 선택해주세요',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[700],
-                  ),
+              '고정지출에 포함할 내역을 선택해주세요',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+              ),
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -382,18 +382,18 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
                                                 Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                   children: [
                                                     Expanded(
                                                       child: Column(
                                                         crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          Text(
-                                                            transaction.merchant,
-                                                            style: TextStyle(
-                                                              fontSize: 16,
-                                                              fontWeight: FontWeight.bold,
-                                                              color: Colors.grey[800],
+                                              children: [
+                                                Text(
+                                                  transaction.merchant,
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.grey[800],
                                                             ),
                                                           ),
                                                           if (_existingFixedExpenseIds.contains(transaction.id))
@@ -405,16 +405,16 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
                                                               ),
                                                             ),
                                                         ],
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '-${NumberFormat('#,###').format(transaction.amount)}원',
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Colors.black,
-                                                      ),
-                                                    ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '-${NumberFormat('#,###').format(transaction.amount)}원',
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black,
+                                                  ),
+                                                ),
                                                   ],
                                                 ),
                                                 if (transaction.tags.isNotEmpty) ...[
