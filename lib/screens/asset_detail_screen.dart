@@ -74,10 +74,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     await _loadAssetData();
     // 예산 데이터 로드
     await _loadBudgetData();
-    // 자산 데이터 로드가 완료된 후 저축 목표 데이터 로드
+    // 저축 목표 데이터 로드 (자산 데이터 로드가 완료된 후)
     await _loadSavingGoalData();
     // 고정 지출 데이터 로드
     await _loadFixedExpenseData();
+
+    // 고정비 미출금 알림 함수 호출 
+    if (mounted) {
+      _checkAndNotifyUnpaidFixedExpenses();
+    }
   }
 
   @override
@@ -182,91 +187,91 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   }
 
   // 예산 데이터 로드
-Future<void> _loadBudgetData() async {
-  try {
-    User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+  Future<void> _loadBudgetData() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
 
-    if (currentUser != null) {
-      // 예산 문서 있는지 확인
-      QuerySnapshot budgetQuery = await FirebaseFirestore.instance
-          .collection('budget')
-          .where('userId', isEqualTo: currentUser.uid)
-          .limit(1)
-          .get();
+      if (currentUser != null) {
+        // 예산 문서 있는지 확인
+        QuerySnapshot budgetQuery = await FirebaseFirestore.instance
+            .collection('budget')
+            .where('userId', isEqualTo: currentUser.uid)
+            .limit(1)
+            .get();
 
-      double budgetAmount = 0.0;
-      bool hasBudget = false;
+        double budgetAmount = 0.0;
+        bool hasBudget = false;
 
-      // 목표금액 가져오기 (Amount 1)
-      if (budgetQuery.docs.isNotEmpty) {
-        Map<String, dynamic> budgetData = budgetQuery.docs.first.data() as Map<String, dynamic>;
-        budgetAmount = (budgetData['goalcost'] as num).toDouble();
-        hasBudget = true;
+        // 목표금액 가져오기 (Amount 1)
+        if (budgetQuery.docs.isNotEmpty) {
+          Map<String, dynamic> budgetData = budgetQuery.docs.first.data() as Map<String, dynamic>;
+          budgetAmount = (budgetData['goalcost'] as num).toDouble();
+          hasBudget = true;
+        }
+
+        // 이번 달 지출 (Amount 2)
+        double expensesAmount = 0.0;
+        
+        // 이번달 가져오기
+        DateTime now = DateTime.now();
+        DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
+        DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+        // 이번 달 지출 가져오는 쿼리문
+        QuerySnapshot expensesQuery = await FirebaseFirestore.instance
+            .collection('ledger')
+            .where('userId', isEqualTo: currentUser.uid)
+            .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+            .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+            .where('type', isEqualTo: '지출') // 지출만 필터링
+            .get();
+
+        // 지출 합계 계산
+        for (var doc in expensesQuery.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          expensesAmount += (data['amount'] as num).toDouble();
+        }
+        
+        // 이번 달 수입 가져오기
+        double incomeAmount = 0.0;
+        
+        // 수입 쿼리문 (같은 달의 수입 데이터)
+        QuerySnapshot incomeQuery = await FirebaseFirestore.instance
+            .collection('ledger')
+            .where('userId', isEqualTo: currentUser.uid)
+            .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
+            .where('date', isLessThanOrEqualTo: lastDayOfMonth)
+            .where('type', isEqualTo: '수입') // 수입만 필터링
+            .get();
+        
+        // 수입 합계 계산
+        for (var doc in incomeQuery.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          incomeAmount += (data['amount'] as num).toDouble();
+        }
+        
+        // 예산의 수입 대비 비율 계산
+        int budgetPercentage = 0;
+        if (incomeAmount > 0) {
+          budgetPercentage = ((budgetAmount / incomeAmount) * 100).round();
+        }
+
+        if (mounted) {
+          setState(() {
+            _budgetAmount = budgetAmount;
+            _expensesAmount = expensesAmount;
+            _incomeAmount = incomeAmount;
+            _hasBudget = hasBudget;
+            _budgetPercentage = budgetPercentage;
+          });
+        }
       }
-
-      // 이번 달 지출 (Amount 2)
-      double expensesAmount = 0.0;
-      
-      // 이번달 가져오기
-      DateTime now = DateTime.now();
-      DateTime firstDayOfMonth = DateTime(now.year, now.month, 1);
-      DateTime lastDayOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-      // 이번 달 지출 가져오는 쿼리문
-      QuerySnapshot expensesQuery = await FirebaseFirestore.instance
-          .collection('ledger')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
-          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
-          .where('type', isEqualTo: '지출') // 지출만 필터링
-          .get();
-
-      // 지출 합계 계산
-      for (var doc in expensesQuery.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        expensesAmount += (data['amount'] as num).toDouble();
-      }
-      
-      // 이번 달 수입 가져오기
-      double incomeAmount = 0.0;
-      
-      // 수입 쿼리문 (같은 달의 수입 데이터)
-      QuerySnapshot incomeQuery = await FirebaseFirestore.instance
-          .collection('ledger')
-          .where('userId', isEqualTo: currentUser.uid)
-          .where('date', isGreaterThanOrEqualTo: firstDayOfMonth)
-          .where('date', isLessThanOrEqualTo: lastDayOfMonth)
-          .where('type', isEqualTo: '수입') // 수입만 필터링
-          .get();
-      
-      // 수입 합계 계산
-      for (var doc in incomeQuery.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        incomeAmount += (data['amount'] as num).toDouble();
-      }
-      
-      // 예산의 수입 대비 비율 계산
-      int budgetPercentage = 0;
-      if (incomeAmount > 0) {
-        budgetPercentage = ((budgetAmount / incomeAmount) * 100).round();
-      }
-
-      if (mounted) {
-        setState(() {
-          _budgetAmount = budgetAmount;
-          _expensesAmount = expensesAmount;
-          _incomeAmount = incomeAmount;
-          _hasBudget = hasBudget;
-          _budgetPercentage = budgetPercentage;
-        });
-      }
+    } catch (e) {
+      debugPrint('예산 정보 로드 오류: $e');
     }
-  } catch (e) {
-    debugPrint('예산 정보 로드 오류: $e');
   }
-}
 
-  //  Firestore에 저장
+  //  예산 저장 함수 (Firestore에 저장)
   Future<void> _saveBudget(double amount) async {
     // 컨텍스트를 미리 저장
     final BuildContext currentContext = context;
@@ -310,7 +315,7 @@ Future<void> _loadBudgetData() async {
     }
   }
 
-  // 저축 목표 데이터 로드 함수 추가
+  // 저축 목표 데이터 로드 함수 
   Future<void> _loadSavingGoalData() async {
     try {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
@@ -422,7 +427,7 @@ Future<void> _loadBudgetData() async {
     }
   }
 
-  // 저축 목표 저장 함수 추가
+  // 저축 목표 저장 함수 
   Future<void> _saveSavingGoal() async {
     User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser; // currentUser 먼저 가져오기
     if (currentUser == null) {
@@ -592,6 +597,91 @@ Future<void> _loadBudgetData() async {
     }
   }
 
+  // 고정 지출 미출금 알림 함수
+  Future<void> _checkAndNotifyUnpaidFixedExpenses() async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      debugPrint("User not logged in for fixed expense check.");
+      return;
+    }
+
+    DateTime now = DateTime.now();
+    bool notificationSent = false; // 알림 중복 발송 방지
+
+    try {
+      // 1. userId 필드의 값과 현재 유저의 userId가 동일한 문서가 있는지 조회
+      QuerySnapshot fixedExpensesSnapshot = await FirebaseFirestore.instance
+          .collection('fixed_expenses')
+          .where('userId', isEqualTo: currentUser.uid)
+          .get();
+
+      if (fixedExpensesSnapshot.docs.isEmpty) {
+        // debugPrint("No fixed expenses found for the user.");
+        return;
+      }
+
+      for (var doc in fixedExpensesSnapshot.docs) {
+        if (notificationSent) break; // 이미 알림을 보냈으면 중단
+
+        Map<String, dynamic> fixedExpenseData = doc.data() as Map<String, dynamic>;
+        Timestamp? fixedExpenseTimestamp = fixedExpenseData['date'] as Timestamp?;
+
+        if (fixedExpenseTimestamp == null) {
+          // debugPrint("Fixed expense item has no date: ${fixedExpenseData['merchant']}");
+          continue;
+        }
+
+        DateTime fixedDocDate = fixedExpenseTimestamp.toDate();
+
+        // 2. 해당 문서의 date 필드 값이 현재 월이 아니면서, 현재 날짜 보다 이전 '일'인지 확인
+        bool isDifferentMonth = fixedDocDate.month != now.month;
+        bool isPastDayInMonth = fixedDocDate.day < now.day;
+
+        if (isDifferentMonth && isPastDayInMonth) {
+          // 3. ledger 컬렉션에 문서가 존재하는지 조회
+          String merchant = fixedExpenseData['merchant'] ?? '';
+          // fixed_expenses 문서의 'paymentMethod'는 계좌 ID를 저장한다고 가정합니다.
+          String paymentMethodId = fixedExpenseData['paymentMethod'] ?? ''; 
+
+          if (merchant.isEmpty || paymentMethodId.isEmpty) {
+            // debugPrint("Skipping check due to empty merchant or paymentMethodId for: ${fixedExpenseData['merchant']}");
+            continue;
+          }
+
+          // 3-1. ledger 컬렉션 문서 중 merchant, paymentMethodId, userId가 동일하고, date가 "현재 월"인 문서 조회
+          DateTime firstDayOfCurrentMonthForLedger = DateTime(now.year, now.month, 1);
+          DateTime firstDayOfNextMonthForLedger = (now.month < 12)
+              ? DateTime(now.year, now.month + 1, 1)
+              : DateTime(now.year + 1, 1, 1);
+
+          QuerySnapshot ledgerSnapshot = await FirebaseFirestore.instance
+              .collection('ledger')
+              .where('userId', isEqualTo: currentUser.uid)
+              .where('merchant', isEqualTo: merchant)
+              // ledger 컬렉션에서 'paymentMethod' 필드가 계좌 ID를 저장한다고 가정합니다.
+              // 만약 필드명이 다르다면 (예: 'paymentAccountId'), 해당 필드명으로 변경해야 합니다.
+              .where('paymentMethod', isEqualTo: paymentMethodId) 
+              .where('date', isGreaterThanOrEqualTo: firstDayOfCurrentMonthForLedger)
+              .where('date', isLessThan: firstDayOfNextMonthForLedger)
+              .limit(1) 
+              .get();
+
+          // 4. 3번 실행 결과로 조회된 문서가 없다면 푸시 알림 전송
+          if (ledgerSnapshot.docs.isEmpty) {
+            // debugPrint("Unpaid fixed expense detected: ${fixedExpenseData['merchant']}");
+            await asset_screen.showLocalNotification(
+              '고정비 미출금 알림',
+              '미출금 된 고정비 내역이 있습니다.',
+            );
+            notificationSent = true; // 알림 보냈음을 표시하고 더 이상 검사하지 않음
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('고정비 미출금 알림 확인 중 오류: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -699,7 +789,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 목표 탭 위젯 수정
+  // 목표 탭 위젯 수정
   Widget _buildGoalTab() {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -751,7 +841,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 공통 카드 스타일
+  // 공통 카드 스타일
   Widget _buildStandardCard({required Widget child, double height = 180}) {
     return Card(
       elevation: 4,
@@ -767,7 +857,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 막대 그래프 위젯
+  // 막대 그래프 위젯
   Widget _buildBarGraph(String month, double amount, Color color, double heightPercent) {
     // 수입 금액을 간단히 표시 (천 단위 구분)
     String amountDisplay = '';
@@ -813,7 +903,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 이번 달 수입 카드
+  // 이번 달 수입 카드
   Widget _buildMonthlyIncomeCard() {
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
@@ -945,7 +1035,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 이번 달 지출 카드 (도넛 차트)
+  // 이번 달 지출 카드 (도넛 차트)
   Widget _buildMonthlyExpenseCard() {
     // TransactionProvider에서 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
@@ -1132,7 +1222,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 고정지출 카드
+  // 고정지출 카드
   Widget _buildFixedExpenseCard() {
     return _buildStandardCard(
       height: 250,
@@ -1448,7 +1538,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 이번 달 예산 카드
+  // 이번 달 예산 카드
   Widget _buildMonthlyBudgetCard() {
     // 예산 초기화
     String budgetText = _hasBudget 
@@ -1963,7 +2053,7 @@ Future<void> _loadBudgetData() async {
     );
   }
 
-// 이번 달 저축 카드
+  // 이번 달 저축 카드
   Widget _buildMonthlySavingsCard() {
     // 선택된 계좌의 잔액 텍스트 (만 단위로 변환)
     String accountBalanceText = '0';
