@@ -60,6 +60,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     Icons.menu
   ];
 
+  double _totalFixedExpenseAmount = 0.0; // 고정지출 총액을 저장할 변수 추가
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +75,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
     _loadUserAccounts();
     _loadUserName(); // 사용자 이름 로드 함수 호출
+    _loadFixedExpenses(); // 고정지출 데이터 로드 함수 호출
     
     // 초기 거래 내역이 있는 월 목록 계산
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -180,6 +183,34 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       setState(() {
         _userName = '사용자';
       });
+    }
+  }
+
+  // 고정지출 데이터를 로드하는 함수 추가
+  Future<void> _loadFixedExpenses() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        // Firestore에서 고정지출 데이터 가져오기
+        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+            .collection('fixed_expenses')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        double total = 0.0;
+        for (var doc in querySnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          total += (data['amount'] as num).toDouble();
+        }
+
+        if (mounted) {
+          setState(() {
+            _totalFixedExpenseAmount = total;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('고정지출 데이터 로드 오류: $e');
     }
   }
 
@@ -656,21 +687,16 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     // 총 지출 금액 계산
     final totalExpense = currentMonthExpenses.fold(0.0, 
       (sum, transaction) => sum + transaction.amount);
-    
-    // 고정 지출 계산 (예: 매달 같은 금액으로 지출되는 카테고리만 계산)
-    // 여기서는 예시로 '생활용품', '서비스' 카테고리를 고정 지출로 간주
-    final fixedExpenseCategories = ['생활용품', '서비스', '교통', '의료'];
-    final fixedExpenses = 0.0; // 고정 지출 금액을 0원으로 설정
 
     return SizedBox(
-      width: double.infinity, // 부모 위젯의 너비에 맞춤
+      width: double.infinity,
       child: Card(
-        color: Colors.white, // 카드뷰 배경색을 FFFFFF(흰색)로 설정
+        color: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0), // 모서리 반경을 20으로 설정
+          borderRadius: BorderRadius.circular(20.0),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0), // 기존 카드뷰와 동일한 패딩 적용
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -678,10 +704,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 children: [
                   Icon(Icons.trending_down, color: Colors.red, size: 20),
                   SizedBox(width: 8),
-                  // 이번 달 지출 전체를 버튼으로 만들기
                   InkWell(
                     onTap: () {
-                      // 가계부 탭으로 이동 (인덱스 1)
                       _onItemTapped(1);
                     },
                     child: Row(
@@ -708,22 +732,24 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 "${numberFormat(totalExpense.toInt())}원",
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 20.0), // 섹션 간 간격
+              const SizedBox(height: 20.0),
               Row(
                 children: [
                   Icon(Icons.repeat, color: Colors.orange, size: 20),
                   SizedBox(width: 8),
                   InkWell(
                     onTap: () {
-                      // 자산의 목표 탭으로 이동
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => AssetDetailScreen(
-                            initialTabIndex: 1, // 목표 탭 인덱스
+                            initialTabIndex: 1,
                           ),
                         ),
-                      );
+                      ).then((_) {
+                        // 고정지출 화면에서 돌아올 때 데이터 새로고침
+                        _loadFixedExpenses();
+                      });
                     },
                     child: const Text(
                       "나의 고정지출 >",
@@ -734,7 +760,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               ),
               const SizedBox(height: 8.0),
               Text(
-                "${numberFormat(fixedExpenses.toInt())}원",
+                "${numberFormat(_totalFixedExpenseAmount.toInt())}원",
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
