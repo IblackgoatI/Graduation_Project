@@ -903,12 +903,53 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     );
   }
 
+  // 좋아요 토글 함수
+  Future<void> _toggleLike(String commentId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('로그인이 필요합니다')),
+        );
+        return;
+      }
+
+      final commentRef = FirebaseFirestore.instance
+          .collection('community')
+          .doc(widget.postData['id'])
+          .collection('comments')
+          .doc(commentId);
+
+      final commentDoc = await commentRef.get();
+      final likes = List<String>.from(commentDoc.data()?['likes'] ?? []);
+
+      if (likes.contains(currentUser.uid)) {
+        // 좋아요 취소
+        likes.remove(currentUser.uid);
+      } else {
+        // 좋아요 추가
+        likes.add(currentUser.uid);
+      }
+
+      await commentRef.update({'likes': likes});
+      await _loadComments(); // 댓글 목록 새로고침
+    } catch (e) {
+      print('좋아요 토글 중 오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('좋아요 처리 중 오류가 발생했습니다')),
+      );
+    }
+  }
+
   // 댓글 카드 위젯 수정
   Widget _buildCommentCard(Map<String, dynamic> comment) {
     final timestamp = comment['CreatedAt'] as Timestamp;
     final dateTime = timestamp.toDate();
     final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
     final replies = comment['replies'] as List<Map<String, dynamic>>? ?? [];
+    final likes = List<String>.from(comment['likes'] ?? []);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isLiked = currentUser != null && likes.contains(currentUser.uid);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -959,10 +1000,32 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             ),
           ),
 
-          // 답글 버튼을 오른쪽으로 정렬
+          // 좋아요 및 답글 버튼 행
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              // 좋아요 버튼
+              TextButton.icon(
+                onPressed: () => _toggleLike(comment['id']),
+                icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  size: 16,
+                  color: isLiked ? Colors.red : Colors.grey[600],
+                ),
+                label: Text(
+                  likes.length.toString(),
+                  style: TextStyle(
+                    color: isLiked ? Colors.red : Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // 답글 버튼
               TextButton.icon(
                 onPressed: () {
                   setState(() {
