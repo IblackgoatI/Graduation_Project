@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'regist.dart'; // 회원가입 화면 (예시)
 import 'asset.dart';
 import 'pwreset.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 자동 로그인 상태 저장을 위한 패키지 추가
+import 'main_screen_nologin.dart';  // 최초 로그인이 아닌 경우 메인 화면으로 이동
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -83,9 +85,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // 로그인 함수 (예시)
+  // 로그인 함수 
   Future<void> _login() async {
     FocusScope.of(context).unfocus(); // 키보드 닫기
+    // BuildContext를 안전하게 사용하기 위해 Navigator와 ScaffoldMessenger를 미리 가져옴
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     setState(() => _isLoading = true);
 
     try {
@@ -99,14 +105,40 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // 로그인 성공 후 자산 화면으로 이동 시 previousRouteName 전달
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-            builder: (context) => AssetScreen(
-                  user: userCredential.user,
-                  previousRouteName: 'login_screen', // 현재 화면 경로 전달
-                )),
-      );
+      User? currentUser = userCredential.user;
+
+      if (currentUser != null) {
+        // Firestore에서 해당 사용자의 'assets' 컬렉션 문서 확인
+        QuerySnapshot assetsSnapshot = await FirebaseFirestore.instance
+            .collection('assets')
+            .where('userId', isEqualTo: currentUser.uid)
+            .limit(1) // 하나라도 있는지 확인
+            .get();
+
+        if (assetsSnapshot.docs.isNotEmpty) {
+          // 자산 데이터가 있으면 (최초 로그인이 아니거나, 이미 자산 설정을 한 경우) MainScreenNotLogin으로 이동
+          navigator.pushReplacement(
+            MaterialPageRoute(
+                builder: (context) => MainScreenNotLogin(user: currentUser)),
+          );
+        } else {
+          // 자산 데이터가 없으면 (최초 로그인 후 자산 설정이 필요한 경우) AssetScreen으로 이동
+          navigator.pushReplacement(
+            MaterialPageRoute(
+                builder: (context) => AssetScreen(
+                      user: currentUser,
+                      previousRouteName: 'login_screen', // 현재 화면 경로 전달
+                    )),
+          );
+        }
+      } else {
+        // 이 경우는 signInWithEmailAndPassword 성공 후 user가 null일 수 없으므로, 이론적으로 발생하지 않음
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('사용자 정보를 가져오는데 실패했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       String errorMessage = '';
 
@@ -118,19 +150,30 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = '이메일 형식이 올바르지 않습니다.';
       } else if (e.code == 'user-disabled') {
         errorMessage = '이 계정은 사용이 중지되었습니다.';
-      } else {
-        // 기본 메시지 (e.message를 사용하지 않고, 직접 설정)
-        errorMessage = '로그인에 실패했습니다.';
+      } else if (e.code == 'invalid-credential') { // 일반적인 잘못된 자격 증명 오류
+        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      }
+      else {
+        errorMessage = '로그인에 실패했습니다. (${e.code})';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         SnackBar(content: Text(errorMessage),
           backgroundColor: Colors.red,
         ),
       );
+    } catch (e) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('로그인 중 알 수 없는 오류가 발생했습니다.'),
+            backgroundColor: Colors.red,
+          ),
+        );
     }
     finally {
-      setState(() => _isLoading = false);
+      // 위젯이 여전히 마운트된 상태인지 확인 후 setState 호출
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
