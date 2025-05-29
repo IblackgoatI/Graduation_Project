@@ -1,7 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 패키지 import
+import 'package:shared_preferences/shared_preferences.dart'; // SharedPreferences 패키지 import
+import 'login.dart'; // LoginScreen import
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  // 로그아웃 함수
+  Future<void> _logout(BuildContext context) async {
+    // Firebase 로그아웃
+    await FirebaseAuth.instance.signOut();
+
+    // SharedPreferences에서 자동 로그인 정보 삭제
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auto_login');
+    await prefs.remove('saved_email');
+    await prefs.remove('saved_password');
+
+    // 로그인 화면으로 이동하고 이전 경로 모두 제거
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +66,7 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withAlpha((0.1 * 255).round()),
                     spreadRadius: 0,
                     blurRadius: 10,
                     offset: const Offset(0, 1),
@@ -80,7 +102,7 @@ class SettingsScreen extends StatelessWidget {
                               TextButton(
                                 onPressed: () {
                                   // TODO: 로그아웃 로직 구현
-                                  Navigator.pop(context);
+                                  _logout(context);
                                 },
                                 child: const Text(
                                   '로그아웃',
@@ -130,7 +152,7 @@ class SettingsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withAlpha((0.1 * 255).round()),
                     spreadRadius: 0,
                     blurRadius: 10,
                     offset: const Offset(0, 1),
