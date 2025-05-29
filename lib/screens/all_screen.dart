@@ -24,7 +24,7 @@ class _AllScreenState extends State<AllScreen> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              Navigator.push(
+                Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const SettingsScreen(),
