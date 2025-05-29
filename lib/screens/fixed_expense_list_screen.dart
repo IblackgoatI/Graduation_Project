@@ -81,7 +81,7 @@ class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
     if (picked != null) {
       setState(() {
         _selectedDate = DateTime(picked.year, picked.month, 1);
-        loadTransactions();
+    loadTransactions();
       });
     }
   }

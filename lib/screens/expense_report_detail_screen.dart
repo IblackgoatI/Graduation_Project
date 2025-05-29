@@ -84,9 +84,13 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
   String _authorName = '';
   bool _isLoading = false;
   final TextEditingController _commentController = TextEditingController();
+  final TextEditingController _replyController = TextEditingController();
   bool _isSubmittingComment = false;
+  bool _isSubmittingReply = false;
   List<Map<String, dynamic>> _comments = [];
   int _commentLength = 0;
+  int _replyLength = 0;
+  String? _selectedCommentId; // 대댓글 작성 중인 댓글의 ID
 
   @override
   void initState() {
@@ -94,18 +98,27 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     _loadAuthorInfo();
     _loadComments();
     _commentController.addListener(_updateCommentLength);
+    _replyController.addListener(_updateReplyLength);
   }
   
   @override
   void dispose() {
     _commentController.removeListener(_updateCommentLength);
+    _replyController.removeListener(_updateReplyLength);
     _commentController.dispose();
+    _replyController.dispose();
     super.dispose();
   }
 
   void _updateCommentLength() {
     setState(() {
       _commentLength = _commentController.text.length;
+    });
+  }
+
+  void _updateReplyLength() {
+    setState(() {
+      _replyLength = _replyController.text.length;
     });
   }
 
@@ -184,7 +197,47 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         } else {
           comment['writerName'] = '익명';
         }
-        
+
+        // 대댓글 가져오기
+        final repliesSnapshot = await FirebaseFirestore.instance
+            .collection('community')
+            .doc(postId)
+            .collection('comments')
+            .doc(doc.id)
+            .collection('replies')
+            .orderBy('CreatedAt', descending: false)
+            .get();
+
+        List<Map<String, dynamic>> replies = [];
+        for (var replyDoc in repliesSnapshot.docs) {
+          Map<String, dynamic> reply = replyDoc.data();
+          reply['id'] = replyDoc.id;
+
+          // 대댓글 작성자 정보 가져오기
+          if (reply['writerUserid'] != null) {
+            final replyUserDoc = await FirebaseFirestore.instance
+                .collection('Users')
+                .doc(reply['writerUserid'])
+                .get();
+
+            if (replyUserDoc.exists) {
+              final userData = replyUserDoc.data();
+              if (userData != null && userData['Name'] != null) {
+                reply['writerName'] = userData['Name'];
+              } else {
+                reply['writerName'] = '익명';
+              }
+            } else {
+              reply['writerName'] = '익명';
+            }
+          } else {
+            reply['writerName'] = '익명';
+          }
+
+          replies.add(reply);
+        }
+
+        comment['replies'] = replies;
         commentsList.add(comment);
       }
       
@@ -581,6 +634,470 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
     );
   }
 
+  // 대댓글 작성 함수
+  Future<void> _submitReply(String commentId) async {
+    if (_replyController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('대댓글 내용을 입력해주세요'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_replyController.text.length > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('대댓글은 100자를 초과할 수 없습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmittingReply = true;
+    });
+
+    try {
+      final String postId = widget.postData['id'];
+      final currentUser = FirebaseAuth.instance.currentUser;
+
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('로그인이 필요합니다'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      // 대댓글 데이터 생성
+      final replyData = {
+        'Comment': _replyController.text.trim(),
+        'writerUserid': currentUser.uid,
+        'CreatedAt': Timestamp.now(),
+      };
+
+      // Firestore에 대댓글 저장
+      await FirebaseFirestore.instance
+          .collection('community')
+          .doc(postId)
+          .collection('comments')
+          .doc(commentId)
+          .collection('replies')
+          .add(replyData);
+
+      // 대댓글 입력창 초기화
+      _replyController.clear();
+      setState(() {
+        _selectedCommentId = null;
+      });
+
+      // 댓글 목록 새로고침
+      await _loadComments();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('대댓글이 작성되었습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      print('대댓글 작성 중 오류 발생: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('대댓글 작성 중 오류가 발생했습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingReply = false;
+        });
+      }
+    }
+  }
+
+  // 대댓글 삭제 함수
+  Future<void> _deleteReply(String commentId, String replyId) async {
+    try {
+      // 삭제 확인 다이얼로그 표시
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('대댓글 삭제'),
+            content: const Text('정말로 이 대댓글을 삭제하시겠습니까?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('취소'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  '삭제',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirm == true) {
+        // Firestore에서 대댓글 삭제
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .collection('comments')
+            .doc(commentId)
+            .collection('replies')
+            .doc(replyId)
+            .delete();
+
+        // 댓글 목록 새로고침
+        await _loadComments();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('대댓글이 삭제되었습니다.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 대댓글 수정 함수
+  Future<void> _editReply(String commentId, Map<String, dynamic> reply) async {
+    final TextEditingController editController = TextEditingController(text: reply['Comment']);
+    int editLength = reply['Comment'].length;
+
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (BuildContext context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                title: const Text('대댓글 수정'),
+                content: TextField(
+                  controller: editController,
+                  onChanged: (value) {
+                    setState(() {
+                      editLength = value.length;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: '대댓글을 입력하세요 (최대 100자)',
+                    border: const OutlineInputBorder(),
+                    counterText: '$editLength/100',
+                    counterStyle: TextStyle(
+                      color: editLength >= 100 ? Colors.red : Colors.grey,
+                    ),
+                  ),
+                  maxLength: 100,
+                  maxLines: 3,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      if (editLength > 100) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('대댓글은 100자를 초과할 수 없습니다'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).pop(editController.text);
+                    },
+                    child: const Text('수정'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (result != null && result.trim().isNotEmpty) {
+        // Firestore에서 대댓글 수정
+        await FirebaseFirestore.instance
+            .collection('community')
+            .doc(widget.postData['id'])
+            .collection('comments')
+            .doc(commentId)
+            .collection('replies')
+            .doc(reply['id'])
+            .update({
+          'Comment': result.trim(),
+          'updated_at': Timestamp.now(),
+        });
+
+        // 댓글 목록 새로고침
+        await _loadComments();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('대댓글이 수정되었습니다.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  // 대댓글 메뉴 표시 함수
+  void _showReplyMenu(String commentId, Map<String, dynamic> reply) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.uid != reply['writerUserid']) return;
+
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('수정'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editReply(commentId, reply);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('삭제', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteReply(commentId, reply['id']);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // 댓글 카드 위젯 수정
+  Widget _buildCommentCard(Map<String, dynamic> comment) {
+    final timestamp = comment['CreatedAt'] as Timestamp;
+    final dateTime = timestamp.toDate();
+    final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
+    final replies = comment['replies'] as List<Map<String, dynamic>>? ?? [];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 댓글 작성자 및 시간
+          Row(
+            children: [
+              Text(
+                comment['writerName'] ?? '익명',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                formattedDate,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+              ),
+              if (FirebaseAuth.instance.currentUser?.uid == comment['writerUserid'])
+                IconButton(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onPressed: () => _showCommentMenu(comment),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  visualDensity: VisualDensity.compact,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 댓글 내용
+          Text(
+            comment['Comment'] ?? '',
+            style: const TextStyle(
+              fontSize: 14,
+            ),
+          ),
+
+          // 답글 버튼을 오른쪽으로 정렬
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedCommentId = _selectedCommentId == comment['id'] ? null : comment['id'];
+                    _replyController.clear();
+                  });
+                },
+                icon: const Icon(Icons.reply, size: 16),
+                label: Text(_selectedCommentId == comment['id'] ? '취소' : '답글'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey[600],
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+
+          // 대댓글 작성 폼 - 세로 크기 줄이기
+          if (_selectedCommentId == comment['id'])
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _replyController,
+                      decoration: InputDecoration(
+                        hintText: '답글을 입력하세요',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        counterText: '$_replyLength/100',
+                        counterStyle: TextStyle(
+                          color: _replyLength >= 100 ? Colors.red : Colors.grey,
+                          fontSize: 10,
+                        ),
+                      ),
+                      maxLength: 100,
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _isSubmittingReply
+                        ? null
+                        : () => _submitReply(comment['id']),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 30),
+                    ),
+                    child: _isSubmittingReply
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('확인', style: TextStyle(fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
+
+          // 대댓글 목록
+          if (replies.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8, left: 16),
+              child: Column(
+                children: replies.map<Widget>((reply) {
+                  final replyTimestamp = reply['CreatedAt'] as Timestamp;
+                  final replyDateTime = replyTimestamp.toDate();
+                  final replyFormattedDate = DateFormat('yyyy.MM.dd HH:mm').format(replyDateTime);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              reply['writerName'] ?? '익명',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              replyFormattedDate,
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 10,
+                              ),
+                            ),
+                            if (FirebaseAuth.instance.currentUser?.uid == reply['writerUserid'])
+                              IconButton(
+                                icon: const Icon(Icons.more_vert, size: 16),
+                                onPressed: () => _showReplyMenu(comment['id'], reply),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          reply['Comment'] ?? '',
+                          style: const TextStyle(
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // report_data는 이제 {'categories': ..., 'total_expense': ..., 'month_text': ...} 구조를 가짐
@@ -748,64 +1265,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: _comments.length,
                             itemBuilder: (context, index) {
-                              final comment = _comments[index];
-                              // Timestamp를 DateTime으로 변환
-                              final timestamp = comment['CreatedAt'] as Timestamp;
-                              final dateTime = timestamp.toDate();
-                              final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
-                              
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey[300]!),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // 댓글 작성자 및 시간
-                                    Row(
-                                      children: [
-                                        Text(
-                                          comment['writerName'] ?? '익명',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Text(
-                                          formattedDate,
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        // 현재 사용자가 댓글 작성자인 경우에만 메뉴 버튼 표시
-                                        if (FirebaseAuth.instance.currentUser?.uid == comment['writerUserid'])
-                                          IconButton(
-                                            icon: const Icon(Icons.more_vert, size: 20),
-                                            onPressed: () => _showCommentMenu(comment),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            visualDensity: VisualDensity.compact,
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    
-                                    // 댓글 내용
-                                    Text(
-                                      comment['Comment'] ?? '',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
+                              return _buildCommentCard(_comments[index]);
                             },
                           ),
                   ],
