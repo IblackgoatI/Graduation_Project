@@ -48,6 +48,6 @@ app.*.map.json
 /assets/data
 
 # Ohter OS
-/linux
-/macos
-/windows
+linux/
+macos/
+windows/
