@@ -332,6 +332,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           ? AppBar(
         title: const Text('금융 대시보드'),
               backgroundColor: Colors.grey[50],
+              automaticallyImplyLeading: false, // 뒤로가기 버튼 자동 생성 방지
             )
           : null,
       body: AnimatedSwitcher(
