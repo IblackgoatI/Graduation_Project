@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'expense_report_screen.dart';  // 수정된 import 경로
 import 'expense_report_write_screen.dart';  // 소비 리포트 글쓰기 화면 import
 import 'expense_report_detail_screen.dart';  // 소비 리포트 상세 화면 import
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({Key? key}) : super(key: key);
+  const CommunityScreen({super.key});
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -18,19 +17,22 @@ class _CommunityScreenState extends State<CommunityScreen>
   late TabController _tabController;
   String userName = '부린이님'; // 기본값 설정
   int userAge = 0; // 사용자 나이 저장 변수
+  List<Map<String, dynamic>> _topSavers = []; // 월간 절약왕 TOP 3 데이터
+  bool _isLoadingTopSavers = false; // 절약왕 데이터 로딩 상태
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadUserInfo(); // 사용자 정보 로드
+    _loadTopSavers(); // 월간 절약왕 정보 로드
   }
 
   // Firebase에서 사용자 정보를 가져오는 함수
   Future<void> _loadUserInfo() async {
     try {
       final User? currentUser = FirebaseAuth.instance.currentUser;
-      print('현재 로그인한 사용자: ${currentUser?.uid}');
+      debugPrint('현재 로그인한 사용자: ${currentUser?.uid}');
 
       if (currentUser != null) {
         final userDoc = await FirebaseFirestore.instance
@@ -38,68 +40,138 @@ class _CommunityScreenState extends State<CommunityScreen>
             .doc(currentUser.uid)
             .get();
         
-        print('Firestore 문서 존재 여부: ${userDoc.exists}');
+        debugPrint('Firestore 문서 존재 여부: ${userDoc.exists}');
         
         if (userDoc.exists) {
           final userData = userDoc.data();
-          print('Firestore 전체 데이터: $userData');
+          debugPrint('Firestore 전체 데이터: $userData');
           
           // 데이터의 모든 키와 값, 타입을 출력
           if (userData != null) {
             userData.forEach((key, value) {
-              print('키: $key, 값: $value, 타입: ${value.runtimeType}');
+              debugPrint('키: $key, 값: $value, 타입: ${value.runtimeType}');
             });
             
             // 이름 처리
             if (userData.containsKey('Name')) {
               userName = userData['Name'] as String? ?? '부린이님';
-              print('이름 설정됨: $userName');
+              debugPrint('이름 설정됨: $userName');
             }
             
             // 나이 처리
             int age = 0;
             if (userData.containsKey('Age')) {
               var ageValue = userData['Age'];
-              print('원본 Age 값: $ageValue, 타입: ${ageValue.runtimeType}');
+              debugPrint('원본 Age 값: $ageValue, 타입: ${ageValue.runtimeType}');
               
               if (ageValue is int) {
                 age = ageValue;
-                print('Age는 int 타입입니다: $age');
+                debugPrint('Age는 int 타입입니다: $age');
               } else if (ageValue is double) {
                 age = ageValue.toInt();
-                print('Age는 double 타입입니다: $age');
+                debugPrint('Age는 double 타입입니다: $age');
               } else if (ageValue is String) {
                 age = int.tryParse(ageValue) ?? 0;
-                print('Age는 String 타입입니다: $age');
+                debugPrint('Age는 String 타입입니다: $age');
               } else {
-                print('Age는 다른 타입입니다. 문자열로 변환 시도: $ageValue');
+                debugPrint('Age는 다른 타입입니다. 문자열로 변환 시도: $ageValue');
                 try {
                   String ageStr = ageValue.toString();
                   age = int.tryParse(ageStr) ?? 0;
-                  print('변환 결과: $age');
+                  debugPrint('변환 결과: $age');
                 } catch (e) {
-                  print('Age 변환 중 오류: $e');
+                  debugPrint('Age 변환 중 오류: $e');
                 }
               }
             } else {
-              print('Age 필드가 존재하지 않습니다');
+              debugPrint('Age 필드가 존재하지 않습니다');
             }
             
             // 상태 업데이트
             setState(() {
               userAge = age;
-              print('최종 설정된 나이: $userAge');
+              debugPrint('최종 설정된 나이: $userAge');
             });
           }
         } else {
-          print('사용자 문서가 존재하지 않습니다.');
+          debugPrint('사용자 문서가 존재하지 않습니다.');
         }
       } else {
-        print('로그인된 사용자가 없습니다.');
+        debugPrint('로그인된 사용자가 없습니다.');
       }
     } catch (e) {
-      print('사용자 정보 로드 중 오류 발생: $e');
-      print('오류 스택 트레이스: ${StackTrace.current}');
+      debugPrint('사용자 정보 로드 중 오류 발생: $e');
+      debugPrint('오류 스택 트레이스: ${StackTrace.current}');
+    }
+  }
+
+  // 월간 절약왕 TOP 3 데이터를 로드하는 함수
+  Future<void> _loadTopSavers() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingTopSavers = true;
+    });
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _topSavers = [];
+            _isLoadingTopSavers = false;
+          });
+        }
+        return;
+      }
+
+      List<Map<String, dynamic>> allPostsData = [];
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        // report_data 필드와 그 안의 total_expense 필드 확인
+        if (data.containsKey('report_data') &&
+            data['report_data'] is Map &&
+            (data['report_data'] as Map).containsKey('total_expense')) {
+          
+          final reportData = data['report_data'] as Map<String, dynamic>;
+          final totalExpense = reportData['total_expense'];
+
+          if (totalExpense != null && totalExpense is num) {
+            // 상세 화면에 전달할 데이터 구성. 문서 ID 포함.
+            Map<String, dynamic> postEntry = {
+              'id': doc.id, // Firestore 문서 ID
+              'author_name': data['author_name'] ?? '익명', // 작성자 이름
+              'total_expense_for_ranking': totalExpense.toDouble(), // 랭킹 정렬용
+              ...data, // community 문서의 나머지 모든 필드
+            };
+            allPostsData.add(postEntry);
+          }
+        }
+      }
+
+      // total_expense_for_ranking 기준으로 오름차순 정렬
+      allPostsData.sort((a, b) {
+        final expenseA = a['total_expense_for_ranking'] as double;
+        final expenseB = b['total_expense_for_ranking'] as double;
+        return expenseA.compareTo(expenseB);
+      });
+
+      if (mounted) {
+        setState(() {
+          _topSavers = allPostsData.take(3).toList();
+          _isLoadingTopSavers = false;
+        });
+      }
+
+    } catch (e) {
+      debugPrint('월간 절약왕 정보 로드 중 오류: $e');
+      if (mounted) {
+        setState(() {
+          _topSavers = [];
+          _isLoadingTopSavers = false;
+        });
+      }
     }
   }
 
@@ -225,7 +297,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-  Widget _buildTopSaverSection() {
+   Widget _buildTopSaverSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -237,44 +309,95 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
         ),
         const SizedBox(height: 16),
-        _buildRankingItem(1, '대부린', '😊'),
-        _buildRankingItem(2, '부린이', '🙂'),
-        _buildRankingItem(3, '부린2', '😎'),
+        if (_isLoadingTopSavers)
+          const Center(child: CircularProgressIndicator())
+        else if (_topSavers.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Center(
+              child: Text(
+                '아직 절약왕 정보가 없어요.\n첫 번째 소비 리포트를 공유해보세요!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _topSavers.length,
+            itemBuilder: (context, index) {
+              final saverData = _topSavers[index];
+              String name = saverData['author_name'] as String? ?? '익명';
+              String emoji;
+              switch (index) {
+                case 0:
+                  emoji = '🥇'; // 1위
+                  break;
+                case 1:
+                  emoji = '🥈'; // 2위
+                  break;
+                case 2:
+                  emoji = '🥉'; // 3위
+                  break;
+                default:
+                  emoji = '😊'; 
+              }
+              // saverData에는 'id'를 포함한 게시글 전체 정보가 들어있음
+              return _buildRankingItem(
+                index + 1,
+                name,
+                emoji,
+                saverData, 
+              );
+            },
+          ),
       ],
     );
   }
 
-  Widget _buildRankingItem(int rank, String name, String emoji) {
+  Widget _buildRankingItem(int rank, String name, String emoji, Map<String, dynamic> postData) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         children: [
           SizedBox(
-            width: 16,
+            width: 24, 
             child: Text(
               '$rank',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(width: 8),
           Text(
             emoji,
-            style: const TextStyle(fontSize: 20),
+            style: const TextStyle(fontSize: 24),
           ),
           const SizedBox(width: 8),
-          Text(
-            name,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              fontSize: 14,
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const Spacer(),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExpenseReportDetailScreen(postData: postData),
+                ),
+              );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF8BC34A),
               foregroundColor: Colors.white,
@@ -473,7 +596,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       children: [
         // 총 금액
         Text(
-          '${formattedAmount}원',
+          '$formattedAmount원',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -529,7 +652,7 @@ class _CommunityScreenState extends State<CommunityScreen>
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -601,9 +724,9 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 }
 
-// ExpenseComparisonTab 클래스 포함
+// ExpenseComparisonTab 클래스 포함 (지출 비교 탭 코드 시작)
 class ExpenseComparisonTab extends StatefulWidget {
-  const ExpenseComparisonTab({Key? key}) : super(key: key);
+  const ExpenseComparisonTab({super.key});
 
   @override
   State<ExpenseComparisonTab> createState() => _ExpenseComparisonTabState();
@@ -746,7 +869,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
         }
       }
     } catch (e) {
-      print('사용자 이름 로드 중 오류 발생: $e');
+      debugPrint('사용자 이름 로드 중 오류 발생: $e');
     }
   }
   
@@ -777,7 +900,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
       final User? currentUser = FirebaseAuth.instance.currentUser;
 
       if (currentUser == null) {
-        print('사용자가 로그인되어 있지 않습니다.');
+        debugPrint('사용자가 로그인되어 있지 않습니다.');
         return;
       }
 
@@ -806,9 +929,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
         myExpense[category] = sum;
       });
 
-      print('카테고리 $category의 총 지출: $sum');
+      debugPrint('카테고리 $category의 총 지출: $sum');
     } catch (e) {
-      print('데이터 가져오기 오류: $e');
+      debugPrint('데이터 가져오기 오류: $e');
     }
   }
 
@@ -867,7 +990,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
 
       // userIds가 비어있으면 처리 중단
       if (userIds.isEmpty) {
-        print('조건에 맞는 사용자가 없습니다.');
+        debugPrint('조건에 맞는 사용자가 없습니다.');
         return;
       }
 
@@ -905,9 +1028,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
         averageExpense[selectedCategory] = average;
       });
 
-      print('카테고리 $selectedCategory의 $selectedAgeGroup, $selectedGender 평균 지출: $average');
+      debugPrint('카테고리 $selectedCategory의 $selectedAgeGroup, $selectedGender 평균 지출: $average');
     } catch (e) {
-      print('평균 지출 계산 오류: $e');
+      debugPrint('평균 지출 계산 오류: $e');
     }
   }
 
@@ -966,7 +1089,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
       
       // userIds가 비어있으면 처리 중단
       if (userIds.isEmpty) {
-        print('선택한 소득 구간($selectedIncome)에 해당하는 사용자가 없습니다.');
+        debugPrint('선택한 소득 구간($selectedIncome)에 해당하는 사용자가 없습니다.');
         return;
       }
       
@@ -1004,9 +1127,9 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
         averageExpense[selectedCategory] = average;
       });
       
-      print('카테고리 $selectedCategory의 소득 구간 $selectedIncome 평균 지출: $average');
+      debugPrint('카테고리 $selectedCategory의 소득 구간 $selectedIncome 평균 지출: $average');
     } catch (e) {
-      print('소득 구간별 평균 지출 계산 오류: $e');
+      debugPrint('소득 구간별 평균 지출 계산 오류: $e');
     }
   }
 
