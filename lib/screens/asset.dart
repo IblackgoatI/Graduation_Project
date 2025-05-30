@@ -118,7 +118,7 @@ class _AssetScreenState extends State<AssetScreen> {
   bool get _isInputValid =>
       _accountController.text.isNotEmpty && _selectedBank != null;
 
-  void _prevPage() {
+   void _prevPage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
           duration: const Duration(milliseconds: 300), curve: Curves.ease);
@@ -127,10 +127,15 @@ class _AssetScreenState extends State<AssetScreen> {
       });
     } else {
       // previousRouteName을 확인하여 분기
-      if (widget.previousRouteName == 'asset_detail_screen') {
+      if (widget.previousRouteName == 'main_screen_nologin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainScreenNotLogin(user: widget.user ?? FirebaseAuth.instance.currentUser)),
+        );
+      } else if (widget.previousRouteName == 'asset_detail_screen') {
         Navigator.pop(context); // 자산 상세 화면으로 돌아가기
       } else {
-        // 기본 동작: 로그인 화면으로 이동 (또는 previousRouteName이 'login_screen'일 때)
+        // 기본 동작: 로그인 화면으로 이동 (또는 previousRouteName이 null이거나 다른 값일 때)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),

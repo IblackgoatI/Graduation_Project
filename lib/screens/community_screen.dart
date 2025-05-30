@@ -407,7 +407,7 @@ class _CommunityScreenState extends State<CommunityScreen>
               padding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             ),
-            child: const Text('정보 보기'),
+            child: const Text('리포트 보기'),
           ),
         ],
       ),
