@@ -11,10 +11,10 @@ class TransactionDetailScreen extends StatefulWidget {
   final Function(String)? onTransactionDeleted; // 콜백 추가
 
   const TransactionDetailScreen({
-    Key? key,
+    super.key,
     required this.transaction,
     this.onTransactionDeleted
-  }) : super(key: key);
+  });
 
   @override
   TransactionDetailScreenState createState() => TransactionDetailScreenState();
@@ -60,10 +60,26 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
     _memoController.text = _memo;
 
     _currentPaymentMethodId = widget.transaction.paymentMethod;
-    _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+    // paymentMethodId가 '현금'인 경우 _currentPaymentMethodName을 '현금'으로 설정
+    if (_currentPaymentMethodId == "현금") {
+      _currentPaymentMethodName = "현금";
+    } else if (_currentPaymentMethodId != null && _currentPaymentMethodId!.isNotEmpty) {
+      _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+    } else {
+      // ID가 없거나 비어있는 경우 (편집 모드가 아닐 때)
+      _currentPaymentMethodName = '없음';
+    }
   }
 
   Future<void> _fetchAndSetPaymentMethodName(String? paymentMethodId) async {
+    if (paymentMethodId == "현금") {
+      if (mounted) {
+        setState(() {
+          _currentPaymentMethodName = "현금";
+        });
+      }
+      return;
+    }
     if (paymentMethodId == null || paymentMethodId.isEmpty) {
       if (mounted) {
         setState(() {
@@ -76,25 +92,27 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
     try {
       DocumentSnapshot doc =
           await _firestore.collection('assets').doc(paymentMethodId).get();
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data() as Map<String, dynamic>;
-        if (mounted) {
+      if (mounted) { // Firestore 호출 후 mounted 다시 확인
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data() as Map<String, dynamic>;
           setState(() {
-            _currentPaymentMethodName = data['bank'] ?? '선택하세요';
+            _currentPaymentMethodName = data['bank'] ?? (_isEditing ? '선택해주세요' : '알 수 없음');
           });
-        }
-      } else {
-        if (mounted) {
+          debugPrint('[TransactionDetailScreen/_fetchAndSetPaymentMethodName] Fetched bank name: $_currentPaymentMethodName for ID: $paymentMethodId');
+        } else {
           setState(() {
-            _currentPaymentMethodName = _isEditing ? '선택해주세요' : '선택하세요';
+            _currentPaymentMethodName = _isEditing ? '선택해주세요' : '알 수 없음';
           });
+          debugPrint('[TransactionDetailScreen/_fetchAndSetPaymentMethodName] Document does not exist or has no data for ID: $paymentMethodId');
         }
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted) { // 에러 발생 후 mounted 다시 확인
         setState(() {
           _currentPaymentMethodName = _isEditing ? '선택해주세요' : '오류 발생';
         });
+        // 에러 로깅
+        debugPrint('[TransactionDetailScreen/_fetchAndSetPaymentMethodName] Error fetching payment method name: $e');
       }
     }
   }
@@ -196,8 +214,12 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                               } else {
                                 setState(() {
                                   _isEditing = true;
-                                  // 편집 모드로 전환 시 결제수단 이름 업데이트
-                                  _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+                                  // 편집 모드로 전환 시, 현재 ID가 '현금'이면 이름을 '현금'으로, 아니면 fetch
+                                  if (_currentPaymentMethodId == "현금") {
+                                    _currentPaymentMethodName = "현금";
+                                  } else {
+                                    _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+                                  }
                                 });
                               }
                             },
@@ -616,12 +638,16 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
     if (!mounted) return;
 
-    List<Map<String, String>> paymentMethods = assetsSnapshot.docs.map((doc) {
+    List<Map<String, String>> paymentMethods = [
+      {'id': "현금", 'bank': "현금"} // "현금" 옵션 기본 추가
+    ];
+
+    paymentMethods.addAll(assetsSnapshot.docs.map((doc) {
       return {
         'id': doc.id,
         'bank': doc['bank'] as String? ?? '이름 없음',
       };
-    }).toList();
+    }).toList());
 
     showModalBottomSheet(
       context: context,
@@ -688,6 +714,14 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
             .updateTransaction(updatedTransaction);
       }
 
+      // Firestore에 저장할 데이터
+      String paymentMethodToStore;
+      if (_currentPaymentMethodId == "현금") {
+        paymentMethodToStore = "현금"; // Firestore에는 "현금" 문자열로 저장
+      } else {
+        paymentMethodToStore = _currentPaymentMethodId ?? '';
+      }
+
       // Firestore 업데이트
       await _firestore.collection('ledger').doc(widget.transaction.id).update({
         'type': _type,
@@ -696,7 +730,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         'date': _date,
         'memo': _memoController.text,
         'tags': _tags,
-        'paymentMethod': _currentPaymentMethodId ?? '', // 수정된 결제수단 ID 사용
+        'paymentMethod': paymentMethodToStore, // Firestore에 "현금" 또는 계좌 ID 저장
       });
 
       if (mounted) {
@@ -705,6 +739,12 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         );
         setState(() {
           _isEditing = false;
+          // 수정 완료 후, paymentMethodId를 '현금'으로, 아니면 fetch
+          if (_currentPaymentMethodId == "현금") {
+            _currentPaymentMethodName = "현금";
+          } else {
+            _fetchAndSetPaymentMethodName(_currentPaymentMethodId);
+          }
         });
       }
     } catch (e) {

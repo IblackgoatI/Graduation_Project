@@ -118,7 +118,7 @@ class _AssetScreenState extends State<AssetScreen> {
   bool get _isInputValid =>
       _accountController.text.isNotEmpty && _selectedBank != null;
 
-  void _prevPage() {
+   void _prevPage() {
     if (_currentPage > 0) {
       _pageController.previousPage(
           duration: const Duration(milliseconds: 300), curve: Curves.ease);
@@ -127,10 +127,15 @@ class _AssetScreenState extends State<AssetScreen> {
       });
     } else {
       // previousRouteName을 확인하여 분기
-      if (widget.previousRouteName == 'asset_detail_screen') {
+      if (widget.previousRouteName == 'main_screen_nologin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainScreenNotLogin(user: widget.user ?? FirebaseAuth.instance.currentUser)),
+        );
+      } else if (widget.previousRouteName == 'asset_detail_screen') {
         Navigator.pop(context); // 자산 상세 화면으로 돌아가기
       } else {
-        // 기본 동작: 로그인 화면으로 이동 (또는 previousRouteName이 'login_screen'일 때)
+        // 기본 동작: 로그인 화면으로 이동 (또는 previousRouteName이 null이거나 다른 값일 때)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -303,6 +308,7 @@ class _AssetScreenState extends State<AssetScreen> {
               bank: bankInput!,
               account: accountInput,
               depositName: depositName,
+              assetScreenPreviousRouteName: widget.previousRouteName, // AssetScreen의 previousRouteName 전달
             ),
           ),
         );
@@ -365,14 +371,19 @@ class _AssetScreenState extends State<AssetScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 15),
                   ),
                   onPressed: () {
-                    final User? user = widget.user ?? FirebaseAuth.instance.currentUser;
-
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MainScreenNotLogin(user: user),
-                    ),
-                    );
+                    if (Navigator.canPop(context)) {
+                      // 이전 화면으로 돌아갈 수 있으면 돌아갑니다.
+                      Navigator.pop(context);
+                    } else {
+                      // 이전 화면이 없으면 메인 화면으로 이동합니다.
+                      // 현재 로그인한 사용자 정보를 MainScreenNotLogin으로 전달합니다.
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MainScreenNotLogin(user: widget.user ?? FirebaseAuth.instance.currentUser),
+                        ),
+                      );
+                    }
                   },
                   child: const Text(
                     "나중에 하기",
@@ -460,12 +471,14 @@ class AssetVerificationResultScreen extends StatefulWidget {
   final String bank;
   final String account;
   final String depositName;
+  final String? assetScreenPreviousRouteName; // AssetScreen의 previousRouteName을 받기 위한 필드 추가
 
   const AssetVerificationResultScreen({
     super.key,
     required this.bank,
     required this.account,
     required this.depositName,
+    this.assetScreenPreviousRouteName, // 생성자에 파라미터 추가
   });
 
   @override
@@ -578,15 +591,20 @@ class _AssetVerificationResultScreenState
 
   @override
   Widget build(BuildContext context) {
+    // AssetScreen의 이전 화면이 main_screen_nologin인 경우 뒤로가기 화살표를 표시하지 않음
+    final bool hideAppBarBackButton = widget.assetScreenPreviousRouteName == 'main_screen_nologin';
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: hideAppBarBackButton
+            ? null // 뒤로가기 화살표 숨김
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.pop(context),
+              ),
       ),
       backgroundColor: Colors.white,
       body: SafeArea(

@@ -219,8 +219,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
     final transactions = transactionProvider.transactions;
     
-    print('Initializing month data...'); // 디버깅 로그
-    print('Total transactions available: ${transactions.length}'); // 디버깅 로그
+    debugPrint('Initializing month data...'); // 디버깅 로그
+    debugPrint('Total transactions available: ${transactions.length}'); // 디버깅 로그
     
     // 현재 연도의 지출 거래만 필터링
     final currentYear = DateTime.now().year;
@@ -228,7 +228,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       (t) => t.date.year == currentYear && t.type == '지출'
     ).toList();
     
-    print('Transactions for $currentYear: ${thisYearTransactions.length}'); // 디버깅 로그
+    debugPrint('Transactions for $currentYear: ${thisYearTransactions.length}'); // 디버깅 로그
     
     // 월별로 그룹화
     Map<int, List<FinancialTransaction>> monthlyTransactions = {};
@@ -240,14 +240,14 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     
     // 거래가 있는 월만 정렬하여 저장
     List<int> sortedMonths = monthlyTransactions.keys.toList()..sort();
-    print('Available months with transactions: $sortedMonths'); // 디버깅 로그
+    debugPrint('Available months with transactions: $sortedMonths'); // 디버깅 로그
     
     setState(() {
       availableMonths = sortedMonths;
       // 현재 월에 데이터가 없다면 가장 최근 데이터가 있는 월로 설정
       if (!sortedMonths.contains(currentMonth) && sortedMonths.isNotEmpty) {
         currentMonth = sortedMonths.last;
-        print('Setting current month to most recent: $currentMonth'); // 디버깅 로그
+        debugPrint('Setting current month to most recent: $currentMonth'); // 디버깅 로그
       }
     });
   }
@@ -255,20 +255,20 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   // 월 변경 메서드 추가
   void _changeMonth(bool next) {
     final currentIndex = availableMonths.indexOf(currentMonth);
-    print('Current month index: $currentIndex'); // 디버깅 로그
-    print('Available months: $availableMonths'); // 디버깅 로그
+    debugPrint('Current month index: $currentIndex'); // 디버깅 로그
+    debugPrint('Available months: $availableMonths'); // 디버깅 로그
     
     if (next && currentIndex < availableMonths.length - 1) {
       setState(() {
         currentMonth = availableMonths[currentIndex + 1];
         _showAllCategories = false;
-        print('Changed to next month: $currentMonth'); // 디버깅 로그
+        debugPrint('Changed to next month: $currentMonth'); // 디버깅 로그
       });
     } else if (!next && currentIndex > 0) {
       setState(() {
         currentMonth = availableMonths[currentIndex - 1];
         _showAllCategories = false;
-        print('Changed to previous month: $currentMonth'); // 디버깅 로그
+        debugPrint('Changed to previous month: $currentMonth'); // 디버깅 로그
       });
     }
   }
@@ -332,6 +332,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
           ? AppBar(
         title: const Text('금융 대시보드'),
               backgroundColor: Colors.grey[50],
+              automaticallyImplyLeading: false, // 뒤로가기 버튼 자동 생성 방지
             )
           : null,
       body: AnimatedSwitcher(
@@ -533,6 +534,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                         MaterialPageRoute(
                           builder: (context) => AssetScreen(
                             user: widget.user ?? FirebaseAuth.instance.currentUser,
+                            previousRouteName: 'main_screen_nologin', // 이전 경로 이름 전달
                           ),
                         ),
                       ).then((returnedUser) {
@@ -641,6 +643,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                           MaterialPageRoute(
                             builder: (context) => AssetScreen(
                               user: widget.user ?? FirebaseAuth.instance.currentUser,
+                              previousRouteName: 'main_screen_nologin', // 이전 경로 이름 전달
                             ),
                           ),
                         ).then((returnedUser) {
@@ -1155,7 +1158,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: color.withOpacity(0.2),
+                                color: color.withAlpha((0.2 * 255).round()),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Icon(icon, color: color, size: 20),
@@ -1192,7 +1195,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   if (sortedCategories.length > 4)
                     Center(
                       child: TextButton(
