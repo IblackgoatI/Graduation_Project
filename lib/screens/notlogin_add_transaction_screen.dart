@@ -289,6 +289,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         );
         return;
       }
+      debugPrint('[NotloginAddTransactionScreen] Saving transaction. Selected Payment Method ID: $_selectedPaymentMethodId, Name: $_selectedPaymentMethodName'); // 디버그 추가
 
       // 현재 로그인된 사용자 정보 (없으면 "anonymous" 사용)
       String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
@@ -314,11 +315,14 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         'date': Timestamp.fromDate(transaction.date),
         'merchant': transaction.merchant,
         'category': transaction.category,
-        'paymentMethod': transaction.paymentMethod,
+        'paymentMethod': _selectedPaymentMethodId == "현금" ? "현금" : _selectedPaymentMethodId,
         'memo': transaction.memo,
         'tags': transaction.tags,
         'createdAt': FieldValue.serverTimestamp(),
       };
+      debugPrint('[NotloginAddTransactionScreen] Transaction data for Firestore: $transactionData'); // 디버그 추가
+      debugPrint('[NotloginAddTransactionScreen] paymentMethod field for Firestore: ${transactionData['paymentMethod']}'); // 디버그 추가
+
 
       // Firestore의 ledger 컬렉션에 데이터 추가
       final docRef = await _firestore.collection('ledger').add(transactionData);
@@ -332,6 +336,19 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
       if (docSnap.exists) {
         final data = docSnap.data() as Map<String, dynamic>;
+        String paymentMethodValueFromFirestore = data['paymentMethod'] ?? '';
+        String finalPaymentMethodIdForObject;
+
+        // 현금 결제 옵션
+        if (paymentMethodValueFromFirestore == "현금") {
+          finalPaymentMethodIdForObject = "현금";
+        } else {
+          // 그렇지 않으면 Firestore에 저장된 ID (계좌 ID) 사용
+          finalPaymentMethodIdForObject = paymentMethodValueFromFirestore;
+        }
+        debugPrint('[NotloginAddTransactionScreen] Synced paymentMethodValueFromFirestore: $paymentMethodValueFromFirestore, finalPaymentMethodIdForObject: $finalPaymentMethodIdForObject'); // 디버그 추가
+
+
         final syncedTransaction = FinancialTransaction(
           id: docSnap.id,
           type: data['type'] ?? '',
@@ -343,8 +360,9 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
           memo: data['memo'] ?? '',
           tags: (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
           category: data['category'] ?? '미분류',
-          paymentMethod: data['paymentMethod'] ?? '',
+          paymentMethod: finalPaymentMethodIdForObject, 
         );
+        debugPrint('[NotloginAddTransactionScreen] Synced transaction object for provider: paymentMethod is ${syncedTransaction.paymentMethod}'); // 디버그 추가
         // Provider에 동기화된 트랜잭션 추가
         transactionProvider.addTransaction(syncedTransaction);
       }
@@ -357,6 +375,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
+      debugPrint('[NotloginAddTransactionScreen] Error saving transaction: $e'); // 디버그 추가
     }
   }
 
@@ -373,12 +392,17 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
     if (!mounted) return; // async gap 이후 mounted 확인
 
-    List<Map<String, String>> paymentMethods = assetsSnapshot.docs.map((doc) {
+    List<Map<String, String>> paymentMethods = [
+      {'id': "현금", 'bank': "현금"} // 기본으로 "현금" 옵션 표시
+    ];
+
+    // Firestore에서 가져온 계좌 목록 추가
+    paymentMethods.addAll(assetsSnapshot.docs.map((doc) {
       return {
         'id': doc.id,
         'bank': doc['bank'] as String? ?? '이름 없음',
       };
-    }).toList();
+    }).toList());
 
     showModalBottomSheet(
       context: currentContext, // 저장된 컨텍스트 사용
