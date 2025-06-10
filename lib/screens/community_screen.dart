@@ -1207,7 +1207,7 @@ class _ExpenseComparisonTabState extends State<ExpenseComparisonTab>
     } else {
       // 더 많이 소비하고 있는 경우
       difference = myAmount - avgAmount;
-      message = '소비하고 있어요';
+      message = '더 소비하고 있어요';
       messageColor = Colors.red.shade700;
     }
     

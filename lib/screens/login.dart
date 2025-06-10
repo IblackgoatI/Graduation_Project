@@ -329,61 +329,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ],
                       ),
                       const SizedBox(height: 32),
-
-                      // 구분선 또는 '또는' 텍스트
-                      Row(
-                        children: const [
-                          Expanded(
-                              child: Divider(thickness: 1, color: Colors.grey)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8.0),
-                            child: Text(
-                              '또는',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                          Expanded(
-                              child: Divider(thickness: 1, color: Colors.grey)),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      // 구글 로그인 버튼
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          icon: Image.asset(
-                            'assets/google_login.png', // 구글 로고
-                            width: 24,
-                            height: 24,
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white, // 구글 버튼 기본 흰색
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                              side: const BorderSide(color: Colors.grey),
-                            ),
-                          ),
-                          onPressed: () {
-                            // TODO: 구글 로그인 로직 구현
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('구글 로그인 기능 구현 필요')),
-                            );
-                          },
-                          label: const Text(
-                            'Google로 시작하기',
-                            style: TextStyle(
-                              color: Colors.black87,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // 추가 여백
-                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
