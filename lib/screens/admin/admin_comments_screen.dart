@@ -4,6 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AdminCommentsScreen extends StatelessWidget {
   const AdminCommentsScreen({super.key});
 
+  Future<String> _fetchWriterName(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('Users').doc(userId).get();
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        return userData?['Name'] ?? '알 수 없음';
+      } else {
+        return '알 수 없음';
+      }
+    } catch (e) {
+      debugPrint('Error fetching writer name: $e');
+      return '오류 발생';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -87,11 +102,20 @@ class AdminCommentsScreen extends StatelessWidget {
                               ),
                               ...comments.map((comment) {
                                 final commentData = comment.data() as Map<String, dynamic>;
+                                final writerUserId = commentData['writerUserid'] as String?;
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: ListTile(
                                     title: Text(commentData['Comment'] ?? '내용 없음'),
-                                    subtitle: Text('작성자: ${commentData['writerName'] ?? '알 수 없음'}'),
+                                    subtitle: FutureBuilder<String>(
+                                      future: writerUserId != null ? _fetchWriterName(writerUserId) : Future.value('알 수 없음'),
+                                      builder: (context, nameSnapshot) {
+                                        if (nameSnapshot.connectionState == ConnectionState.waiting) {
+                                          return const Text('작성자: 로딩 중...');
+                                        }
+                                        return Text('작성자: ${nameSnapshot.data ?? '알 수 없음'}');
+                                      },
+                                    ),
                                     trailing: IconButton(
                                       icon: const Icon(Icons.delete),
                                       onPressed: () {
