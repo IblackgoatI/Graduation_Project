@@ -10,6 +10,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:provider/provider.dart';
 import 'screens/transaction_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 임포트
+import 'router.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -34,14 +36,15 @@ Future<void> main() async {
     ),
   );
 
-  // FCM 백그라운드 핸들러 등록
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // FCM 권한 요청
-  await requestNotificationPermissions();
-
-  // 로컬 알림 초기화
-  await initializeLocalNotifications();
+  // 웹이 아닌 경우에만 FCM 초기화
+  if (!kIsWeb) {
+    // FCM 백그라운드 핸들러 등록
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    // FCM 권한 요청
+    await requestNotificationPermissions();
+    // 로컬 알림 초기화
+    await initializeLocalNotifications();
+  }
 
   runApp(
     MultiProvider(
@@ -137,21 +140,35 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      // 로컬라이제이션 설정 추가
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('ko', 'KR'), // 한국어
-      ],
-      // 기본 로케일 설정
-      locale: const Locale('ko', 'KR'),
-      home: const SplashScreen(),
-    );
+    if (kIsWeb) {
+      return MaterialApp.router(
+        debugShowCheckedModeBanner: false,
+        routerConfig: router,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('ko', 'KR'),
+        ],
+        locale: const Locale('ko', 'KR'),
+      );
+    } else {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('ko', 'KR'),
+        ],
+        locale: const Locale('ko', 'KR'),
+        home: const SplashScreen(),
+      );
+    }
   }
 }
 
