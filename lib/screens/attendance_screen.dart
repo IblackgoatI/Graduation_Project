@@ -341,65 +341,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    _buildActionButton(
-                      context,
-                      '일일 경제 퀴즈 도전하기',
-                      Icons.school,
-                      const Color(0xFFEFE8F9), // Light purple
-                      const Color(0xFF673AB7), // Darker purple
-                      () {
-                        // TODO: 일일 경제 퀴즈 화면으로 이동
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildActionButton(
-                      context,
-                      '포인트 관리하기',
-                      Icons.receipt_long,
-                      const Color(0xFFEFE8F9), // Light purple
-                      const Color(0xFF673AB7), // Darker purple
-                      () {
-                        // TODO: 포인트 관리 화면으로 이동
-                      },
-                    ),
                   ],
                 ),
               ),
             ),
-    );
-  }
-
-  // Helper method for the action buttons at the bottom
-  Widget _buildActionButton(BuildContext context, String text, IconData icon, Color bgColor, Color textColor, VoidCallback onPressed) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!), // Add border for subtle effect
-      ),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                text,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: textColor,
-                ),
-              ),
-              Icon(icon, color: textColor),
-            ],
-          ),
-        ),
-      ),
     );
   }
 } 
