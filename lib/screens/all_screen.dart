@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
 import 'settings_screen.dart'; // SettingsScreen import 추가
 import 'attendance_screen.dart'; // AttendanceScreen import 추가
+import 'daily_quiz_screen.dart'; // DailyQuizScreen import 추가
 
 class AllScreen extends StatefulWidget {
   const AllScreen({super.key});
@@ -93,6 +94,12 @@ class _AllScreenState extends State<AllScreen> {
               MaterialPageRoute(builder: (context) => const AttendanceScreen()),
             );
           }),
+          _buildMenuItem('일일 경제 퀴즈 도전하기', Icons.school, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DailyQuizScreen()),
+            );
+          }),
           _buildMenuItem('저축과 이자', Icons.savings, () {
             // TODO: 저축과 이자 화면으로 이동
           }),
@@ -155,13 +162,13 @@ class _AllScreenState extends State<AllScreen> {
   }
   
   // 최근 방문 탭 아이템 위젯
-  Widget _buildRecentTabItem(String title, dynamic iconData, VoidCallback onTap) {
+  Widget _buildRecentTabItem(String? name, IconData? icon, VoidCallback onTap) {
     return ListTile(
-      leading: iconData is IconData 
-        ? Icon(iconData, color: Colors.blue) // IconData인 경우 Icon 위젯으로 표시
+      leading: icon is IconData 
+        ? Icon(icon, color: Colors.blue) // IconData인 경우 Icon 위젯으로 표시
         : Icon(Icons.history, color: Colors.blue), // 아닌 경우 기본 아이콘으로 표시
       title: Text(
-        title,
+        name ?? '알 수 없음',
         style: const TextStyle(
           fontSize: 16,
           color: Colors.black87,

@@ -7,6 +7,8 @@ import 'screens/admin/admin_posts_screen.dart';
 import 'screens/admin/admin_comments_screen.dart';
 import 'screens/admin/admin_login_screen.dart';
 import 'screens/attendance_screen.dart';
+import 'screens/daily_quiz_screen.dart';
+import 'screens/admin/admin_quiz_management_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/admin/login',
@@ -30,6 +32,14 @@ final router = GoRouter(
     GoRoute(
       path: '/attendance',
       builder: (context, state) => const AttendanceScreen(),
+    ),
+    GoRoute(
+      path: '/daily_quiz',
+      builder: (context, state) => const DailyQuizScreen(),
+    ),
+    GoRoute(
+      path: '/admin/quiz_management',
+      builder: (context, state) => const AdminQuizManagementScreen(),
     ),
   ],
 ); 
