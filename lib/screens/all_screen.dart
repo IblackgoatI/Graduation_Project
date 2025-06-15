@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
 import 'settings_screen.dart'; // SettingsScreen import 추가
+import 'attendance_screen.dart'; // AttendanceScreen import 추가
 
 class AllScreen extends StatefulWidget {
   const AllScreen({super.key});
@@ -84,6 +85,15 @@ class _AllScreenState extends State<AllScreen> {
           }),
           
           _buildSectionTitle('부린이 기능'),
+          _buildMenuItem('출석 체크', Icons.calendar_today, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AttendanceScreen()),
+            );
+          }),
+          _buildMenuItem('저축과 이자', Icons.savings, () {
+            // TODO: 저축과 이자 화면으로 이동
+          }),
           _buildMenuItem('자산 인증', Icons.verified_user, () {
             // TODO: 자산 인증 화면으로 이동
           }),
