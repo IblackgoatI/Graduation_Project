@@ -5,6 +5,7 @@ import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
 import 'settings_screen.dart'; // SettingsScreen import 추가
 import 'attendance_screen.dart'; // AttendanceScreen import 추가
 import 'daily_quiz_screen.dart'; // DailyQuizScreen import 추가
+import 'point_management_screen.dart'; // PointManagementScreen import 추가
 
 class AllScreen extends StatefulWidget {
   const AllScreen({super.key});
@@ -98,6 +99,12 @@ class _AllScreenState extends State<AllScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const DailyQuizScreen()),
+            );
+          }),
+          _buildMenuItem('포인트 관리하기', Icons.receipt_long, () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const PointManagementScreen()),
             );
           }),
           _buildMenuItem('저축과 이자', Icons.savings, () {
