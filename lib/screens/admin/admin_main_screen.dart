@@ -49,6 +49,13 @@ class AdminMainScreen extends StatelessWidget {
                   Icons.comment,
                   () => context.go('/admin/comments'),
                 ),
+                const SizedBox(width: 16),
+                _buildMenuCard(
+                  context,
+                  '퀴즈 관리',
+                  Icons.quiz,
+                  () => context.go('/admin/quiz_management'),
+                ),
               ],
             ),
           ],
@@ -65,24 +72,29 @@ class AdminMainScreen extends StatelessWidget {
   ) {
     return Expanded(
       child: Card(
-        elevation: 4,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 2,
         child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   icon,
-                  size: 48,
-                  color: Theme.of(context).primaryColor,
+                  size: 40,
+                  color: Colors.blueAccent,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
