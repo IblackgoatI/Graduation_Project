@@ -126,7 +126,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       else if (_currentStreak >= 7) points = 30;
       else if (_currentStreak >= 3) points = 20;
 
-      // Firestore에 데이터 업데이트
+      // Firestore에 데이터 업데이트 (attendance 컬렉션)
       await FirebaseFirestore.instance
           .collection('attendance')
           .doc(user.uid)
@@ -139,6 +139,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           {'date': Timestamp.now(), 'points': points}
         ]),
       }, SetOptions(merge: true));
+
+      // user_points 컬렉션 업데이트
+      final pointsDocRef = FirebaseFirestore.instance.collection('user_points').doc(user.uid);
+      final pointsDoc = await pointsDocRef.get();
+      
+      if (pointsDoc.exists) {
+        final pointsData = pointsDoc.data();
+        final currentPoints = (pointsData?['currentPoints'] as num?)?.toInt() ?? 0;
+        final totalAccumulatedPoints = (pointsData?['totalAccumulatedPoints'] as num?)?.toInt() ?? 0;
+
+        await pointsDocRef.update({
+          'currentPoints': currentPoints + points,
+          'totalAccumulatedPoints': totalAccumulatedPoints + points,
+          'lastUpdated': Timestamp.now(),
+        });
+      } else {
+        // 문서가 없는 경우 새로 생성
+        await pointsDocRef.set({
+          'currentPoints': points,
+          'totalAccumulatedPoints': points,
+          'lastUpdated': Timestamp.now(),
+        });
+      }
 
       // 상태 업데이트
       setState(() {

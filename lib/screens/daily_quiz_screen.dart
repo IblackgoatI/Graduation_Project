@@ -160,17 +160,28 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (isCorrect) {
       pointsEarned = _currentQuiz!.points;
 
-      // 사용자 총 포인트 업데이트
-      final userDocRef = FirebaseFirestore.instance.collection('Users').doc(user.uid);
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final userSnapshot = await transaction.get(userDocRef);
-        if (userSnapshot.exists) {
-          final currentPoints = (userSnapshot.data()?['points'] as num?)?.toInt() ?? 0;
-          transaction.update(userDocRef, {'points': currentPoints + pointsEarned});
-        } else {
-          transaction.set(userDocRef, {'points': pointsEarned}, SetOptions(merge: true));
-        }
-      });
+      // user_points 컬렉션 업데이트
+      final pointsDocRef = FirebaseFirestore.instance.collection('user_points').doc(user.uid);
+      final pointsDoc = await pointsDocRef.get();
+      
+      if (pointsDoc.exists) {
+        final pointsData = pointsDoc.data();
+        final currentPoints = (pointsData?['currentPoints'] as num?)?.toInt() ?? 0;
+        final totalAccumulatedPoints = (pointsData?['totalAccumulatedPoints'] as num?)?.toInt() ?? 0;
+
+        await pointsDocRef.update({
+          'currentPoints': currentPoints + pointsEarned,
+          'totalAccumulatedPoints': totalAccumulatedPoints + pointsEarned,
+          'lastUpdated': Timestamp.now(),
+        });
+      } else {
+        // 문서가 없는 경우 새로 생성
+        await pointsDocRef.set({
+          'currentPoints': pointsEarned,
+          'totalAccumulatedPoints': pointsEarned,
+          'lastUpdated': Timestamp.now(),
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
