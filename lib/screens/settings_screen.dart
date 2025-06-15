@@ -1,3 +1,5 @@
+/// 설정 화면
+/// 사용자 계정 관리 (로그아웃), 알림 설정 등 앱의 전반적인 설정을 관리합니다.
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 패키지 import
 import 'package:shared_preferences/shared_preferences.dart'; // SharedPreferences 패키지 import

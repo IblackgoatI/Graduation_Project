@@ -1,3 +1,5 @@
+/// 로그인하지 않은 사용자를 위한 거래 추가 화면 (가계부)
+/// 사용자가 수입/지출 내역을 입력하고 관리할 수 있도록 합니다.
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';

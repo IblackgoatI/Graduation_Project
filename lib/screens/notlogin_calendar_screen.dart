@@ -1,3 +1,5 @@
+/// 로그인하지 않은 사용자를 위한 캘린더 화면
+/// 날짜별 수입/지출 내역을 캘린더 형태로 시각화하여 보여줍니다.
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';

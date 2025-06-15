@@ -1,4 +1,8 @@
+/// 거래 내역 상태 관리 Provider
+/// 앱 전체에서 수입/지출 거래 내역 데이터를 공유하고 관리합니다.
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'transaction.dart';
 
 class TransactionProvider with ChangeNotifier {

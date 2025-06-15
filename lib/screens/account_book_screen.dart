@@ -1,3 +1,5 @@
+/// 가계부 화면
+/// 사용자의 수입과 지출 내역을 기록하고 관리하는 가계부 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'notlogin_add_transaction_screen.dart';

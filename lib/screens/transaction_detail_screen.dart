@@ -1,3 +1,5 @@
+/// 거래 상세 화면
+/// 특정 거래 내역의 상세 정보를 표시하고, 수정 또는 삭제 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'transaction.dart';

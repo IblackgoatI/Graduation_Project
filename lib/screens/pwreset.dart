@@ -1,3 +1,5 @@
+/// 비밀번호 재설정 화면
+/// 사용자가 비밀번호를 재설정할 수 있도록 이메일 기반의 비밀번호 재설정 기능을 제공합니다.
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore 사용
 import 'package:firebase_auth/firebase_auth.dart';

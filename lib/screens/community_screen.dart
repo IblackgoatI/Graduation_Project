@@ -1,3 +1,5 @@
+/// 커뮤니티 화면
+/// 사용자 간의 게시물 및 댓글 소통을 위한 커뮤니티 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

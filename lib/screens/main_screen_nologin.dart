@@ -1,3 +1,5 @@
+/// 로그인하지 않은 사용자를 위한 메인 화면 (또는 초기 로그인 시 진입 화면)
+/// 다양한 금융 관련 탭 (대시보드, 가계부, 커뮤니티, 전체 기능)을 제공하며, 최근 방문 탭을 관리합니다.
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';

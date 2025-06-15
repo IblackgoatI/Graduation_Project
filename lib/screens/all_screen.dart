@@ -1,3 +1,5 @@
+/// 모든 기능 화면
+/// 앱의 모든 주요 기능 및 설정 화면으로 이동할 수 있는 메뉴를 제공합니다.
 import 'package:flutter/material.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
 import 'settings_screen.dart'; // SettingsScreen import 추가

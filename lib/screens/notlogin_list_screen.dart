@@ -1,3 +1,5 @@
+/// 로그인하지 않은 사용자를 위한 거래 내역 목록 화면
+/// 사용자의 수입/지출 거래 내역을 목록 형태로 보여줍니다.
 import 'package:flutter/material.dart';
 import 'package:fluttertest/screens/transaction_detail_screen.dart';
 import 'package:provider/provider.dart';

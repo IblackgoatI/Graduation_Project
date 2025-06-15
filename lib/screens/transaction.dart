@@ -1,3 +1,5 @@
+/// 거래 내역 데이터 모델
+/// 수입 및 지출 거래의 데이터 구조를 정의합니다.
 class FinancialTransaction  {
   final String id;
   final String type; // '수입' 또는 '지출'

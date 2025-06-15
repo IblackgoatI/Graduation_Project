@@ -1,3 +1,5 @@
+/// 회원가입 화면
+/// 사용자가 새로운 계정을 생성하고 필수 정보를 입력하는 과정을 안내합니다.
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

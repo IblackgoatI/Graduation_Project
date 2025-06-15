@@ -1,3 +1,5 @@
+/// 출석 체크 화면
+/// 사용자별 출석 기록을 관리하고, 연속 출석에 따른 포인트 지급 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

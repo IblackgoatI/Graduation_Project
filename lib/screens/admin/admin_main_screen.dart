@@ -1,3 +1,5 @@
+/// 관리자 메인 화면
+/// 게시물 및 댓글 관리 등 관리자 기능으로 이동하는 대시보드를 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

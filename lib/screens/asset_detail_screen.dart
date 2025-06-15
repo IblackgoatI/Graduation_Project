@@ -1,3 +1,5 @@
+/// 자산 상세 화면
+/// 사용자의 개별 자산에 대한 상세 정보를 표시하고, 관련 통계 및 관리 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

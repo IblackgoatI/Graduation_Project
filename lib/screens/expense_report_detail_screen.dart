@@ -1,3 +1,5 @@
+/// 지출 보고서 상세 화면
+/// 특정 게시물의 상세 내용을 보여주고, 댓글 및 답글을 관리하며 삭제 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';

@@ -1,3 +1,5 @@
+/// 고정 지출 목록 화면
+/// 사용자의 고정 지출 내역을 조회하고 관리합니다.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';

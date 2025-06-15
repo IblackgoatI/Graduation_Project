@@ -1,3 +1,5 @@
+/// 지출 보고서 작성 화면
+/// 사용자가 새로운 지출 보고서 게시물을 작성할 수 있도록 합니다.
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
