@@ -1,5 +1,6 @@
 /// 관리자 퀴즈 관리 화면
 /// 관리자가 일일 경제 퀴즈를 추가, 수정, 삭제할 수 있는 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart'; // For TextInputFormatter
@@ -47,6 +48,8 @@ class _AdminQuizManagementScreenState extends State<AdminQuizManagementScreen> {
       _isLoading = true;
     });
 
+    bool quizAddedSuccessfully = false; // 퀴즈 추가 성공 여부 플래그
+
     try {
       await FirebaseFirestore.instance.collection('daily_quizzes').add({
         'category': _categoryController.text.trim(),
@@ -57,24 +60,36 @@ class _AdminQuizManagementScreenState extends State<AdminQuizManagementScreen> {
         'createdAt': Timestamp.now(),
       });
 
+      quizAddedSuccessfully = true; // 성공 플래그 설정
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('퀴즈가 성공적으로 추가되었습니다!'), backgroundColor: Colors.green),
         );
-        _resetForm();
       }
     } catch (e) {
       debugPrint('Error adding quiz: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('퀴즈 추가 중 오류가 발생했습니다.'), backgroundColor: Colors.red),
+          SnackBar(content: Text('퀴즈 추가 중 오류가 발생했습니다. 오류: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     } finally {
       if (mounted) {
+        // 로딩 상태를 먼저 해제하여 Form 위젯이 다시 화면에 나타나도록 합니다.
         setState(() {
           _isLoading = false;
         });
+
+        // 퀴즈 추가가 성공했고, 위젯이 여전히 마운트된 상태라면 폼을 리셋합니다.
+        // setState로 _isLoading이 false로 변경된 후, 다음 프레임에 Form 위젯이 그려집니다.
+        // addPostFrameCallback을 사용하여 Form 위젯이 그려진 후 _resetForm을 호출합니다.
+        if (quizAddedSuccessfully) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) { // 콜백 내에서도 mounted 확인
+              _resetForm();
+            }
+          });
+        }
       }
     }
   }
@@ -370,8 +385,7 @@ class _AdminQuizManagementScreenState extends State<AdminQuizManagementScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: List.generate(options.length, (optIndex) {
                                         return Text(
-                                          '${optIndex + 1}. ${options[optIndex]}'
-                                          + (optIndex == correctAnswerIndex ? ' (정답)' : ''),
+                                          '${optIndex + 1}. ${options[optIndex]}${optIndex == correctAnswerIndex ? ' (정답)' : ''}',
                                           style: TextStyle(
                                             color: optIndex == correctAnswerIndex ? Colors.green : Colors.black87,
                                             fontWeight: optIndex == correctAnswerIndex ? FontWeight.bold : FontWeight.normal,
