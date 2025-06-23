@@ -315,13 +315,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                         Column(
                                           children: [
                                             const Icon(Icons.check, color: Colors.white, size: 16),
-                                            Text(
-                                              '${pointsEarned}P',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 10,
-                                              ),
-                                            ),
                                           ],
                                         )
                                       else
