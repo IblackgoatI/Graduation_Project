@@ -99,7 +99,7 @@ class AdminCommentsScreen extends StatelessWidget {
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
                                 child: Text(
-                                  '게시물: ${postData['title'] ?? '제목 없음'}',
+                                  '게시물: ${postData['Heading'] ?? '제목 없음'}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
