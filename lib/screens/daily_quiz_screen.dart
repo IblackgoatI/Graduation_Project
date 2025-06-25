@@ -1,6 +1,7 @@
 /// 일일 경제 퀴즈 화면
 /// 매일 새로운 경제 퀴즈를 제공하고, 정답 시 포인트를 지급합니다.
 /// 이미 푼 퀴즈는 비활성화됩니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -186,7 +187,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('정답입니다! ${pointsEarned}포인트를 획득했습니다!'),
+            content: Text('정답입니다! $pointsEarned포인트를 획득했습니다!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -368,7 +369,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                                       ),
                                     ),
                                   );
-                                }).toList(),
+                                }),
                               ],
                             ),
                           ),
@@ -387,7 +388,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
                           child: Text(
-                            _isQuizSolvedToday ? '오늘 푼 퀴즈에요' : '정답을 골랐어요.',
+                            _isQuizSolvedToday ? '오늘 푼 퀴즈에요' : '정답 확인하기',
                             style: const TextStyle(
                               fontSize: 18,
                               color: Colors.white,
