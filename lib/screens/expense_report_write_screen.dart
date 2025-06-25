@@ -184,6 +184,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
           SnackBar(
             content: Text('${result['month_text']} 소비 리포트가 첨부되었습니다.'),
             behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 1500),
           ),
         );
       } else {
