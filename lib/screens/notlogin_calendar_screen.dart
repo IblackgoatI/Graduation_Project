@@ -1,4 +1,4 @@
-/// 로그인하지 않은 사용자를 위한 캘린더 화면
+///  캘린더 화면
 /// 날짜별 수입/지출 내역을 캘린더 형태로 시각화하여 보여줍니다.
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -233,6 +233,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with Sin
               focusedDay: _focusedDay,
               calendarFormat: _calendarFormat,
               locale: 'ko_KR',
+              daysOfWeekHeight: 32, // 요일과 날짜 사이 간격 넓힘
               selectedDayPredicate: (day) {
                 return isSameDay(_selectedDay, day);
               },
@@ -255,7 +256,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with Sin
                   _focusedDay = focusedDay;
                 });
               },
-              rowHeight: 55, // 달력 셀의 높이 설정
+              rowHeight: 75, // 달력 셀의 높이 설정
               calendarStyle: const CalendarStyle(
                 todayDecoration: BoxDecoration(
                   color: Colors.blue,
