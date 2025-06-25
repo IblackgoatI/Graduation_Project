@@ -210,6 +210,30 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                       children: [
                         Expanded(
                           child: ElevatedButton(
+                            onPressed: _isEditing
+                                ? () {
+                                    setState(() {
+                                      _isEditing = false;
+                                      _initializeValues(); // 원래 값으로 복원 및 이름 다시 로드
+                                    });
+                                  }
+                                : () {
+                                    _showDeleteConfirmation();
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isEditing ? Colors.grey[200] : Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                            ),
+                            child: Text(_isEditing ? '취소' : '삭제'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
                             onPressed: () {
                               if (_isEditing) {
                                 _updateTransaction();
@@ -234,30 +258,6 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                               ),
                             ),
                             child: Text(_isEditing ? '저장' : '수정'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _isEditing
-                                ? () {
-                                    setState(() {
-                                      _isEditing = false;
-                                      _initializeValues(); // 원래 값으로 복원 및 이름 다시 로드
-                                    });
-                                  }
-                                : () {
-                                    _showDeleteConfirmation();
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isEditing ? Colors.grey[200] : Colors.red,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                            ),
-                            child: Text(_isEditing ? '취소' : '삭제'),
                           ),
                         ),
                       ],
