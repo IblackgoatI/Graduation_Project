@@ -1,5 +1,6 @@
 ///  캘린더 화면
 /// 날짜별 수입/지출 내역을 캘린더 형태로 시각화하여 보여줍니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -256,7 +257,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with Sin
                   _focusedDay = focusedDay;
                 });
               },
-              rowHeight: 75, // 달력 셀의 높이 설정
+              rowHeight: 70, // 달력 셀의 높이 설정
               calendarStyle: const CalendarStyle(
                 todayDecoration: BoxDecoration(
                   color: Colors.blue,

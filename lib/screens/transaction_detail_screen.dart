@@ -1,5 +1,6 @@
 /// 거래 상세 화면
 /// 특정 거래 내역의 상세 정보를 표시하고, 수정 또는 삭제 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'transaction.dart';
@@ -222,7 +223,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                                   },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _isEditing ? Colors.grey[200] : Colors.red,
-                              foregroundColor: Colors.white,
+                              foregroundColor: _isEditing ? Colors.black : Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
@@ -251,7 +252,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: _isEditing ? const Color(0xFF73AD13) : Colors.grey[200],
-                              foregroundColor: Colors.black,
+                              foregroundColor: _isEditing ? Colors.white : Colors.black,
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.0),
