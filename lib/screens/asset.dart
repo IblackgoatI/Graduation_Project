@@ -1,5 +1,6 @@
 /// 자산 설정 화면
 /// 사용자의 초기 자산 정보를 설정하고 관리합니다.
+library;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
@@ -254,6 +255,7 @@ class _AssetScreenState extends State<AssetScreen> {
         'account': accountInput,
         'balance': 299999,
         'bank': bankInput,
+        'certify': false,
         'owner': user.displayName, // 현재 로그인한 사용자의 이름 (displayName) 저장
         'pnum': formatPhone(user.phoneNumber), // 전화번호를 010-1234-5678 형식으로 저장
         'userId': user.uid, // 현재 로그인한 사용자의 userId 추가
@@ -794,27 +796,52 @@ class _AssetVerificationResultScreenState
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              onPressed: () {
+              onPressed: () async {  // async 키워드 추가
                 // 사용자가 입력한 값 4개 텍스트를 모두 합치기.
                 String userInput = _hangulController.text +
                     _numController1.text +
                     _numController2.text +
                     _numController3.text;
                 if (userInput == widget.depositName) {
+                  // 현재 로그인한 사용자 정보 가져오기
+                  final User? currentUser = FirebaseAuth.instance.currentUser;
+                  
+                  // assets 컬렉션에서 해당 계좌 정보를 가진 문서를 찾아 certify 필드 업데이트
+                  try {
+                    // 현재 사용자 ID와 계좌번호, 은행명으로 문서 쿼리
+                    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+                      .collection('assets')
+                      .where('userId', isEqualTo: currentUser?.uid)
+                      .where('account', isEqualTo: widget.account)
+                      .where('bank', isEqualTo: widget.bank)
+                      .get();
+
+                    // 일치하는 문서가 있으면 certify 필드를 true로 업데이트
+                    for (var doc in querySnapshot.docs) {
+                      await FirebaseFirestore.instance
+                        .collection('assets')
+                        .doc(doc.id)
+                        .update({'certify': true});
+                      
+                      debugPrint('자산 인증 성공: 문서 ID ${doc.id}의 certify 필드를 true로 업데이트했습니다.');
+                    }
+                  } catch (e) {
+                    debugPrint('자산 인증 정보 업데이트 중 오류 발생: $e');
+                    // 오류가 발생해도 계속 진행 (사용자 경험을 위해)
+                  }
+                  
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text("입금자명이 확인되었습니다."),
                       backgroundColor: Colors.green,
                     ),
                   );
-                  // 현재 로그인한 사용자 정보 가져오기
-                  final User? currentUser = FirebaseAuth.instance.currentUser;
 
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (context) => MainScreenNotLogin(user: currentUser), // 사용자 정보 전달
                     ),
-                        (route) => false, // 모든 이전 화면 제거
+                    (route) => false, // 모든 이전 화면 제거
                   );
                 } else {
                   _triggerErrorAnimation();
