@@ -1,5 +1,6 @@
 /// 로그인하지 않은 사용자를 위한 거래 추가 화면 (가계부)
 /// 사용자가 수입/지출 내역을 입력하고 관리할 수 있도록 합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -279,7 +280,10 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     try {
       // 금액 변환 (쉼표나 '원' 단위 제거)
       final amount = double.tryParse(_amountController.text.replaceAll(",", "").replaceAll("원", "")) ?? 0;
-      if (amount <= 0) {
+      // 금액을 정수로 변환 (소수점 제거)
+      final amountInt = amount.toInt();
+
+      if (amountInt <= 0) {
         scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
         );
@@ -296,7 +300,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       // 현재 로그인된 사용자 정보 (없으면 "anonymous" 사용)
       String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
-      // Transaction 객체 생성
+      // Transaction 객체 생성 (여기서는 아직 double로 유지 - 데이터 일관성)
       final transaction = FinancialTransaction(
         id: DateTime.now().toString(),
         type: _selectedType,
@@ -325,9 +329,53 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       debugPrint('[NotloginAddTransactionScreen] Transaction data for Firestore: $transactionData'); // 디버그 추가
       debugPrint('[NotloginAddTransactionScreen] paymentMethod field for Firestore: ${transactionData['paymentMethod']}'); // 디버그 추가
 
-
       // Firestore의 ledger 컬렉션에 데이터 추가
       final docRef = await _firestore.collection('ledger').add(transactionData);
+
+      // 결제 수단으로 assets 컬렉션에서 문서 찾기
+      if (_selectedPaymentMethodId != null && _selectedPaymentMethodId != "현금") {
+        // 1. 선택한 결제수단과 일치하는 assets 문서 찾기
+        DocumentSnapshot assetDoc = await _firestore.collection('assets').doc(_selectedPaymentMethodId).get();
+        
+        if (assetDoc.exists) {
+          // 문서가 존재하면 balance 업데이트
+          int currentBalance = ((assetDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toInt();
+          int prevBalance = currentBalance; // 이전 잔액 저장
+          
+          // 2. 거래 유형에 따라 balance 조정
+          int newBalance;
+          String spendType;
+          if (_selectedType == "지출") {
+            newBalance = currentBalance - amountInt;
+            spendType = "-";
+          } else { // "수입"인 경우
+            newBalance = currentBalance + amountInt;
+            spendType = "+";
+          }
+          
+          // balance 업데이트
+          await _firestore.collection('assets').doc(_selectedPaymentMethodId).update({
+            'balance': newBalance
+          });
+          
+          // 3. assets 문서의 transactions 하위 컬렉션에 문서 추가
+          await _firestore.collection('assets').doc(_selectedPaymentMethodId)
+              .collection('transactions').add({
+            'prevbalance': prevBalance,
+            'spend': spendType,
+            'transamount': amount,
+            'transpartner': _merchantController.text,
+            'transtime': Timestamp.fromDate(_selectedDate),
+          });
+          
+          debugPrint('[NotloginAddTransactionScreen] Updated asset balance: $currentBalance -> $newBalance');
+          debugPrint('[NotloginAddTransactionScreen] Added transaction to asset\'s transactions subcollection');
+        } else {
+          debugPrint('[NotloginAddTransactionScreen] Asset document not found for ID: $_selectedPaymentMethodId');
+        }
+      } else {
+        debugPrint('[NotloginAddTransactionScreen] Skipping asset update for cash payment');
+      }
 
       if (!mounted) return; // async gap 이후 mounted 확인
 
