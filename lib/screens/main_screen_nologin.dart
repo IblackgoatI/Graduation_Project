@@ -38,10 +38,8 @@ class MainScreenNotLogin extends StatefulWidget {
 class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _userAccounts = [];
-  int _totalBalance = 0;
   bool _isLoading = true;
   late AnimationController _animationController;
-  late Animation<double> _animation;
   int currentMonth = DateTime.now().month;
   List<int> availableMonths = [];
   bool _showAllCategories = false; // 더보기 상태를 클래스 레벨로 이동
@@ -62,7 +60,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     Icons.menu
   ];
 
-  double _totalFixedExpenseAmount = 0.0; // 고정지출 총액을 저장할 변수 추가
 
   @override
   void initState() {
@@ -71,13 +68,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
     _loadUserAccounts();
     _loadUserName(); // 사용자 이름 로드 함수 호출
-    _loadFixedExpenses(); // 고정지출 데이터 로드 함수 호출
     
     // 초기 거래 내역이 있는 월 목록 계산
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -133,7 +125,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         if (mounted) {
           setState(() {
             _userAccounts = accounts;
-            _totalBalance = totalBalance;
             _isLoading = false; // 로딩 완료
           });
         }
@@ -188,33 +179,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     }
   }
 
-  // 고정지출 데이터를 로드하는 함수 추가
-  Future<void> _loadFixedExpenses() async {
-    try {
-      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
-      if (currentUser != null) {
-        // Firestore에서 고정지출 데이터 가져오기
-        QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-            .collection('fixed_expenses')
-            .where('userId', isEqualTo: currentUser.uid)
-            .get();
-
-        double total = 0.0;
-        for (var doc in querySnapshot.docs) {
-          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          total += (data['amount'] as num).toDouble();
-        }
-
-        if (mounted) {
-          setState(() {
-            _totalFixedExpenseAmount = total;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('고정지출 데이터 로드 오류: $e');
-    }
-  }
 
   // 월별 데이터 초기화 메서드 추가
   void _initializeMonthData() {
@@ -254,26 +218,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     });
   }
 
-  // 월 변경 메서드 추가
-  void _changeMonth(bool next) {
-    final currentIndex = availableMonths.indexOf(currentMonth);
-    debugPrint('Current month index: $currentIndex'); // 디버깅 로그
-    debugPrint('Available months: $availableMonths'); // 디버깅 로그
-    
-    if (next && currentIndex < availableMonths.length - 1) {
-      setState(() {
-        currentMonth = availableMonths[currentIndex + 1];
-        _showAllCategories = false;
-        debugPrint('Changed to next month: $currentMonth'); // 디버깅 로그
-      });
-    } else if (!next && currentIndex > 0) {
-      setState(() {
-        currentMonth = availableMonths[currentIndex - 1];
-        _showAllCategories = false;
-        debugPrint('Changed to previous month: $currentMonth'); // 디버깅 로그
-      });
-    }
-  }
 
   void _onItemTapped(int index) {
     _animationController.reset();
@@ -314,10 +258,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     }
   }
   
-  // 최근 방문 탭 목록을 가져오는 메서드 (다른 클래스에서 접근 가능)
-  static List<Map<String, dynamic>> getRecentTabs() {
-    return recentTabs;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -429,13 +369,254 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            _buildTopCategories(),
+            const SizedBox(height: 16.0),
             _buildAccountCard(),
             const SizedBox(height: 16.0),
-            _buildTotalAssetsCard(),
-            const SizedBox(height: 16.0),
-            _buildMonthlySpendingCard(),
+            _buildLumpSumCard(),
             const SizedBox(height: 16.0),
             _buildMonthlyReportCard(),
+            const SizedBox(height: 16.0),
+            _buildAIAnalysisCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 상단 4개 카테고리 버튼을 만드는 메서드
+  Widget _buildTopCategories() {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildCategoryButton(
+                  icon: Icons.savings,
+                  label: '저축 설정',
+                  color: Colors.blue,
+                  onTap: () {
+                    // 저축 설정 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetDetailScreen(
+                          initialTabIndex: 0,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildCategoryButton(
+                  icon: Icons.repeat,
+                  label: '고정지출 추가',
+                  color: Colors.orange,
+                  onTap: () {
+                    // 고정지출 추가 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetDetailScreen(
+                          initialTabIndex: 1,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildCategoryButton(
+                  icon: Icons.account_balance_wallet,
+                  label: '예산 설정',
+                  color: Colors.green,
+                  onTap: () {
+                    // 예산 설정 화면으로 이동 (추후 구현)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('예산 설정 기능은 준비 중입니다')),
+                    );
+                  },
+                ),
+                _buildCategoryButton(
+                  icon: Icons.account_balance,
+                  label: '계좌 추가',
+                  color: Colors.purple,
+                  onTap: () {
+                    // 계좌 추가 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetScreen(
+                          user: widget.user ?? FirebaseAuth.instance.currentUser,
+                          previousRouteName: 'main_screen_nologin',
+                        ),
+                      ),
+                    ).then((returnedUser) {
+                      _loadUserAccounts();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 개별 카테고리 버튼을 만드는 메서드
+  Widget _buildCategoryButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 목돈 설정 카드를 만드는 메서드
+  Widget _buildLumpSumCard() {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.savings, color: Colors.teal, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  "목돈 설정",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            Row(
+              children: [
+                Text(
+                  "0원",
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  "0%",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12.0),
+            LinearProgressIndicator(
+              value: 0.0, // 기본값 0
+              backgroundColor: Colors.grey[200],
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+              minHeight: 8,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // AI 분석 카드를 만드는 메서드
+  Widget _buildAIAnalysisCard() {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.psychology, color: Colors.indigo, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  "AI 분석",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.analytics,
+                      size: 40,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      "AI 분석 기능 준비 중",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -569,215 +750,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
   }
 
-  Widget _buildTotalAssetsCard() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AssetDetailScreen(
-              user: widget.user ?? FirebaseAuth.instance.currentUser,
-            ),
-          ),
-        ).then((_) => _loadUserAccounts());
-      },
-      child: SizedBox(
-        width: double.infinity, // 부모 위젯의 너비에 맞춤
-        child: Card(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.savings, color: Colors.blue, size: 20),
-                    SizedBox(width: 8),
-                    const Text(
-                      "총 자산 >",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                _isLoading
-                    ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF73AD13),
-                  ),
-                )
-                    : _userAccounts.isNotEmpty
-                    ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "입출금계좌: ${numberFormat(_totalBalance)}원",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                )
-                    : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "자산 미연결",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 8.0),
-                    const Text(
-                      "아직 자산이 연결되지 않았습니다.",
-                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                  ],
-                ),
-                if (!_isLoading && _userAccounts.isEmpty)
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AssetScreen(
-                              user: widget.user ?? FirebaseAuth.instance.currentUser,
-                              previousRouteName: 'main_screen_nologin', // 이전 경로 이름 전달
-                            ),
-                          ),
-                        ).then((returnedUser) {
-                          _loadUserAccounts();
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF73AD13),
-                        minimumSize: const Size(400, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        "계좌 연결하러 가기",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-
-  Widget _buildMonthlySpendingCard() {
-    // 현재 월 가져오기
-    final currentMonth = DateTime.now().month;
-    
-    // TransactionProvider에서 데이터 가져오기
-    final transactionProvider = Provider.of<TransactionProvider>(context);
-    final transactions = transactionProvider.transactions;
-    
-    // 현재 월의 지출 트랜잭션만 필터링
-    final currentMonthExpenses = transactions.where((transaction) {
-      return transaction.date.month == currentMonth && 
-             transaction.date.year == DateTime.now().year && 
-             transaction.type == '지출';
-    }).toList();
-    
-    // 총 지출 금액 계산
-    final totalExpense = currentMonthExpenses.fold(0.0, 
-      (sum, transaction) => sum + transaction.amount);
-
-    return SizedBox(
-      width: double.infinity,
-      child: Card(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20.0),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.trending_down, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      _onItemTapped(1);
-                    },
-                    child: Row(
-                      children: [
-                        const Text(
-                          "이번 달 지출 ",
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          ">",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                "${numberFormat(totalExpense.toInt())}원",
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20.0),
-              Row(
-                children: [
-                  Icon(Icons.repeat, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AssetDetailScreen(
-                            initialTabIndex: 1,
-                          ),
-                        ),
-                      ).then((_) {
-                        // 고정지출 화면에서 돌아올 때 데이터 새로고침
-                        _loadFixedExpenses();
-                      });
-                    },
-                    child: const Text(
-                      "나의 고정지출 >",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                "${numberFormat(_totalFixedExpenseAmount.toInt())}원",
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   IconData getCategoryIcon(String category) {
     switch (category) {
@@ -823,60 +795,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     }
   }
 
-  Widget _buildMonthSelector() {
-    final monthInKorean = '$currentMonth월';
-    final currentMonthIndex = availableMonths.indexOf(currentMonth);
-    final canGoToPrevious = currentMonthIndex > 0;
-    final canGoToNext = currentMonthIndex < availableMonths.length - 1;
-
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: Icon(Icons.chevron_left,
-                    color: canGoToPrevious ? Colors.black54 : Colors.grey[300],
-                    size: 20,
-                  ),
-                  onPressed: canGoToPrevious ? () => _changeMonth(false) : null,
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tightFor(width: 32),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    "$_userName님의 $monthInKorean 소비 리포트",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.chevron_right,
-                    color: canGoToNext ? Colors.black54 : Colors.grey[300],
-                    size: 20,
-                  ),
-                  onPressed: canGoToNext ? () => _changeMonth(true) : null,
-                  padding: EdgeInsets.zero,
-                  constraints: BoxConstraints.tightFor(width: 32),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMonthlyReportCard() {
     // TransactionProvider에서 데이터 가져오기
@@ -884,7 +802,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     final transactions = transactionProvider.transactions;
     
     // 현재 연도의 지출 거래만 필터링
-    final currentYear = DateTime.now().year;
     final thisYearTransactions = transactions.where(
       (t) => t.type == '지출'
     ).toList();
@@ -920,8 +837,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         // 현재 선택된 월의 데이터
         final selectedMonthData = monthlyTransactions[selectedYearMonth] ?? [];
         
-        // 선택된 연월에서 년도와 월 추출
-        final selectedYear = selectedYearMonth ~/ 100;
+        // 선택된 연월에서 월 추출
         final selectedMonth = selectedYearMonth % 100;
         
         // 총 지출 금액 계산
