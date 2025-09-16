@@ -400,7 +400,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
               children: [
                 _buildCategoryButton(
                   icon: Icons.savings,
-                  label: '저축 설정',
+                  label: '계좌 관리',
                   color: Colors.blue,
                   onTap: () {
                     // 저축 설정 화면으로 이동
@@ -416,7 +416,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 ),
                 _buildCategoryButton(
                   icon: Icons.repeat,
-                  label: '고정지출 추가',
+                  label: '목표 관리',
                   color: Colors.orange,
                   onTap: () {
                     // 고정지출 추가 화면으로 이동
@@ -432,7 +432,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 ),
                 _buildCategoryButton(
                   icon: Icons.account_balance_wallet,
-                  label: '예산 설정',
+                  label: '금융 지식',
                   color: Colors.green,
                   onTap: () {
                     // 예산 설정 화면으로 이동 (추후 구현)
@@ -443,7 +443,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 ),
                 _buildCategoryButton(
                   icon: Icons.account_balance,
-                  label: '계좌 추가',
+                  label: 'AI 분석',
                   color: Colors.purple,
                   onTap: () {
                     // 계좌 추가 화면으로 이동
@@ -523,7 +523,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                 Icon(Icons.savings, color: Colors.teal, size: 20),
                 const SizedBox(width: 8),
                 const Text(
-                  "목돈 설정",
+                  "목표 현황",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
