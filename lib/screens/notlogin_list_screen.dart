@@ -1,8 +1,10 @@
 /// 로그인하지 않은 사용자를 위한 거래 내역 목록 화면
 /// 사용자의 수입/지출 거래 내역을 목록 형태로 보여줍니다.
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:fluttertest/screens/transaction_detail_screen.dart';
 import 'package:provider/provider.dart';
+import 'categories.dart';
 import 'transaction_provider.dart';
 import 'transaction.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +25,12 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   bool _showTags = true;
   bool _isLoading = true;
   List<FinancialTransaction> _transactions = [];
+  // ChoiceChip 필터 상태
+  final List<String> _filters = ['전체', '오늘', '1주일'];
+  int _selectedFilterIndex = 0;
+  // 상세 조건: 카테고리 멀티 선택, 거래유형 세그먼트
+  Set<String> _selectedCategories = {};
+  int _selectedTypeIndex = 0; // 0 전체, 1 수입, 2 지출
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -90,16 +98,190 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     });
   }
 
+  void _openDetailFilterBottomSheet(BuildContext context, List<FinancialTransaction> source) async {
+    // 기본: 전체 카테고리
+    List<String> categories = List<String>.from(allCategories);
+
+    final Set<String> tempSelectedCategories = Set<String>.from(_selectedCategories);
+    int tempSelectedTypeIndex = _selectedTypeIndex;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+                  top: 12,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('상세 조건', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        SizedBox.shrink(),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('거래유형', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    CupertinoSegmentedControl<int>(
+                      children: const {
+                        0: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('전체')),
+                        1: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('수입')),
+                        2: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('지출')),
+                      },
+                      groupValue: tempSelectedTypeIndex,
+                      onValueChanged: (val) {
+                        setModalState(() { 
+                          tempSelectedTypeIndex = val;
+                          // 거래유형 변경 시 해당 유형의 카테고리만 표시
+                          if (val == 0) {
+                            categories = List<String>.from(allCategories);
+                          } else if (val == 1) {
+                            categories = List<String>.from(incomeCategories);
+                          } else {
+                            categories = List<String>.from(expenseCategories);
+                          }
+                          // 선택된 카테고리 중 현재 표시되지 않는 것들은 선택 해제
+                          tempSelectedCategories.removeWhere((cat) => !categories.contains(cat));
+                        });
+                      },
+                      pressedColor: const Color(0xFF73AD13).withValues(alpha: 0.15),
+                      selectedColor: const Color(0xFF73AD13),
+                      unselectedColor: Colors.white,
+                      borderColor: const Color(0xFF73AD13),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text('카테고리', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 280),
+                      child: SingleChildScrollView(
+                        child: Wrap(
+                          spacing: 8.0,
+                          runSpacing: 8.0,
+                          children: categories.map((cat) {
+                            final bool selected = tempSelectedCategories.contains(cat);
+                            return FilterChip(
+                              label: Text(cat),
+                              selected: selected,
+                              onSelected: (val) {
+                                setModalState(() {
+                                  if (val) {
+                                    tempSelectedCategories.add(cat);
+                                  } else {
+                                    tempSelectedCategories.remove(cat);
+                                  }
+                                });
+                              },
+                              selectedColor: const Color(0xFF73AD13),
+                              checkmarkColor: Colors.white,
+                              backgroundColor: Colors.grey.shade200,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              setState(() {
+                                _selectedCategories.clear();
+                                _selectedTypeIndex = 0;
+                              });
+                            },
+                            child: const Text('초기화'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF73AD13),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              setState(() {
+                                _selectedCategories = tempSelectedCategories;
+                                _selectedTypeIndex = tempSelectedTypeIndex;
+                              });
+                            },
+                            child: const Text('적용'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final transactionProvider = Provider.of<TransactionProvider>(context);
     final allTransactions = transactionProvider.transactions;
     
-    // 선택된 월에 해당하는 거래만 필터링
-    final filteredTransactions = widget.selectedMonth > 0
+    // 선택된 월에 해당하는 거래만 1차 필터링
+    List<FinancialTransaction> filteredTransactions = widget.selectedMonth > 0
         ? allTransactions.where((transaction) => 
             transaction.date.month == widget.selectedMonth).toList()
         : allTransactions;
+    
+    // 기간 필터(전체/오늘/1주일) 2차 필터링
+    if (_selectedFilterIndex != 0) {
+      final DateTime now = DateTime.now();
+      DateTime start;
+      switch (_selectedFilterIndex) {
+        case 1: // 오늘
+          start = DateTime(now.year, now.month, now.day);
+          break;
+        case 2: // 1주일
+          final from = now.subtract(const Duration(days: 7));
+          start = DateTime(from.year, from.month, from.day);
+          break;
+        default:
+          start = DateTime(1900);
+      }
+      filteredTransactions = filteredTransactions.where((t) {
+        final bool afterStart = t.date.isAfter(start) || t.date.isAtSameMomentAs(start);
+        final bool beforeNow = t.date.isBefore(now) || t.date.isAtSameMomentAs(now);
+        return afterStart && beforeNow;
+      }).toList();
+    }
+
+    // 상세 조건 필터링 (거래유형, 카테고리)
+    filteredTransactions = filteredTransactions.where((t) {
+      final bool typeOk = _selectedTypeIndex == 0
+          ? true
+          : (_selectedTypeIndex == 1 ? t.type == '수입' : t.type == '지출');
+      final bool categoryOk = _selectedCategories.isEmpty
+          ? true
+          : _selectedCategories.contains(t.category);
+      return typeOk && categoryOk;
+    }).toList();
     
     // 날짜별로 그룹화하기
     Map<String, List<FinancialTransaction>> groupedTransactions = {};
@@ -115,6 +297,51 @@ class NotloginListScreenState extends State<NotloginListScreen> {
       backgroundColor: Colors.grey[50],
       body: Column(
         children: [
+          // 기간 필터 + 상세 조건 (우측) 영역
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8.0,
+                    children: _filters.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final label = entry.value;
+                      final bool isSelected = _selectedFilterIndex == index;
+                      return ChoiceChip(
+                        label: Text(
+                          label,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        selected: isSelected,
+                        onSelected: (_) {
+                          setState(() {
+                            _selectedFilterIndex = index;
+                          });
+                        },
+                        selectedColor: const Color(0xFF73AD13),
+                        backgroundColor: Colors.grey.shade200,
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFF73AD13) : Colors.grey.shade400,
+                        ),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(width: 8.0),
+                _DetailFilterChip(
+                  isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0,
+                  onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
@@ -290,6 +517,43 @@ class NotloginListScreenState extends State<NotloginListScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DetailFilterChip extends StatelessWidget {
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DetailFilterChip({required this.isActive, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF73AD13) : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? const Color(0xFF73AD13) : Colors.grey.shade400,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '상세 조건 ▼',
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
