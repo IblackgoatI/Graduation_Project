@@ -10,6 +10,7 @@ import 'transaction_provider.dart';
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 import 'asset.dart' as asset_screen; // _showLocalNotification 함수를 사용하기 위해 임포트
 import 'fixed_expense_list_screen.dart';
+import 'transaction_history.dart';
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -3258,8 +3259,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 개별 계좌 아이템 빌더
   Widget _buildAccountItem(Map<String, dynamic> account) {
     Color iconColor = Color(account['iconColor'] ?? 0xFF73AD13);
+    String assetType = account['assetType'] ?? 'savings';
+    
+    // 입출금 계좌인지 확인
+    bool isSavingsAccount = assetType == 'savings';
 
-    return Padding(
+    Widget accountContent = Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
         children: [
@@ -3319,6 +3324,27 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         ],
       ),
     );
+
+    // 입출금 계좌인 경우 클릭 이벤트 추가
+    if (isSavingsAccount) {
+      return GestureDetector(
+        onTap: () {
+          // 거래 내역 화면으로 이동
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TransactionHistoryScreen(
+                account: account,
+                user: widget.user ?? FirebaseAuth.instance.currentUser,
+              ),
+            ),
+          );
+        },
+        child: accountContent,
+      );
+    }
+
+    return accountContent;
   }
 
   // 계좌번호 포맷팅

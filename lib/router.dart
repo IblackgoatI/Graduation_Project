@@ -2,6 +2,7 @@
 /// GoRouter 패키지를 사용하여 화면 간의 이동 경로를 정의합니다.
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/admin/admin_main_screen.dart';
 import 'screens/admin/admin_posts_screen.dart';
 import 'screens/admin/admin_comments_screen.dart';
@@ -10,6 +11,7 @@ import 'screens/attendance_screen.dart';
 import 'screens/daily_quiz_screen.dart';
 import 'screens/admin/admin_quiz_management_screen.dart';
 import 'screens/point_management_screen.dart';
+import 'screens/transaction_history.dart';
 
 final router = GoRouter(
   initialLocation: '/admin/login',
@@ -45,6 +47,14 @@ final router = GoRouter(
     GoRoute(
       path: '/point_management',
       builder: (context, state) => const PointManagementScreen(),
+    ),
+    GoRoute(
+      path: '/transaction_history',
+      builder: (context, state) {
+        final account = state.extra as Map<String, dynamic>?;
+        final user = FirebaseAuth.instance.currentUser;
+        return TransactionHistoryScreen(account: account, user: user);
+      },
     ),
   ],
 ); 
