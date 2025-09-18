@@ -19,7 +19,10 @@ class TransactionHistoryScreen extends StatefulWidget {
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   List<Map<String, dynamic>> transactions = [];
+  List<Map<String, dynamic>> filteredTransactions = []; // 필터링된 거래 내역
   bool isLoading = true;
+  String? selectedPeriod; // 선택된 기간 ('1month' 또는 '3months')
+  String? selectedSpend; // '+'(입금) 또는 '-'(출금)
 
   @override
   void initState() {
@@ -46,6 +49,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
             data['id'] = doc.id;
             return data;
           }).toList();
+          _applyFilter(); // 필터 적용
           isLoading = false;
         });
       } else {
@@ -59,6 +63,62 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         isLoading = false;
       });
     }
+  }
+
+  // 필터 적용 함수
+  void _applyFilter() {
+    List<Map<String, dynamic>> base = List.from(transactions);
+    
+    if (selectedPeriod != null) {
+      final now = DateTime.now();
+      DateTime filterDate = now;
+      if (selectedPeriod == '1month') {
+        filterDate = now.subtract(const Duration(days: 30));
+      } else if (selectedPeriod == '3months') {
+        filterDate = now.subtract(const Duration(days: 90));
+      }
+
+      base = base.where((t) {
+        final raw = t['transtime'];
+        if (raw is! Timestamp) return false;
+        final d = raw.toDate();
+        return !d.isBefore(filterDate); // filterDate 이상
+      }).toList();
+    }
+
+    // 입출금 필터 ('+' 또는 '-')
+    if (selectedSpend != null) {
+      base = base.where((t) => (t['spend'] ?? '') == selectedSpend).toList();
+    }
+
+    filteredTransactions = base;
+    setState(() {}); // 리스트 갱신 반영
+  }
+
+  // 기간 선택 함수
+  void _selectPeriod(String period) {
+    setState(() {
+      if (selectedPeriod == period) {
+        // 같은 버튼을 다시 클릭하면 선택 해제
+        selectedPeriod = null;
+      } else {
+        // 다른 기간 선택
+        selectedPeriod = period;
+      }
+      _applyFilter();
+    });
+  }
+
+  // 입출금 필터 선택 함수
+  void _selectSpend(String spend) {
+    setState(() {
+      if (selectedSpend == spend) {
+        selectedSpend = null; // 재클릭 → 해제
+      } else {
+        selectedSpend = spend;
+      }
+      _applyFilter();
+    });
   }
 
   String _formatTime(Timestamp timestamp) {
@@ -90,6 +150,62 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return Colors.black; // 기본 색상
   }
 
+  // 기간 선택 버튼 위젯
+  Widget _buildPeriodButton(String label, String period) {
+    bool isSelected = selectedPeriod == period;
+    
+    return GestureDetector(
+      onTap: () => _selectPeriod(period),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF73AD13) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF73AD13) : Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 입출금 필터 버튼 위젯
+  Widget _buildSpendButton(String label, String spend) {
+    final bool isSelected = selectedSpend == spend;
+
+    return GestureDetector(
+      onTap: () => _selectSpend(spend),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF73AD13) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF73AD13) : Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,12 +231,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ),
             ),
           ),
-          
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                _buildPeriodButton('1개월', '1month'),
+                const SizedBox(width: 12),
+                _buildPeriodButton('3개월', '3months'),
+                const SizedBox(width: 58),
+                _buildSpendButton('입금', '+'),
+                const SizedBox(width: 12),
+                _buildSpendButton('출금', '-'),
+              ],
+            ),
+          ),
+
           // 거래 내역 목록
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : transactions.isEmpty
+                : filteredTransactions.isEmpty
                     ? const Center(
                         child: Text(
                           '거래 내역이 없습니다.',
@@ -132,13 +264,13 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        itemCount: transactions.length,
+                        itemCount: filteredTransactions.length,
                         separatorBuilder: (context, index) => const Divider(
                           color: Colors.black,
                           thickness: 1.0,
                         ),
                         itemBuilder: (context, index) {
-                          final transaction = transactions[index];
+                          final transaction = filteredTransactions[index];
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12.0),
