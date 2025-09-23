@@ -1,5 +1,6 @@
 /// 자산 상세 화면
 /// 사용자의 개별 자산에 대한 상세 정보를 표시하고, 관련 통계 및 관리 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 import 'asset.dart' as asset_screen; // _showLocalNotification 함수를 사용하기 위해 임포트
 import 'fixed_expense_list_screen.dart';
 import 'transaction_history.dart';
+import 'asset_connect_management.dart';
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -3250,8 +3252,45 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         // 계좌 목록
         ...accounts.map((account) => _buildAccountItem(account)),
 
-        const SizedBox(height: 8.0),
         const Divider(),
+
+        // 입출금 계좌인 경우에만 "연결 관리" 버튼 추가
+        if (title == '입출금' && accounts.isNotEmpty) ...[
+          const SizedBox(height: 16.0),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AssetConnectManagementScreen(
+                      accounts: accounts,
+                      accountType: 'savings',
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF73AD13),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                '연결 관리',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 8.0),
       ],
     );
   }
