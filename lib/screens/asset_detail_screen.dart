@@ -3280,7 +3280,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               child: const Text(
-                '연결 관리',
+                '계좌 해지',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

@@ -102,6 +102,7 @@ class _AssetConnectManagementScreenState extends State<AssetConnectManagementScr
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
+      
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('계좌 해지'),
@@ -180,7 +181,7 @@ class _AssetConnectManagementScreenState extends State<AssetConnectManagementScr
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('연결 관리'),
+        title: const Text('계좌 해지'),
         backgroundColor: const Color(0xFF73AD13),
         foregroundColor: Colors.white,
         elevation: 0,
