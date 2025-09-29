@@ -1077,20 +1077,20 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                   ),
                 );
               },
-              child: Container(
-                width: double.infinity,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF73AD13), // 라임 그린 색상
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Center(
-                  child: Text(
-                    '목표 관리',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+            child: Container(
+              width: double.infinity,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF73AD13), // 라임 그린 색상
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Text(
+                  '목표 관리',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
