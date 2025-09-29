@@ -13,6 +13,7 @@ import 'asset.dart' as asset_screen; // _showLocalNotification 함수를 사용�
 import 'fixed_expense_list_screen.dart';
 import 'transaction_history.dart';
 import 'asset_connect_management.dart';
+import 'goal_management.dart';
 
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
@@ -1067,20 +1068,30 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           ),
           const Spacer(),
           Center(
-            child: Container(
-              width: double.infinity,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF73AD13), // 라임 그린 색상
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Center(
-                child: Text(
-                  '목표 관리',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+            child: GestureDetector( // 목표 관리 화면으로 이동
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GoalManagementScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF73AD13), // 라임 그린 색상
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Center(
+                  child: Text(
+                    '목표 관리',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),

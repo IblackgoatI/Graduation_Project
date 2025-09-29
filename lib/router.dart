@@ -1,6 +1,5 @@
 /// 앱의 전반적인 라우팅 설정을 담당하는 파일입니다.
 /// GoRouter 패키지를 사용하여 화면 간의 이동 경로를 정의합니다.
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/admin/admin_main_screen.dart';
@@ -12,6 +11,7 @@ import 'screens/daily_quiz_screen.dart';
 import 'screens/admin/admin_quiz_management_screen.dart';
 import 'screens/point_management_screen.dart';
 import 'screens/transaction_history.dart';
+import 'screens/goal_management.dart';
 
 final router = GoRouter(
   initialLocation: '/admin/login',
@@ -54,6 +54,13 @@ final router = GoRouter(
         final account = state.extra as Map<String, dynamic>?;
         final user = FirebaseAuth.instance.currentUser;
         return TransactionHistoryScreen(account: account, user: user);
+      },
+    ),
+    GoRoute(
+      path: '/goal_management',
+      builder: (context, state) {
+        final user = FirebaseAuth.instance.currentUser;
+        return GoalManagementScreen(user: user);
       },
     ),
   ],

@@ -13,6 +13,7 @@ import 'all_screen.dart'; // 전체 화면 import
 import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 import 'transaction_provider.dart'; // 트랜잭션 프로바이더 import
 import 'transaction.dart'; // 트랜잭션 모델 import
+import 'goal_management.dart'; // 목표 관리 화면 import
 
 class MainScreenNotLogin extends StatefulWidget {
   final User? user;
@@ -419,13 +420,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                   label: '목표 관리',
                   color: Colors.orange,
                   onTap: () {
-                    // 고정지출 추가 화면으로 이동
+                    // 목표 관리 화면으로 이동
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AssetDetailScreen(
-                          initialTabIndex: 1,
-                        ),
+                        builder: (context) => const GoalManagementScreen(),
                       ),
                     );
                   },
