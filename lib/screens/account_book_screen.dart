@@ -2,6 +2,7 @@
 /// 사용자의 수입과 지출 내역을 기록하고 관리하는 가계부 기능을 제공합니다.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'notlogin_add_transaction_screen.dart';
 import 'notlogin_list_screen.dart';
 import 'notlogin_calendar_screen.dart';
@@ -133,7 +134,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         ),
                       ),
                       TextSpan(
-                        text: '${income.toString()}원',
+                        text: '${NumberFormat('#,###').format(income)}원',
                         style: TextStyle(
                           color: Color(0xFF73AD13), // 가격 색상 (#73AD13)
                           fontSize: 20,
@@ -156,7 +157,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                         ),
                       ),
                       TextSpan(
-                        text: '${expense.toString()}원',
+                        text: '${NumberFormat('#,###').format(expense)}원',
                         style: TextStyle(
                           color: Colors.red, // 가격 색상
                           fontSize: 20,
