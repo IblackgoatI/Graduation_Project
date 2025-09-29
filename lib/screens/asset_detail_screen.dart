@@ -802,7 +802,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // 첫 번째 줄: 이번 달 수입 & 이번 달 저축
+            // 첫 번째 줄: 목표 관리 카드 - 가로 전체
+            _buildGoalManagementCard(),
+
+            const SizedBox(height: 16.0),
+
+            // 두 번째 줄: 이번 달 수입 & 이번 달 저축
             Row(
               children: [
                 // 이번 달 수입 카드
@@ -816,11 +821,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 ),
               ],
             ),
-
-            const SizedBox(height: 16.0),
-
-            // 두 번째 줄: 이번 달 지출 카드 (파이 차트) - 가로 전체
-            _buildMonthlyExpenseCard(),
 
             const SizedBox(height: 16.0),
 
@@ -1040,160 +1040,61 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-  // 이번 달 지출 카드 (도넛 차트)
-  Widget _buildMonthlyExpenseCard() {
-    // TransactionProvider에서 데이터 가져오기
-    final transactionProvider = Provider.of<TransactionProvider>(context);
-    final transactions = transactionProvider.transactions;
-    
-    // 현재 날짜 정보 가져오기
-    final now = DateTime.now();
-    final currentMonth = now.month;
-    final currentYear = now.year;
-    
-    // 이번 달 지출 트랜잭션 필터링
-    final monthlyExpenses = transactions.where((transaction) {
-      return transaction.date.year == currentYear && 
-             transaction.date.month == currentMonth && 
-             transaction.type == '지출';
-    }).toList();
-    
-    // 카테고리별 지출 금액 계산
-    Map<String, double> categoryExpenses = {};
-    for (var transaction in monthlyExpenses) {
-      final category = transaction.category.isEmpty ? '기타' : transaction.category;
-      if (categoryExpenses.containsKey(category)) {
-        categoryExpenses[category] = categoryExpenses[category]! + transaction.amount;
-      } else {
-        categoryExpenses[category] = transaction.amount;
-      }
-    }
-    
-    // 총 지출액 계산
-    final totalExpense = monthlyExpenses.fold(
-        0.0, (total, transaction) => total + transaction.amount);
-    
-    // 상위 4개 카테고리 선택 (또는 더 적은 경우 모든 카테고리)
-    List<MapEntry<String, double>> sortedCategories = 
-        categoryExpenses.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-    
-    List<MapEntry<String, double>> topCategories = [];
-    double otherAmount = 0.0;
-    
-    if (sortedCategories.length <= 4) {
-      topCategories = sortedCategories;
-    } else {
-      topCategories = sortedCategories.take(3).toList();
-      // 나머지 카테고리 금액 합산
-      otherAmount = sortedCategories.skip(3).fold(
-          0.0, (total, entry) => total + entry.value);
-      topCategories.add(MapEntry('기타', otherAmount));
-    }
-    
-    // 퍼센트 계산
-    final List<ChartCategory> chartData = [];
-    final colors = [Colors.blue, Colors.green, Colors.orange, Colors.red];
-    
-    if (totalExpense > 0) {
-      for (int i = 0; i < topCategories.length; i++) {
-        final category = topCategories[i];
-        final percent = (category.value / totalExpense * 100).round();
-        chartData.add(ChartCategory(
-          name: category.key,
-          amount: category.value,
-          percent: percent,
-          color: i < colors.length ? colors[i] : Colors.grey,
-        ));
-      }
-    } else {
-      // 지출이 없는 경우 기본 데이터
-      chartData.add(ChartCategory(
-        name: '지출 없음',
-        amount: 0,
-        percent: 100,
-        color: Colors.grey,
-      ));
-    }
-    
-    // 금액 표시 포맷
-    String expenseText = '0원';
-    if (totalExpense > 0) {
-      if (totalExpense >= 10000) {
-        final inMillions = totalExpense / 10000;
-        expenseText = '${inMillions.toStringAsFixed(0)}만원';
-      } else {
-        expenseText = '${NumberFormat('#,###').format(totalExpense)}원';
-      }
-    }
-    
+  // 목표 관리 카드
+  Widget _buildGoalManagementCard() {
     return _buildStandardCard(
-      height: 160, // 높이 약간 감소
+      height: 180,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '이번 달 지출',
+            '목표',
             style: TextStyle(
-              fontSize: 14, // 제목 텍스트 크기 감소
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 8),
-
-          // 도넛 차트와 범례
-          Expanded(
-            child: Row(
-              children: [
-                // 도넛 차트 - 크기 조정
-                Expanded(
-                  flex: 4, // 전체 너비의 40%
-                  child: SizedBox(
-                    height: 90, // 높이 제한
-                    child: Center(
-                      child: SizedBox(
-                        width: 90, // 도넛 차트 크기 제한
-                        height: 90,
-                  child: CustomPaint(
-                          painter: DonutChartPainter(categories: chartData),
-                        ),
-                      ),
-                    ),
-                  ),
+          const SizedBox(height: 16),
+          
+          // 중앙에 "목표를 설정해주세요" 텍스트
+          const Expanded(
+            child: Center(
+              child: Text(
+                '목표를 설정해주세요.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
                 ),
-                // 범례
-                Expanded(
-                  flex: 6, // 전체 너비의 60%
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 16.0),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end, // 오른쪽 정렬
-                        children: chartData.map((category) => 
-                          _buildLegendItem(
-                            category.name, 
-                            '${category.percent}%', 
-                            category.color,
-                          )
-                        ).toList(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-
+          
+          const SizedBox(height: 16),
+          
+          // 하단에 "목표 관리" 버튼
           Center(
-            child: Text(
-              expenseText,
-              style: TextStyle(
-                fontSize: 12, // 금액 텍스트 크기 감소
-                fontWeight: FontWeight.normal,
-                color: Colors.black,
+            child: ElevatedButton(
+              onPressed: () {
+                // 목표 관리 기능 구현 (추후)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('목표 관리 기능은 준비 중입니다')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF73AD13),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(120, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                '목표 관리',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -1202,30 +1103,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-  // 범례 아이템 위젯
-  Widget _buildLegendItem(String label, String percentage, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min, // 내용물 크기에 맞춤
-      children: [
-        Container(
-          width: 8, // 범례 점 크기 감소
-          height: 8, // 범례 점 크기 감소
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '$label $percentage',
-          style: TextStyle(
-            fontSize: 10, // 범례 텍스트 크기 감소
-            color: Colors.black87,
-          ),
-        ),
-      ],
-    );
-  }
 
   // 고정지출 카드
   Widget _buildFixedExpenseCard() {
