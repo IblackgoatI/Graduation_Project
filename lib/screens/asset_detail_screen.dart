@@ -1043,57 +1043,45 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 목표 관리 카드
   Widget _buildGoalManagementCard() {
     return _buildStandardCard(
-      height: 180,
+      height: 160,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             '목표',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Colors.black,
             ),
           ),
-          const SizedBox(height: 16),
-          
-          // 중앙에 "목표를 설정해주세요" 텍스트
-          const Expanded(
-            child: Center(
-              child: Text(
-                '목표를 설정해주세요.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+          const SizedBox(height: 20),
+          const Center(
+            child: Text(
+              '목표를 설정해주세요.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
               ),
             ),
           ),
-          
-          const SizedBox(height: 16),
-          
-          // 하단에 "목표 관리" 버튼
+          const Spacer(),
           Center(
-            child: ElevatedButton(
-              onPressed: () {
-                // 목표 관리 기능 구현 (추후)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('목표 관리 기능은 준비 중입니다')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF73AD13),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(120, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            child: Container(
+              width: double.infinity,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF73AD13), // 라임 그린 색상
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                '목표 관리',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+              child: const Center(
+                child: Text(
+                  '목표 관리',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ),
