@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'goal_management.dart';
 
 class NotloginListScreen extends StatefulWidget {
   final int selectedMonth;
@@ -32,6 +33,10 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   Set<String> _selectedCategories = {};
   int _selectedTypeIndex = 0; // 0 전체, 1 수입, 2 지출
 
+  // 목표 관련 상태 변수
+  List<Map<String, dynamic>> _goalList = [];
+  Map<String, int> _accountBalances = {};
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -40,6 +45,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     super.initState();
     initializeDateFormatting('ko_KR', null);
     loadTransactions();
+    loadGoalData();
   }
 
   Future<void> loadTransactions() async {
@@ -96,6 +102,192 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     setState(() {
       _transactions.removeWhere((transaction) => transaction.id == transactionId);
     });
+  }
+
+  // 목표 데이터 로드 함수
+  Future<void> loadGoalData() async {
+    try {
+      String userId = _auth.currentUser?.uid ?? 'anonymous';
+      
+      // goal 컬렉션에서 현재 사용자의 모든 목표 조회
+      QuerySnapshot goalQuery = await _firestore
+          .collection('goal')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      List<Map<String, dynamic>> goalList = [];
+      Map<String, int> accountBalances = {};
+
+      if (goalQuery.docs.isNotEmpty) {
+        // 각 목표에 대해 계좌 잔액 조회
+        for (var doc in goalQuery.docs) {
+          Map<String, dynamic> goalData = doc.data() as Map<String, dynamic>;
+          String? bankId = goalData['bank'];
+          
+          // bank 필드가 있으면 assets 컬렉션에서 잔액 조회
+          if (bankId != null) {
+            try {
+              DocumentSnapshot assetDoc = await _firestore
+                  .collection('assets')
+                  .doc(bankId)
+                  .get();
+              
+              if (assetDoc.exists) {
+                Map<String, dynamic> assetData = assetDoc.data() as Map<String, dynamic>;
+                accountBalances[bankId] = (assetData['balance'] as num?)?.toInt() ?? 0;
+              } else {
+                accountBalances[bankId] = 0;
+              }
+            } catch (e) {
+              debugPrint('은행 정보 조회 오류: $e');
+              accountBalances[bankId] = 0;
+            }
+          }
+          
+          goalList.add(goalData);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _goalList = goalList;
+          _accountBalances = accountBalances;
+        });
+      }
+    } catch (e) {
+      debugPrint('목표 데이터 로드 오류: $e');
+    }
+  }
+
+  // D-Day 계산 함수
+  String _calculateDDay(dynamic deadline) {
+    if (deadline == null) return '';
+    
+    DateTime deadlineDate;
+    if (deadline is Timestamp) {
+      deadlineDate = deadline.toDate();
+    } else if (deadline is DateTime) {
+      deadlineDate = deadline;
+    } else {
+      return '';
+    }
+    
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day);
+    DateTime targetDate = DateTime(deadlineDate.year, deadlineDate.month, deadlineDate.day);
+    
+    int difference = targetDate.difference(today).inDays;
+    
+    if (difference > 0) {
+      return 'D-$difference';
+    } else if (difference == 0) {
+      return 'D-Day';
+    } else {
+      return 'D+${-difference}';
+    }
+  }
+
+  // 목표 달성 퍼센트 계산 함수
+  double _calculateProgressPercentage(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0.0;
+    
+    int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
+    if (goalAmount == 0) return 0.0;
+    
+    int accountBalance = _accountBalances[bankId] ?? 0;
+    double percentage = (accountBalance / goalAmount) * 100;
+    return percentage > 100 ? 100.0 : percentage;
+  }
+
+  // 목표 섹션 위젯
+  Widget _buildGoalSection() {
+    if (_goalList.isEmpty) return const SizedBox.shrink();
+    
+    // 첫 번째 목표만 표시
+    Map<String, dynamic> goalData = _goalList.first;
+    double progressPercentage = _calculateProgressPercentage(goalData);
+    
+    return GestureDetector(
+      onTap: () {
+        // 목표 관리 화면으로 이동
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const GoalManagementScreen(),
+          ),
+        );
+      },
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 목표 제목과 D-Day
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    goalData['name'] ?? '목표명 없음',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _calculateDDay(goalData['deadline']),
+                  style: const TextStyle(
+                    color: Color(0xFF7D7D7D),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            
+            // 진행률 막대 그래프
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progressPercentage / 100,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5E8BFE),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${progressPercentage.toStringAsFixed(1)}%',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF73AD13),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openDetailFilterBottomSheet(BuildContext context, List<FinancialTransaction> source) async {
@@ -342,6 +534,9 @@ class NotloginListScreenState extends State<NotloginListScreen> {
               ],
             ),
           ),
+          
+          // 목표 섹션
+          if (_goalList.isNotEmpty) _buildGoalSection(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(

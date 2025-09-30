@@ -64,6 +64,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   double _totalFixedExpenseAmount = 0.0;
   bool _isLoadingFixedExpenses = true;
 
+  // 목표 관련 상태 변수
+  List<Map<String, dynamic>> _goalList = [];
+  Map<String, int> _accountBalances = {};
+  bool _isLoadingGoals = true;
+
   @override
   void initState() {
     super.initState();
@@ -84,6 +89,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     await _loadSavingGoalData();
     // 고정 지출 데이터 로드
     await _loadFixedExpenseData();
+    // 목표 데이터 로드
+    await _loadGoalData();
 
     // 고정비 미출금 알림 함수 호출 
     if (mounted) {
@@ -603,6 +610,116 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     }
   }
 
+  // 목표 데이터 로드 함수
+  Future<void> _loadGoalData() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // goal 컬렉션에서 현재 사용자의 모든 목표 조회
+        QuerySnapshot goalQuery = await FirebaseFirestore.instance
+            .collection('goal')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        List<Map<String, dynamic>> goalList = [];
+        Map<String, int> accountBalances = {};
+
+        if (goalQuery.docs.isNotEmpty) {
+          // 각 목표에 대해 계좌 잔액 조회
+          for (var doc in goalQuery.docs) {
+            Map<String, dynamic> goalData = doc.data() as Map<String, dynamic>;
+            String? bankId = goalData['bank'];
+            
+            // bank 필드가 있으면 assets 컬렉션에서 잔액 조회
+            if (bankId != null) {
+              try {
+                DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                    .collection('assets')
+                    .doc(bankId)
+                    .get();
+                
+                if (assetDoc.exists) {
+                  Map<String, dynamic> assetData = assetDoc.data() as Map<String, dynamic>;
+                  accountBalances[bankId] = (assetData['balance'] as num?)?.toInt() ?? 0;
+                } else {
+                  accountBalances[bankId] = 0;
+                }
+              } catch (e) {
+                debugPrint('은행 정보 조회 오류: $e');
+                accountBalances[bankId] = 0;
+              }
+            }
+            
+            goalList.add(goalData);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _goalList = goalList;
+            _accountBalances = accountBalances;
+            _isLoadingGoals = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingGoals = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('목표 데이터 로드 오류: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingGoals = false;
+        });
+      }
+    }
+  }
+
+  // D-Day 계산 함수
+  String _calculateDDay(dynamic deadline) {
+    if (deadline == null) return '';
+    
+    DateTime deadlineDate;
+    if (deadline is Timestamp) {
+      deadlineDate = deadline.toDate();
+    } else if (deadline is DateTime) {
+      deadlineDate = deadline;
+    } else {
+      return '';
+    }
+    
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day);
+    DateTime targetDate = DateTime(deadlineDate.year, deadlineDate.month, deadlineDate.day);
+    
+    int difference = targetDate.difference(today).inDays;
+    
+    if (difference > 0) {
+      return 'D-$difference';
+    } else if (difference == 0) {
+      return 'D-Day';
+    } else {
+      return 'D+${-difference}';
+    }
+  }
+
+  // 목표 달성 퍼센트 계산 함수
+  double _calculateProgressPercentage(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0.0;
+    
+    int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
+    if (goalAmount == 0) return 0.0;
+    
+    int accountBalance = _accountBalances[bankId] ?? 0;
+    double percentage = (accountBalance / goalAmount) * 100;
+    return percentage > 100 ? 100.0 : percentage;
+  }
+
   // 고정 지출 미출금 알림 함수
   Future<void> _checkAndNotifyUnpaidFixedExpenses() async {
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -1044,7 +1161,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   // 목표 관리 카드
   Widget _buildGoalManagementCard() {
     return _buildStandardCard(
-      height: 160,
+      height: 200,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1056,19 +1173,112 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               color: Colors.black,
             ),
           ),
-          const SizedBox(height: 20),
-          const Center(
-            child: Text(
-              '목표를 설정해주세요.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+          const SizedBox(height: 16),
+          
+          // 목표 데이터가 있을 때와 없을 때 분기
+          if (_isLoadingGoals)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF73AD13),
+                strokeWidth: 2,
               ),
+            )
+          else if (_goalList.isNotEmpty)
+            _buildGoalContent(_goalList.first) // 첫 번째 목표만 표시
+          else
+            _buildEmptyGoalContent(),
+        ],
+      ),
+    );
+  }
+
+  // 목표 데이터가 있을 때의 내용
+  Widget _buildGoalContent(Map<String, dynamic> goalData) {
+    double progressPercentage = _calculateProgressPercentage(goalData);
+    String? bankId = goalData['bank'];
+    int accountBalance = bankId != null ? (_accountBalances[bankId] ?? 0) : 0;
+    
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 목표 제목과 D-Day
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  goalData['name'] ?? '목표명 없음',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _calculateDDay(goalData['deadline']),
+                style: const TextStyle(
+                  color: Color(0xFF7D7D7D),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // 진행률 막대 그래프
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: progressPercentage / 100,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5E8BFE),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${progressPercentage.toStringAsFixed(1)}%',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF73AD13),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // 계좌 잔액 / 목표 금액
+          Text(
+            '${_numberFormat(accountBalance)}원 / ${_numberFormat((goalData['amount'] as num?)?.toInt() ?? 0)}원',
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black,
             ),
           ),
+          
           const Spacer(),
+          
+          // 목표 관리 버튼
           Center(
-            child: GestureDetector( // 목표 관리 화면으로 이동
+            child: GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
@@ -1077,20 +1287,69 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                   ),
                 );
               },
-            child: Container(
-              width: double.infinity,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFF73AD13), // 라임 그린 색상
-                borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 100,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF73AD13),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Center(
+                  child: Text(
+                    '목표 관리',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
               ),
-              child: const Center(
-                child: Text(
-                  '목표 관리',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 목표 데이터가 없을 때의 내용
+  Widget _buildEmptyGoalContent() {
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            '목표를 설정해주세요.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const GoalManagementScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                width: 100,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF73AD13),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Center(
+                  child: Text(
+                    '목표 관리',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

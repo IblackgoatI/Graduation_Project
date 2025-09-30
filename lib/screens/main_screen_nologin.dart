@@ -505,7 +505,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
   }
 
-  // 목돈 설정 카드를 만드는 메서드
+  // 목표 현황 카드를 만드는 메서드
   Widget _buildLumpSumCard() {
     return Card(
       color: Colors.white,

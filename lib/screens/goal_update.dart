@@ -374,6 +374,9 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
         TextField(
           controller: controller,
           keyboardType: isAmount ? TextInputType.number : TextInputType.text,
+          style: const TextStyle(
+            fontSize: 14,
+          ),
           decoration: InputDecoration(
             hintText: hintText,
             border: const OutlineInputBorder(),
@@ -432,7 +435,7 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
                       ? DateFormat('yyyy년 MM월 dd일').format(_selectedDate!)
                       : '날짜 선택',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: _selectedDate != null ? Colors.black87 : Colors.grey,
                   ),
                 ),
@@ -478,7 +481,7 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
                   child: Text(
                     _getSelectedAccount()?['bank'] ?? '계좌 선택',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: _getSelectedAccount() != null ? Colors.black87 : Colors.grey,
                     ),
                   ),
