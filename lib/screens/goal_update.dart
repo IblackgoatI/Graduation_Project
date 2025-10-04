@@ -26,7 +26,8 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
   // 입력 데이터
   final TextEditingController _goalNameController = TextEditingController();
   final TextEditingController _goalAmountController = TextEditingController();
-  DateTime? _selectedDate;
+  DateTime? _startDate;
+  DateTime? _endDate;
   String? _selectedAccountId;
   
   // 계좌 목록
@@ -54,12 +55,29 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
     int goalAmount = (widget.goalData['amount'] as num?)?.toInt() ?? 0;
     _goalAmountController.text = NumberFormat('#,###').format(goalAmount);
     
-    // deadline 설정
-    if (widget.goalData['deadline'] != null) {
+    // 시작 날짜와 종료 날짜 설정
+    if (widget.goalData['startDate'] != null) {
+      if (widget.goalData['startDate'] is Timestamp) {
+        _startDate = (widget.goalData['startDate'] as Timestamp).toDate();
+      } else if (widget.goalData['startDate'] is DateTime) {
+        _startDate = widget.goalData['startDate'] as DateTime;
+      }
+    }
+    
+    if (widget.goalData['endDate'] != null) {
+      if (widget.goalData['endDate'] is Timestamp) {
+        _endDate = (widget.goalData['endDate'] as Timestamp).toDate();
+      } else if (widget.goalData['endDate'] is DateTime) {
+        _endDate = widget.goalData['endDate'] as DateTime;
+      }
+    }
+    
+    // 기존 deadline 필드가 있는 경우 종료 날짜로 설정 (하위 호환성)
+    if (_endDate == null && widget.goalData['deadline'] != null) {
       if (widget.goalData['deadline'] is Timestamp) {
-        _selectedDate = (widget.goalData['deadline'] as Timestamp).toDate();
+        _endDate = (widget.goalData['deadline'] as Timestamp).toDate();
       } else if (widget.goalData['deadline'] is DateTime) {
-        _selectedDate = widget.goalData['deadline'] as DateTime;
+        _endDate = widget.goalData['deadline'] as DateTime;
       }
     }
     
@@ -106,19 +124,36 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
     }
   }
 
-  // 날짜 선택
-  Future<void> _selectDate() async {
+  // 시작 날짜 선택
+  Future<void> _selectStartDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate ?? DateTime.now(),
+      initialDate: _startDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 3650)), // 10년 후까지
       locale: const Locale('ko', 'KR'),
     );
     
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null && picked != _startDate) {
       setState(() {
-        _selectedDate = picked;
+        _startDate = picked;
+      });
+    }
+  }
+
+  // 종료 날짜 선택
+  Future<void> _selectEndDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? (_startDate ?? DateTime.now()),
+      firstDate: _startDate ?? DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 3650)), // 10년 후까지
+      locale: const Locale('ko', 'KR'),
+    );
+    
+    if (picked != null && picked != _endDate) {
+      setState(() {
+        _endDate = picked;
       });
     }
   }
@@ -140,9 +175,9 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
       return;
     }
 
-    if (_selectedDate == null) {
+    if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('목표 기간을 선택해주세요.')),
+        const SnackBar(content: Text('시작 날짜와 종료 날짜를 모두 선택해주세요.')),
       );
       return;
     }
@@ -181,7 +216,6 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
             .where('userId', isEqualTo: currentUser.uid)
             .where('name', isEqualTo: widget.goalData['name'])
             .where('amount', isEqualTo: widget.goalData['amount'])
-            .where('deadline', isEqualTo: widget.goalData['deadline'])
             .where('bank', isEqualTo: widget.goalData['bank'])
             .get();
 
@@ -193,7 +227,8 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
               .update({
             'name': _goalNameController.text.trim(),
             'amount': goalAmount,
-            'deadline': Timestamp.fromDate(_selectedDate!),
+            'startDate': Timestamp.fromDate(_startDate!),
+            'endDate': Timestamp.fromDate(_endDate!),
             'bank': _selectedAccountId,
             'updatedAt': FieldValue.serverTimestamp(),
           });
@@ -400,7 +435,7 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
     );
   }
 
-  // 날짜 선택 필드
+  // 날짜 선택 필드 (시작 날짜와 종료 날짜)
   Widget _buildDateField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,8 +449,19 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
           ),
         ),
         const SizedBox(height: 8),
+        
+        // 시작 날짜
+        const Text(
+          '시작 날짜',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
         GestureDetector(
-          onTap: _selectDate,
+          onTap: _selectStartDate,
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -431,12 +477,54 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  _selectedDate != null
-                      ? DateFormat('yyyy년 MM월 dd일').format(_selectedDate!)
-                      : '날짜 선택',
+                  _startDate != null
+                      ? DateFormat('yyyy년 MM월 dd일').format(_startDate!)
+                      : '시작 날짜 선택',
                   style: TextStyle(
                     fontSize: 14,
-                    color: _selectedDate != null ? Colors.black87 : Colors.grey,
+                    color: _startDate != null ? Colors.black87 : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // 종료 날짜
+        const Text(
+          '종료 날짜',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _selectEndDate,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today,
+                  color: Color(0xFF73AD13),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _endDate != null
+                      ? DateFormat('yyyy년 MM월 dd일').format(_endDate!)
+                      : '종료 날짜 선택',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _endDate != null ? Colors.black87 : Colors.grey,
                   ),
                 ),
               ],
