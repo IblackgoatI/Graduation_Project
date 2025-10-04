@@ -46,6 +46,11 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   bool _showAllCategories = false; // 더보기 상태를 클래스 레벨로 이동
   String _userName = ''; // 사용자 이름을 저장할 변수 추가
   
+  // 목표 관련 상태 변수 추가
+  List<Map<String, dynamic>> _goalList = [];
+  Map<String, int> _accountBalances = {};
+  bool _isLoadingGoals = false;
+  
   // 월별 리포트 상태를 저장하는 Map
   final Map<BuildContext, int> _monthlyReportYearMonth = {};
   
@@ -71,6 +76,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
     _loadUserAccounts();
     _loadUserName(); // 사용자 이름 로드 함수 호출
+    _loadGoalData(); // 목표 데이터 로드 함수 호출
     
     // 초기 거래 내역이 있는 월 목록 계산
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -178,6 +184,100 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
         _userName = '사용자';
       });
     }
+  }
+
+  // 목표 데이터 로드 함수
+  Future<void> _loadGoalData() async {
+    try {
+      setState(() {
+        _isLoadingGoals = true;
+      });
+
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      
+      if (currentUser != null) {
+        // goal 컬렉션에서 현재 사용자의 모든 목표 조회
+        QuerySnapshot goalQuery = await FirebaseFirestore.instance
+            .collection('goal')
+            .where('userId', isEqualTo: currentUser.uid)
+            .get();
+
+        List<Map<String, dynamic>> goalList = [];
+        Map<String, int> accountBalances = {};
+
+        if (goalQuery.docs.isNotEmpty) {
+          // 각 목표에 대해 계좌 잔액 조회
+          for (var doc in goalQuery.docs) {
+            Map<String, dynamic> goalData = doc.data() as Map<String, dynamic>;
+            String? bankId = goalData['bank'];
+            
+            // bank 필드가 있으면 assets 컬렉션에서 잔액 조회
+            if (bankId != null) {
+              try {
+                DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                    .collection('assets')
+                    .doc(bankId)
+                    .get();
+                
+                if (assetDoc.exists) {
+                  Map<String, dynamic> assetData = assetDoc.data() as Map<String, dynamic>;
+                  accountBalances[bankId] = (assetData['balance'] as num?)?.toInt() ?? 0;
+                } else {
+                  accountBalances[bankId] = 0;
+                }
+              } catch (e) {
+                debugPrint('은행 정보 조회 오류: $e');
+                accountBalances[bankId] = 0;
+              }
+            }
+            
+            goalList.add(goalData);
+          }
+        }
+
+        if (mounted) {
+          setState(() {
+            _goalList = goalList;
+            _accountBalances = accountBalances;
+            _isLoadingGoals = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingGoals = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('목표 데이터 로드 오류: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingGoals = false;
+        });
+      }
+    }
+  }
+
+  // 목표 달성 퍼센트 계산 함수
+  double _calculateProgressPercentage(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0.0;
+    
+    int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
+    if (goalAmount == 0) return 0.0;
+    
+    int accountBalance = _accountBalances[bankId] ?? 0;
+    double percentage = (accountBalance / goalAmount) * 100;
+    return percentage > 100 ? 100.0 : percentage;
+  }
+
+  // 금액 포맷팅 함수
+  String _formatAmount(dynamic amount) {
+    if (amount == null) return '0원';
+    
+    int amountInt = (amount as num).toInt();
+    return numberFormat(amountInt) + '원';
   }
 
 
@@ -507,6 +607,9 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
 
   // 목표 현황 카드를 만드는 메서드
   Widget _buildLumpSumCard() {
+    // 첫 번째 목표를 사용 (여러 목표가 있는 경우 첫 번째만 표시)
+    Map<String, dynamic>? firstGoal = _goalList.isNotEmpty ? _goalList.first : null;
+    
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -526,38 +629,101 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                GestureDetector(
+                  onTap: () {
+                    // 목표 관리 화면으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GoalManagementScreen(),
+                      ),
+                    ).then((_) {
+                      // 목표 관리 화면에서 돌아온 후 데이터 새로고침
+                      _loadGoalData();
+                    });
+                  },
+                  child: Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                ),
               ],
             ),
             const SizedBox(height: 16.0),
-            Row(
-              children: [
-                Text(
-                  "0원",
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
-                  ),
+            
+            // 목표가 있는 경우와 없는 경우를 구분하여 표시
+            if (_isLoadingGoals)
+              const Center(
+                child: CircularProgressIndicator(
+                  color: Colors.teal,
                 ),
-                const Spacer(),
-                Text(
-                  "0%",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[600],
+              )
+            else if (firstGoal != null) ...[
+              // 목표가 있는 경우
+              Row(
+                children: [
+                  Text(
+                    _formatAmount(firstGoal['amount']),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
                   ),
+                  const Spacer(),
+                  Text(
+                    "${_calculateProgressPercentage(firstGoal).toStringAsFixed(1)}%",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12.0),
+              LinearProgressIndicator(
+                value: _calculateProgressPercentage(firstGoal) / 100,
+                backgroundColor: Colors.grey[200],
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+                minHeight: 8,
+              ),
+            ] else ...[
+              // 목표가 없는 경우
+              Row(
+                children: [
+                  Text(
+                    "0원",
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    "0%",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12.0),
+              LinearProgressIndicator(
+                value: 0.0,
+                backgroundColor: Colors.grey[200],
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+                minHeight: 8,
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                "목표를 설정해주세요",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12.0),
-            LinearProgressIndicator(
-              value: 0.0, // 기본값 0
-              backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
-              minHeight: 8,
-            ),
+              ),
+            ],
           ],
         ),
       ),
