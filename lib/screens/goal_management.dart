@@ -109,6 +109,22 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     return NumberFormat('#,###원').format(amountInt);
   }
 
+  // 날짜 포맷팅 함수
+  String? _formatDate(dynamic date) {
+    if (date == null) return null;
+    
+    DateTime dateTime;
+    if (date is Timestamp) {
+      dateTime = date.toDate();
+    } else if (date is DateTime) {
+      dateTime = date;
+    } else {
+      return null;
+    }
+    
+    return DateFormat('yy-MM-dd').format(dateTime);
+  }
+
   // D-Day 계산 함수
   String _calculateDDay(dynamic deadline) {
     if (deadline == null) return '';
@@ -155,11 +171,11 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     double percentage = _calculateProgressPercentage(goalData);
     
     if (percentage < 50) {
-      return '절반까지 얼마 안 남았습니다!';
+      return '곧 절반입니다! 😊';
     } else if (percentage < 80) {
-      return '절반 도달했습니다!';
+      return '절반 도달했습니다! 👍';
     } else if (percentage < 100) {
-      return '거의 도달했습니다!';
+      return '거의 도달했습니다! 👏';
     } else {
       return '목표를 달성했습니다! 🎉';
     }
@@ -208,7 +224,6 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
             .where('userId', isEqualTo: currentUser.uid)
             .where('name', isEqualTo: goalData['name'])
             .where('amount', isEqualTo: goalData['amount'])
-            .where('deadline', isEqualTo: goalData['deadline'])
             .where('bank', isEqualTo: goalData['bank'])
             .get();
 
@@ -290,7 +305,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                                 const SizedBox(height: 16),
                             ],
                           );
-                        }).toList(),
+                        }),
                       ] else ...[
                         // 목표가 없을 때
                         _buildEmptyGoalCard(),
@@ -363,7 +378,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _calculateDDay(goalData['deadline']),
+                    _calculateDDay(goalData['endDate'] ?? goalData['deadline']),
                     style: const TextStyle(
                       color: Color(0xFF7D7D7D),
                       fontSize: 12,
@@ -421,31 +436,56 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
         
         const SizedBox(height: 8),
         
-        // 계좌 잔액 / 목표 금액
-        Text(
-          '${_formatAmount(accountBalance)} / ${_formatAmount(goalData['amount'])}',
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black,
-          ),
+        // 계좌 잔액 / 목표 금액과 시작 날짜
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              '${_formatAmount(accountBalance)} / ${_formatAmount(goalData['amount'])}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.black,
+              ),
+            ),
+            Text(
+              _formatDate(goalData['startDate']) ?? '',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF7D7D7D),
+              ),
+            ),
+          ],
         ),
         
         const SizedBox(height: 8),
         
-        // 응원 문구
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          
-          child: Text(
-            _getEncouragementMessage(goalData),
-            style: const TextStyle(
-              fontSize: 13,
-              color: Colors.black,
-              fontWeight: FontWeight.w500,
+        // 응원 문구와 종료 날짜
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  _getEncouragementMessage(goalData),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.left,
+                ),
+              ),
             ),
-            textAlign: TextAlign.left,
-          ),
+            Text(
+              _formatDate(goalData['endDate']) ?? '',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF7D7D7D),
+              ),
+            ),
+          ],
         ),
         
         const SizedBox(height: 8),
