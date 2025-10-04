@@ -33,8 +33,8 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   // 수입 카테고리 목록
   final List<String> _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
 
-  // 지출 카테고리 목록
-  final List<String> _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남'];
+  // 지출 카테고리 목록에 '목표' 추가
+  final List<String> _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남', '목표'];
 
   // Firestore 인스턴스
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -42,6 +42,12 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   // 선택된 결제 수단 이름 및 ID
   String _selectedPaymentMethodName = '선택하세요';
   String? _selectedPaymentMethodId;
+
+  // 목표 카테고리용 입금/출금 계좌 선택 변수 추가
+  String _selectedIncomeAccountName = '선택하세요';
+  String? _selectedIncomeAccountId;
+  String _selectedExpenseAccountName = '선택하세요';
+  String? _selectedExpenseAccountId;
 
   // 금액 입력 포맷터 추가
   final List<TextInputFormatter> _amountInputFormatters = [
@@ -270,169 +276,10 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     }
   }
 
-  // Firestore에 데이터 저장 메서드
-  Future<void> _saveTransactionToFirestore() async {
-    // 컨텍스트를 미리 가져옴
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
-    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
-
-    try {
-      // 금액 변환 (쉼표나 '원' 단위 제거)
-      final amount = double.tryParse(_amountController.text.replaceAll(",", "").replaceAll("원", "")) ?? 0;
-      // 금액을 정수로 변환 (소수점 제거)
-      final amountInt = amount.toInt();
-
-      if (amountInt <= 0) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
-        );
-        return;
-      }
-      if (_selectedPaymentMethodId == null) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('결제수단을 선택해주세요.')),
-        );
-        return;
-      }
-      debugPrint('[NotloginAddTransactionScreen] Saving transaction. Selected Payment Method ID: $_selectedPaymentMethodId, Name: $_selectedPaymentMethodName'); // 디버그 추가
-
-      // 현재 로그인된 사용자 정보 (없으면 "anonymous" 사용)
-      String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
-
-      // Transaction 객체 생성 (여기서는 아직 double로 유지 - 데이터 일관성)
-      final transaction = FinancialTransaction(
-        id: DateTime.now().toString(),
-        type: _selectedType,
-        amount: amount,
-        date: _selectedDate,
-        merchant: _merchantController.text,
-        memo: _memoController.text,
-        tags: _tags,
-        category: _selectedCategory, // 카테고리 정보 추가
-        paymentMethod: _selectedPaymentMethodId ?? '', // 선택된 결제수단 ID 저장
-      );
-
-      // Transaction 객체에서 Firestore 데이터 형식 생성
-      Map<String, dynamic> transactionData = {
-        'userId': userId,
-        'type': transaction.type,
-        'amount': transaction.amount,
-        'date': Timestamp.fromDate(transaction.date),
-        'merchant': transaction.merchant,
-        'category': transaction.category,
-        'paymentMethod': _selectedPaymentMethodId == "현금" ? "현금" : _selectedPaymentMethodId,
-        'memo': transaction.memo,
-        'tags': transaction.tags,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
-      debugPrint('[NotloginAddTransactionScreen] Transaction data for Firestore: $transactionData'); // 디버그 추가
-      debugPrint('[NotloginAddTransactionScreen] paymentMethod field for Firestore: ${transactionData['paymentMethod']}'); // 디버그 추가
-
-      // Firestore의 ledger 컬렉션에 데이터 추가
-      final docRef = await _firestore.collection('ledger').add(transactionData);
-
-      // 결제 수단으로 assets 컬렉션에서 문서 찾기
-      if (_selectedPaymentMethodId != null && _selectedPaymentMethodId != "현금") {
-        // 1. 선택한 결제수단과 일치하는 assets 문서 찾기
-        DocumentSnapshot assetDoc = await _firestore.collection('assets').doc(_selectedPaymentMethodId).get();
-        
-        if (assetDoc.exists) {
-          // 문서가 존재하면 balance 업데이트
-          int currentBalance = ((assetDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toInt();
-          int prevBalance = currentBalance; // 이전 잔액 저장
-          
-          // 2. 거래 유형에 따라 balance 조정
-          int newBalance;
-          String spendType;
-          if (_selectedType == "지출") {
-            newBalance = currentBalance - amountInt;
-            spendType = "-";
-          } else { // "수입"인 경우
-            newBalance = currentBalance + amountInt;
-            spendType = "+";
-          }
-          
-          // balance 업데이트
-          await _firestore.collection('assets').doc(_selectedPaymentMethodId).update({
-            'balance': newBalance
-          });
-          
-          // 3. assets 문서의 transactions 하위 컬렉션에 문서 추가
-          await _firestore.collection('assets').doc(_selectedPaymentMethodId)
-              .collection('transactions').add({
-            'prevbalance': prevBalance,
-            'spend': spendType,
-            'transamount': amount,
-            'transpartner': _merchantController.text,
-            'transtime': Timestamp.fromDate(_selectedDate),
-          });
-          
-          debugPrint('[NotloginAddTransactionScreen] Updated asset balance: $currentBalance -> $newBalance');
-          debugPrint('[NotloginAddTransactionScreen] Added transaction to asset\'s transactions subcollection');
-        } else {
-          debugPrint('[NotloginAddTransactionScreen] Asset document not found for ID: $_selectedPaymentMethodId');
-        }
-      } else {
-        debugPrint('[NotloginAddTransactionScreen] Skipping asset update for cash payment');
-      }
-
-      if (!mounted) return; // async gap 이후 mounted 확인
-
-      // Firestore에서 해당 document를 다시 읽어옴 (동기화)
-      final docSnap = await docRef.get();
-
-      if (!mounted) return; // async gap 이후 mounted 확인
-
-      if (docSnap.exists) {
-        final data = docSnap.data() as Map<String, dynamic>;
-        String paymentMethodValueFromFirestore = data['paymentMethod'] ?? '';
-        String finalPaymentMethodIdForObject;
-
-        // 현금 결제 옵션
-        if (paymentMethodValueFromFirestore == "현금") {
-          finalPaymentMethodIdForObject = "현금";
-        } else {
-          // 그렇지 않으면 Firestore에 저장된 ID (계좌 ID) 사용
-          finalPaymentMethodIdForObject = paymentMethodValueFromFirestore;
-        }
-        debugPrint('[NotloginAddTransactionScreen] Synced paymentMethodValueFromFirestore: $paymentMethodValueFromFirestore, finalPaymentMethodIdForObject: $finalPaymentMethodIdForObject'); // 디버그 추가
-
-
-        final syncedTransaction = FinancialTransaction(
-          id: docSnap.id,
-          type: data['type'] ?? '',
-          amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
-          date: (data['date'] is Timestamp)
-              ? (data['date'] as Timestamp).toDate()
-              : DateTime.now(),
-          merchant: data['merchant'] ?? '',
-          memo: data['memo'] ?? '',
-          tags: (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
-          category: data['category'] ?? '미분류',
-          paymentMethod: finalPaymentMethodIdForObject, 
-        );
-        debugPrint('[NotloginAddTransactionScreen] Synced transaction object for provider: paymentMethod is ${syncedTransaction.paymentMethod}'); // 디버그 추가
-        // Provider에 동기화된 트랜잭션 추가
-        transactionProvider.addTransaction(syncedTransaction);
-      }
-
-      // 저장 후 화면 닫기 (true를 반환하여 저장이 성공했음을 알림)
-      navigator.pop(true);
-    } catch (e) {
-      if (!mounted) return; // async gap 이후 mounted 확인
-      // 오류 메시지 표시
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
-      );
-      debugPrint('[NotloginAddTransactionScreen] Error saving transaction: $e'); // 디버그 추가
-    }
-  }
-
-  // 결제 수단 선택 다이얼로그 표시 메서드
+  // 결제 수단 선택 다이얼로그 표시 메서드 (목표 카테고리용으로 수정)
   void _showPaymentMethodDialog() async {
-    if (!mounted) return; // async gap 이전 mounted 확인
-    final currentContext = context; // 현재 컨텍스트 저장
+    if (!mounted) return;
+    final currentContext = context;
     String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
     QuerySnapshot assetsSnapshot = await _firestore
@@ -440,13 +287,12 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         .where('userId', isEqualTo: userId)
         .get();
 
-    if (!mounted) return; // async gap 이후 mounted 확인
+    if (!mounted) return;
 
     List<Map<String, String>> paymentMethods = [
-      {'id': "현금", 'bank': "현금"} // 기본으로 "현금" 옵션 표시
+      {'id': "현금", 'bank': "현금"}
     ];
 
-    // Firestore에서 가져온 계좌 목록 추가
     paymentMethods.addAll(assetsSnapshot.docs.map((doc) {
       return {
         'id': doc.id,
@@ -454,8 +300,18 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       };
     }).toList());
 
+    // 목표 카테고리인 경우 입금/출금 계좌 선택 다이얼로그 표시
+    if (_selectedCategory == '목표') {
+      _showGoalAccountDialog(currentContext, paymentMethods);
+    } else {
+      _showSinglePaymentMethodDialog(currentContext, paymentMethods);
+    }
+  }
+
+  // 단일 결제수단 선택 다이얼로그
+  void _showSinglePaymentMethodDialog(BuildContext context, List<Map<String, String>> paymentMethods) {
     showModalBottomSheet(
-      context: currentContext, // 저장된 컨텍스트 사용
+      context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -494,6 +350,408 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         );
       },
     );
+  }
+
+  // 목표 카테고리용 입금/출금 계좌 선택 다이얼로그
+  void _showGoalAccountDialog(BuildContext context, List<Map<String, String>> paymentMethods) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '목표 계좌 선택',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // 출금 계좌 선택
+                  const Text(
+                    '출금 계좌',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        _showAccountSelectionDialog(context, paymentMethods, '출금', (name, id) {
+                          setState(() {
+                            _selectedExpenseAccountName = name;
+                            _selectedExpenseAccountId = id;
+                          });
+                        });
+                      },
+                      child: Text(
+                        _selectedExpenseAccountName,
+                        style: TextStyle(
+                          color: _selectedExpenseAccountId == null ? Colors.grey : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // 입금 계좌 선택
+                  const Text(
+                    '입금 계좌',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: TextButton(
+                      onPressed: () {
+                        _showAccountSelectionDialog(context, paymentMethods, '입금', (name, id) {
+                          setState(() {
+                            _selectedIncomeAccountName = name;
+                            _selectedIncomeAccountId = id;
+                          });
+                        });
+                      },
+                      child: Text(
+                        _selectedIncomeAccountName,
+                        style: TextStyle(
+                          color: _selectedIncomeAccountId == null ? Colors.grey : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  const Spacer(),
+                  
+                  // 확인 버튼
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (_selectedExpenseAccountId != null && _selectedIncomeAccountId != null) {
+                          setState(() {
+                            _selectedPaymentMethodName = '$_selectedExpenseAccountName → $_selectedIncomeAccountName';
+                          });
+                          Navigator.pop(context);
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('출금 계좌와 입금 계좌를 모두 선택해주세요.')),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('확인'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 계좌 선택 다이얼로그
+  void _showAccountSelectionDialog(
+    BuildContext context,
+    List<Map<String, String>> paymentMethods,
+    String type,
+    Function(String, String) onSelected,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$type 계좌 선택',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: paymentMethods.length,
+                  itemBuilder: (context, index) {
+                    final method = paymentMethods[index];
+                    return ListTile(
+                      title: Text(method['bank']!),
+                      onTap: () {
+                        onSelected(method['bank']!, method['id']!);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Firestore에 데이터 저장 메서드 (목표 카테고리 처리 추가)
+  Future<void> _saveTransactionToFirestore() async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final transactionProvider = Provider.of<TransactionProvider>(context, listen: false);
+
+    try {
+      final amount = double.tryParse(_amountController.text.replaceAll(",", "").replaceAll("원", "")) ?? 0;
+      final amountInt = amount.toInt();
+
+      if (amountInt <= 0) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('금액을 올바르게 입력해주세요.')),
+        );
+        return;
+      }
+
+      // 목표 카테고리인 경우 입금/출금 계좌 검증
+      if (_selectedCategory == '목표') {
+        if (_selectedExpenseAccountId == null || _selectedIncomeAccountId == null) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('출금 계좌와 입금 계좌를 모두 선택해주세요.')),
+          );
+          return;
+        }
+      } else {
+        if (_selectedPaymentMethodId == null) {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(content: Text('결제수단을 선택해주세요.')),
+          );
+          return;
+        }
+      }
+
+      String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+
+      if (_selectedCategory == '목표') {
+        // 목표 카테고리인 경우 두 개의 거래 내역 생성
+        await _saveGoalTransactions(userId, amount, amountInt, transactionProvider);
+      } else {
+        // 일반 거래 내역 저장
+        await _saveSingleTransaction(userId, amount, amountInt, transactionProvider);
+      }
+
+      navigator.pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
+      );
+      debugPrint('[NotloginAddTransactionScreen] Error saving transaction: $e');
+    }
+  }
+
+  // 목표 카테고리용 두 개의 거래 내역 저장
+  Future<void> _saveGoalTransactions(String userId, double amount, int amountInt, TransactionProvider transactionProvider) async {
+    final timestamp = DateTime.now();
+    
+    // 1. 출금 거래 내역 (지출)
+    final expenseTransactionData = {
+      'userId': userId,
+      'type': '지출',
+      'amount': amount,
+      'date': Timestamp.fromDate(_selectedDate),
+      'merchant': _merchantController.text,
+      'category': '목표',
+      'paymentMethod': _selectedExpenseAccountId,
+      'memo': _memoController.text,
+      'tags': _tags,
+      'createdAt': FieldValue.serverTimestamp(),
+      'relatedTransactionId': timestamp.toString(), // 관련 거래 식별자
+    };
+
+    // 2. 입금 거래 내역 (수입)
+    final incomeTransactionData = {
+      'userId': userId,
+      'type': '수입',
+      'amount': amount,
+      'date': Timestamp.fromDate(_selectedDate),
+      'merchant': _merchantController.text,
+      'category': '목표',
+      'paymentMethod': _selectedIncomeAccountId,
+      'memo': _memoController.text,
+      'tags': _tags,
+      'createdAt': FieldValue.serverTimestamp(),
+      'relatedTransactionId': timestamp.toString(), // 관련 거래 식별자
+    };
+
+    // Firestore에 두 개의 거래 내역 저장
+    final expenseDocRef = await _firestore.collection('ledger').add(expenseTransactionData);
+    final incomeDocRef = await _firestore.collection('ledger').add(incomeTransactionData);
+
+    // 출금 계좌 잔액 업데이트
+    if (_selectedExpenseAccountId != null && _selectedExpenseAccountId != "현금") {
+      await _updateAccountBalance(_selectedExpenseAccountId!, amountInt, '-');
+    }
+
+    // 입금 계좌 잔액 업데이트
+    if (_selectedIncomeAccountId != null && _selectedIncomeAccountId != "현금") {
+      await _updateAccountBalance(_selectedIncomeAccountId!, amountInt, '+');
+    }
+
+    // Provider에 두 개의 거래 내역 추가
+    final expenseDoc = await expenseDocRef.get();
+    final incomeDoc = await incomeDocRef.get();
+
+    if (expenseDoc.exists && incomeDoc.exists) {
+      
+      final expenseTransaction = FinancialTransaction(
+        id: expenseDoc.id,
+        type: '지출',
+        amount: amount,
+        date: _selectedDate,
+        merchant: _merchantController.text,
+        memo: _memoController.text,
+        tags: _tags,
+        category: '목표',
+        paymentMethod: _selectedExpenseAccountId!,
+      );
+
+      final incomeTransaction = FinancialTransaction(
+        id: incomeDoc.id,
+        type: '수입',
+        amount: amount,
+        date: _selectedDate,
+        merchant: _merchantController.text,
+        memo: _memoController.text,
+        tags: _tags,
+        category: '목표',
+        paymentMethod: _selectedIncomeAccountId!,
+      );
+
+      transactionProvider.addTransaction(expenseTransaction);
+      transactionProvider.addTransaction(incomeTransaction);
+    }
+  }
+
+  // 일반 거래 내역 저장 (기존 로직)
+  Future<void> _saveSingleTransaction(String userId, double amount, int amountInt, TransactionProvider transactionProvider) async {
+    final transaction = FinancialTransaction(
+      id: DateTime.now().toString(),
+      type: _selectedType,
+      amount: amount,
+      date: _selectedDate,
+      merchant: _merchantController.text,
+      memo: _memoController.text,
+      tags: _tags,
+      category: _selectedCategory,
+      paymentMethod: _selectedPaymentMethodId ?? '',
+    );
+
+    Map<String, dynamic> transactionData = {
+      'userId': userId,
+      'type': transaction.type,
+      'amount': transaction.amount,
+      'date': Timestamp.fromDate(transaction.date),
+      'merchant': transaction.merchant,
+      'category': transaction.category,
+      'paymentMethod': _selectedPaymentMethodId == "현금" ? "현금" : _selectedPaymentMethodId,
+      'memo': transaction.memo,
+      'tags': transaction.tags,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    final docRef = await _firestore.collection('ledger').add(transactionData);
+
+    // 계좌 잔액 업데이트
+    if (_selectedPaymentMethodId != null && _selectedPaymentMethodId != "현금") {
+      String operation = _selectedType == "지출" ? '-' : '+';
+      await _updateAccountBalance(_selectedPaymentMethodId!, amountInt, operation);
+    }
+
+    // Provider에 거래 내역 추가
+    final docSnap = await docRef.get();
+    if (docSnap.exists) {
+      final data = docSnap.data() as Map<String, dynamic>;
+      String paymentMethodValueFromFirestore = data['paymentMethod'] ?? '';
+      String finalPaymentMethodIdForObject;
+
+      if (paymentMethodValueFromFirestore == "현금") {
+        finalPaymentMethodIdForObject = "현금";
+      } else {
+        finalPaymentMethodIdForObject = paymentMethodValueFromFirestore;
+      }
+
+      final syncedTransaction = FinancialTransaction(
+        id: docSnap.id,
+        type: data['type'] ?? '',
+        amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
+        date: (data['date'] is Timestamp)
+            ? (data['date'] as Timestamp).toDate()
+            : DateTime.now(),
+        merchant: data['merchant'] ?? '',
+        memo: data['memo'] ?? '',
+        tags: (data['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+        category: data['category'] ?? '미분류',
+        paymentMethod: finalPaymentMethodIdForObject,
+      );
+
+      transactionProvider.addTransaction(syncedTransaction);
+    }
+  }
+
+  // 계좌 잔액 업데이트 헬퍼 메서드
+  Future<void> _updateAccountBalance(String accountId, int amount, String operation) async {
+    try {
+      DocumentSnapshot assetDoc = await _firestore.collection('assets').doc(accountId).get();
+      
+      if (assetDoc.exists) {
+        int currentBalance = ((assetDoc.data() as Map<String, dynamic>)['balance'] ?? 0).toInt();
+        int newBalance = operation == '+' ? currentBalance + amount : currentBalance - amount;
+        
+        await _firestore.collection('assets').doc(accountId).update({
+          'balance': newBalance
+        });
+        
+        // 계좌 거래 내역 추가
+        await _firestore.collection('assets').doc(accountId)
+            .collection('transactions').add({
+          'prevbalance': currentBalance,
+          'spend': operation,
+          'transamount': amount,
+          'transpartner': _merchantController.text,
+          'transtime': Timestamp.fromDate(_selectedDate),
+        });
+      }
+    } catch (e) {
+      debugPrint('[NotloginAddTransactionScreen] Error updating account balance: $e');
+    }
   }
 
   @override
