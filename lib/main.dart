@@ -12,6 +12,7 @@ import 'screens/transaction_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 임포트
 import 'router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'screens/category_manager.dart';
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -45,6 +46,9 @@ Future<void> main() async {
     // 로컬 알림 초기화
     await initializeLocalNotifications();
   }
+
+  // 카테고리 시스템 초기화
+  await CategoryManager.initialize();
 
   runApp(
     MultiProvider(

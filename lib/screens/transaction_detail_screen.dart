@@ -8,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'category_edit_screen.dart';
+import 'category_manager.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final FinancialTransaction transaction;
@@ -41,15 +43,37 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
   String? _currentPaymentMethodId;
   String _currentPaymentMethodName = '로딩 중...'; // 초기값
 
-  // 수입 카테고리 목록
-  final List<String> _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
-  // 지출 카테고리 목록
-  final List<String> _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남'];
+  // 동적 카테고리 목록
+  List<String> _incomeCategories = [];
+  List<String> _expenseCategories = [];
 
   @override
   void initState() {
     super.initState();
     _initializeValues();
+    _loadCategories();
+  }
+
+  // 카테고리 로드
+  Future<void> _loadCategories() async {
+    try {
+      // 캐시 초기화 후 새로 로드
+      CategoryManager.clearCache();
+      final incomeCats = await CategoryManager.getIncomeCategories();
+      final expenseCats = await CategoryManager.getExpenseCategories();
+      
+      setState(() {
+        _incomeCategories = incomeCats;
+        _expenseCategories = expenseCats;
+      });
+    } catch (e) {
+      print('카테고리 로드 실패: $e');
+      // 기본 카테고리 사용
+      setState(() {
+        _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
+        _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남'];
+      });
+    }
   }
 
   void _initializeValues() {
@@ -384,12 +408,25 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '카테고리 선택',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '카테고리 선택',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _navigateToCategoryEdit();
+                    },
+                    tooltip: '카테고리 편집',
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -442,6 +479,19 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         );
       },
     );
+  }
+
+  // 카테고리 편집 화면으로 이동
+  void _navigateToCategoryEdit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CategoryEditScreen(type: _type),
+      ),
+    ).then((_) {
+      // 편집 화면에서 돌아왔을 때 카테고리 목록 새로고침
+      _loadCategories();
+    });
   }
 
   // 상세 정보 행 위젯
