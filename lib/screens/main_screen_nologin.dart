@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'asset_detail_screen.dart'; // 자산 detail화면 import
 import 'account_book_screen.dart'; // 가계부 화면 import
 import 'community_screen.dart'; // 커뮤니티 화면 import
@@ -36,15 +37,19 @@ class MainScreenNotLogin extends StatefulWidget {
   State<MainScreenNotLogin> createState() => _MainScreenNotLoginState();
 }
 
-class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTickerProviderStateMixin {
+class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProviderStateMixin {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _userAccounts = [];
   bool _isLoading = true;
   late AnimationController _animationController;
+  late ScrollController _scrollController;
+  late AnimationController _headerAnimationController;
+  late Animation<double> _headerAnimation;
   int currentMonth = DateTime.now().month;
   List<int> availableMonths = [];
   bool _showAllCategories = false; // 더보기 상태를 클래스 레벨로 이동
   String _userName = ''; // 사용자 이름을 저장할 변수 추가
+  bool _isHeaderCollapsed = false; // 헤더 축소 상태
   
   // 목표 관련 상태 변수 추가
   List<Map<String, dynamic>> _goalList = [];
@@ -74,6 +79,24 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    
+    // 스크롤 컨트롤러 초기화
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+    
+    // 헤더 애니메이션 컨트롤러 초기화
+    _headerAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _headerAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _headerAnimationController,
+      curve: Curves.easeInOutQuart,
+    ));
+    
     _loadUserAccounts();
     _loadUserName(); // 사용자 이름 로드 함수 호출
     _loadGoalData(); // 목표 데이터 로드 함수 호출
@@ -87,6 +110,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
   @override
   void dispose() {
     _animationController.dispose();
+    _scrollController.dispose();
+    _headerAnimationController.dispose();
     super.dispose();
   }
 
@@ -372,15 +397,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: _selectedIndex == 0
-          ? AppBar(
-        title: Image.asset(
-          'assets/piggy.png',
-          height: 30,
-          width: 30,
-        ),
-              backgroundColor: Colors.grey[50],
-              automaticallyImplyLeading: false, // 뒤로가기 버튼 자동 생성 방지
-            )
+          ? _buildCustomHeader()
           : null,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
@@ -462,11 +479,128 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
     );
   }
 
+  // 동적 헤더 구성
+  PreferredSizeWidget _buildCustomHeader() {
+    return PreferredSize(
+      preferredSize: Size.fromHeight(_isHeaderCollapsed ? 60 : 100),
+      child: AnimatedBuilder(
+        animation: _headerAnimation,
+        builder: (context, child) {
+          // 연속적인 애니메이션 값으로 부드러운 전환
+          double animationValue = _headerAnimation.value;
+          double currentTopPadding = 40 - (20 * animationValue); // 40에서 20으로
+          double currentBottomPadding = 16 - (4 * animationValue); // 16에서 12로
+          double currentFontSize = 22 - (4 * animationValue); // 22에서 18로
+          
+          return Container(
+            padding: EdgeInsets.fromLTRB(
+              20, 
+              currentTopPadding, 
+              20, 
+              currentBottomPadding
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: animationValue > 0.5 
+              ? // 축소된 상태: 중앙 정렬
+              Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // 사용자 이름
+                    Text(
+                      '${_userName.isNotEmpty ? _userName : '사용자'}님',
+                      style: TextStyle(
+                        fontSize: currentFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    // 날짜
+                    Text(
+                      DateFormat('M월 d일', 'ko_KR').format(DateTime.now()),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                )
+              : // 확장된 상태: 기존 레이아웃
+              Row(
+                children: [
+                  // 왼쪽: 사용자 정보
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 사용자 이름
+                        Text(
+                          '${_userName.isNotEmpty ? _userName : '사용자'}님',
+                          style: TextStyle(
+                            fontSize: currentFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        // 동기 부여 문구 (연속적인 투명도)
+                        Opacity(
+                          opacity: 1 - animationValue,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 2),
+                              Text(
+                                '오늘도 목표를 향해 달려볼까요?',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 오른쪽: 날짜
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        DateFormat('M월 d일 EEEE', 'ko_KR').format(DateTime.now()),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+          );
+        },
+      ),
+    );
+  }
+
   // 홈 화면을 별도의 메서드로 정의
   Widget _homeScreen() {
     return RefreshIndicator(
       onRefresh: _loadUserAccounts,
       child: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -1364,6 +1498,26 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with SingleTick
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
           (Match m) => '${m[1]},',
     );
+  }
+
+  // 스크롤 감지 메서드
+  void _onScroll() {
+    const double threshold = 50.0; // 스크롤 임계값
+    const double maxScroll = 100.0; // 최대 스크롤값
+    
+    // 스크롤 위치에 따른 연속적인 애니메이션 값 계산
+    double scrollProgress = (_scrollController.offset / maxScroll).clamp(0.0, 1.0);
+    
+    // 헤더 축소 상태 업데이트
+    bool shouldCollapse = _scrollController.offset > threshold;
+    if (shouldCollapse != _isHeaderCollapsed) {
+      setState(() {
+        _isHeaderCollapsed = shouldCollapse;
+      });
+    }
+    
+    // 연속적인 애니메이션 값 설정 (스크롤할 때 1에 가까워짐)
+    _headerAnimationController.value = scrollProgress;
   }
 
   // 외부에서 접근 가능한 public 메서드
