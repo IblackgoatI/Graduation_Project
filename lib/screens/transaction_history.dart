@@ -21,8 +21,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   List<Map<String, dynamic>> transactions = [];
   List<Map<String, dynamic>> filteredTransactions = []; // 필터링된 거래 내역
   bool isLoading = true;
-  String? selectedPeriod; // 선택된 기간 ('1month' 또는 '3months')
-  String? selectedSpend; // '+'(입금) 또는 '-'(출금)
+  String? selectedPeriod; // 선택된 기간 ('1month', '3months', 또는 'custom')
+  String? selectedSpend; // '+'(입금), '-'(출금), 또는 'all'(전체)
+  DateTime? customStartDate; // 직접입력 시작 날짜
+  DateTime? customEndDate; // 직접입력 종료 날짜
+  bool showDatePicker = false; // 날짜 선택 박스 표시 여부
 
   @override
   void initState() {
@@ -70,24 +73,38 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     List<Map<String, dynamic>> base = List.from(transactions);
     
     if (selectedPeriod != null) {
-      final now = DateTime.now();
-      DateTime filterDate = now;
+      DateTime? filterStartDate;
+      
       if (selectedPeriod == '1month') {
-        filterDate = now.subtract(const Duration(days: 30));
+        filterStartDate = DateTime.now().subtract(const Duration(days: 30));
       } else if (selectedPeriod == '3months') {
-        filterDate = now.subtract(const Duration(days: 90));
+        filterStartDate = DateTime.now().subtract(const Duration(days: 90));
+      } else if (selectedPeriod == 'custom' && customStartDate != null) {
+        filterStartDate = customStartDate;
       }
 
-      base = base.where((t) {
-        final raw = t['transtime'];
-        if (raw is! Timestamp) return false;
-        final d = raw.toDate();
-        return !d.isBefore(filterDate); // filterDate 이상
-      }).toList();
+      if (filterStartDate != null) {
+        base = base.where((t) {
+          final raw = t['transtime'];
+          if (raw is! Timestamp) return false;
+          final d = raw.toDate();
+          
+          if (selectedPeriod == 'custom' && customEndDate != null && filterStartDate != null) {
+            // 직접입력의 경우 시작일과 종료일 사이 (포함)
+            final startOfDay = DateTime(filterStartDate.year, filterStartDate.month, filterStartDate.day);
+            final endOfDay = DateTime(customEndDate!.year, customEndDate!.month, customEndDate!.day, 23, 59, 59);
+            return d.isAfter(startOfDay.subtract(const Duration(milliseconds: 1))) && 
+                   d.isBefore(endOfDay.add(const Duration(milliseconds: 1)));
+          } else {
+            // 1개월, 3개월의 경우 시작일 이후
+            return !d.isBefore(filterStartDate!);
+          }
+        }).toList();
+      }
     }
 
-    // 입출금 필터 ('+' 또는 '-')
-    if (selectedSpend != null) {
+    // 입출금 필터 ('+', '-', 또는 'all')
+    if (selectedSpend != null && selectedSpend != 'all') {
       base = base.where((t) => (t['spend'] ?? '') == selectedSpend).toList();
     }
 
@@ -101,11 +118,20 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       if (selectedPeriod == period) {
         // 같은 버튼을 다시 클릭하면 선택 해제
         selectedPeriod = null;
+        showDatePicker = false;
+        customStartDate = null;
+        customEndDate = null;
       } else {
         // 다른 기간 선택
         selectedPeriod = period;
+        if (period == 'custom') {
+          showDatePicker = true;
+        } else {
+          showDatePicker = false;
+          customStartDate = null;
+          customEndDate = null;
+        }
       }
-      _applyFilter();
     });
   }
 
@@ -117,8 +143,33 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       } else {
         selectedSpend = spend;
       }
-      _applyFilter();
     });
+  }
+
+
+  // 모달용 날짜 선택 함수 (StateSetter 포함)
+  void _selectCustomDateRangeForModal(StateSetter setModalState) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: customStartDate != null && customEndDate != null
+          ? DateTimeRange(start: customStartDate!, end: customEndDate!)
+          : null,
+    );
+    
+    if (picked != null) {
+      setModalState(() {
+        customStartDate = picked.start;
+        customEndDate = picked.end;
+      });
+    }
+  }
+
+  // 조회하기 버튼 클릭 시 필터 적용
+  void _applyQuery() {
+    _applyFilter();
+    Navigator.of(context).pop(); // 모달 닫기
   }
 
   String _formatTime(Timestamp timestamp) {
@@ -150,12 +201,230 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return Colors.black; // 기본 색상
   }
 
-  // 기간 선택 버튼 위젯
-  Widget _buildPeriodButton(String label, String period) {
+  // 조회조건 선택 모달 표시
+  void _showQueryConditionsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 헤더
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: const Icon(Icons.close, size: 24),
+                      ),
+                      const Text(
+                        '조회조건 선택',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 24), // 균형을 위한 공간
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // 조회기간 섹션
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '조회기간',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildModalPeriodButton('1개월', '1month', setModalState),
+                      const SizedBox(width: 12),
+                      _buildModalPeriodButton('3개월', '3months', setModalState),
+                      const SizedBox(width: 12),
+                      _buildModalPeriodButton('직접입력', 'custom', setModalState),
+                    ],
+                  ),
+                  
+                  // 날짜 선택 박스 (직접입력 선택 시에만 표시)
+                  if (showDatePicker) ...[
+                    const SizedBox(height: 15),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '시작일',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    customStartDate != null
+                                        ? '${customStartDate!.year}.${customStartDate!.month.toString().padLeft(2, '0')}.${customStartDate!.day.toString().padLeft(2, '0')}'
+                                        : '선택 안됨',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: customStartDate != null ? Colors.black : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    '종료일',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    customEndDate != null
+                                        ? '${customEndDate!.year}.${customEndDate!.month.toString().padLeft(2, '0')}.${customEndDate!.day.toString().padLeft(2, '0')}'
+                                        : '선택 안됨',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: customEndDate != null ? Colors.black : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 15),
+                          ElevatedButton(
+                            onPressed: () => _selectCustomDateRangeForModal(setModalState),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF73AD13),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 40),
+                            ),
+                            child: const Text('날짜 선택'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
+                  const SizedBox(height: 20),
+                  
+                  // 거래구분 섹션
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '거래구분',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _buildModalSpendButton('전체', 'all', setModalState),
+                      const SizedBox(width: 12),
+                      _buildModalSpendButton('입금', '+', setModalState),
+                      const SizedBox(width: 12),
+                      _buildModalSpendButton('출금', '-', setModalState),
+                    ],
+                  ),
+                  
+                  const SizedBox(height: 30),
+                  
+                  // 하단 버튼들
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[200],
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('취소'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _applyQuery,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF73AD13),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: const Text('조회하기'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // 하단 여백 (키보드 대응)
+                  SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 모달 내 기간 선택 버튼
+  Widget _buildModalPeriodButton(String label, String period, StateSetter setModalState) {
     bool isSelected = selectedPeriod == period;
     
     return GestureDetector(
-      onTap: () => _selectPeriod(period),
+      onTap: () {
+        setModalState(() {
+          _selectPeriod(period);
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
@@ -178,12 +447,16 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  // 입출금 필터 버튼 위젯
-  Widget _buildSpendButton(String label, String spend) {
-    final bool isSelected = selectedSpend == spend;
-
+  // 모달 내 거래구분 버튼
+  Widget _buildModalSpendButton(String label, String spend, StateSetter setModalState) {
+    bool isSelected = selectedSpend == spend;
+    
     return GestureDetector(
-      onTap: () => _selectSpend(spend),
+      onTap: () {
+        setModalState(() {
+          _selectSpend(spend);
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
@@ -235,15 +508,24 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _buildPeriodButton('1개월', '1month'),
-                const SizedBox(width: 12),
-                _buildPeriodButton('3개월', '3months'),
-                const SizedBox(width: 58),
-                _buildSpendButton('입금', '+'),
-                const SizedBox(width: 12),
-                _buildSpendButton('출금', '-'),
+                GestureDetector(
+                  onTap: _showQueryConditionsModal,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: const Icon(
+                      Icons.search,
+                      size: 20,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
