@@ -273,6 +273,10 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
 
         if (goalQuery.docs.isNotEmpty) {
           // 목표 업데이트
+          // 기존 목표의 초기 잔액 유지 (목표 수정 시에는 초기 잔액을 변경하지 않음)
+          Map<String, dynamic> existingGoalData = goalQuery.docs.first.data() as Map<String, dynamic>;
+          int existingInitialBalance = (existingGoalData['initialBalance'] as num?)?.toInt() ?? 0;
+
           await FirebaseFirestore.instance
               .collection('goal')
               .doc(goalQuery.docs.first.id)
@@ -285,6 +289,7 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
             'bank': _selectedAccountId,
             'withdrawalAccount': _selectedWithdrawalAccountId,
             'withdrawalDay': withdrawalDay,
+            'initialBalance': existingInitialBalance, // 기존 초기 잔액 유지
             'updatedAt': FieldValue.serverTimestamp(),
           });
 

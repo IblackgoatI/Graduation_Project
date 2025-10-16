@@ -227,6 +227,24 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
           return;
         }
 
+        // 목표 계좌의 현재 잔액 조회
+        int initialBalance = 0;
+        if (_selectedAccountId != null) {
+          try {
+            DocumentSnapshot assetDoc = await FirebaseFirestore.instance
+                .collection('assets')
+                .doc(_selectedAccountId)
+                .get();
+            
+            if (assetDoc.exists) {
+              Map<String, dynamic> assetData = assetDoc.data() as Map<String, dynamic>;
+              initialBalance = (assetData['balance'] as num?)?.toInt() ?? 0;
+            }
+          } catch (e) {
+            debugPrint('초기 잔액 조회 오류: $e');
+          }
+        }
+
         // Firestore에 목표 저장
         await FirebaseFirestore.instance.collection('goal').add({
           'userId': currentUser.uid,
@@ -238,6 +256,7 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
           'bank': _selectedAccountId,
           'withdrawalAccount': _selectedWithdrawalAccountId,
           'withdrawalDay': withdrawalDay,
+          'initialBalance': initialBalance, // 목표 설정 시점의 잔액 저장
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });

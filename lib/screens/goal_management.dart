@@ -161,9 +161,31 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
     if (goalAmount == 0) return 0.0;
     
-    int accountBalance = _accountBalances[bankId] ?? 0;
-    double percentage = (accountBalance / goalAmount) * 100;
-    return percentage > 100 ? 100.0 : percentage;
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    
+    // 목표 설정 시점의 잔액 (목표 데이터에서 가져오거나 기본값 0 사용)
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    // 현재 잔액에서 초기 잔액을 뺀 증가 금액
+    int increasedAmount = currentBalance - initialBalance;
+    
+    // 증가 금액이 목표 금액에 비해 얼마나 달성되었는지 계산
+    double percentage = (increasedAmount / goalAmount) * 100;
+    
+    // 100%를 넘지 않도록 제한
+    return percentage > 100 ? 100.0 : (percentage < 0 ? 0.0 : percentage);
+  }
+
+  // 증가한 금액 계산 함수
+  int _getIncreasedAmount(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0;
+    
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    int increasedAmount = currentBalance - initialBalance;
+    return increasedAmount < 0 ? 0 : increasedAmount; // 음수인 경우 0 반환
   }
 
   // 응원 문구 생성 함수
@@ -356,8 +378,6 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
   // 목표 데이터가 있을 때의 내용
   Widget _buildGoalContent(Map<String, dynamic> goalData) {
     double progressPercentage = _calculateProgressPercentage(goalData);
-    String? bankId = goalData['bank'];
-    int accountBalance = bankId != null ? (_accountBalances[bankId] ?? 0) : 0;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,12 +480,12 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
         
         const SizedBox(height: 8),
         
-        // 계좌 잔액 / 목표 금액과 시작 날짜
+        // 증가한 금액 / 목표 금액과 시작 날짜
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${_formatAmount(accountBalance)} / ${_formatAmount(goalData['amount'])}',
+              '${_formatAmount(_getIncreasedAmount(goalData))} / ${_formatAmount(goalData['amount'])}',
               style: const TextStyle(
                 fontSize: 13,
                 color: Colors.black,
