@@ -362,7 +362,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 목표 제목, D-Day, 휴지통 아이콘
+        // 목표 제목, D-Day, 연필 아이콘, 휴지통 아이콘
         Row(
           children: [
             Expanded(
@@ -383,6 +383,30 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                       color: Color(0xFF7D7D7D),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      // 목표 수정 화면으로 이동
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GoalUpdateScreen(
+                            goalData: goalData,
+                          ),
+                        ),
+                      );
+                      
+                      // 목표가 성공적으로 수정되면 데이터 새로고침
+                      if (result == true) {
+                        _loadGoalData();
+                      }
+                    },
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF7D7D7D),
+                      size: 16,
                     ),
                   ),
                 ],
