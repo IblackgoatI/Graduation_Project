@@ -2,6 +2,7 @@
 /// 기존 목표 정보를 수정하는 화면입니다.
 library;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -26,13 +27,15 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
   // 입력 데이터
   final TextEditingController _goalNameController = TextEditingController();
   final TextEditingController _goalAmountController = TextEditingController();
+  final TextEditingController _monthlyAmountController = TextEditingController();
+  final TextEditingController _withdrawalDateController = TextEditingController();
   DateTime? _startDate;
   DateTime? _endDate;
   String? _selectedAccountId;
+  String? _selectedWithdrawalAccountId;
   
   // 계좌 목록
   List<Map<String, dynamic>> _accounts = [];
-  bool _isLoadingAccounts = false;
 
   @override
   void initState() {
@@ -45,6 +48,8 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
   void dispose() {
     _goalNameController.dispose();
     _goalAmountController.dispose();
+    _monthlyAmountController.dispose();
+    _withdrawalDateController.dispose();
     super.dispose();
   }
 
@@ -83,14 +88,25 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
     
     // bank 설정
     _selectedAccountId = widget.goalData['bank'];
+    
+    // 월 납입 금액 설정
+    int monthlyAmount = (widget.goalData['monthlyAmount'] as num?)?.toInt() ?? 0;
+    if (monthlyAmount > 0) {
+      _monthlyAmountController.text = NumberFormat('#,###').format(monthlyAmount);
+    }
+    
+    // 출금 계좌 설정
+    _selectedWithdrawalAccountId = widget.goalData['withdrawalAccount'];
+    
+    // 출금 날짜 설정
+    int withdrawalDay = widget.goalData['withdrawalDay'] ?? 0;
+    if (withdrawalDay > 0) {
+      _withdrawalDateController.text = withdrawalDay.toString();
+    }
   }
 
   // 계좌 목록 로드
   Future<void> _loadAccounts() async {
-    setState(() {
-      _isLoadingAccounts = true;
-    });
-
     try {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
       
@@ -113,14 +129,10 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
 
         setState(() {
           _accounts = accounts;
-          _isLoadingAccounts = false;
         });
       }
     } catch (e) {
       debugPrint('계좌 목록 로드 오류: $e');
-      setState(() {
-        _isLoadingAccounts = false;
-      });
     }
   }
 
@@ -184,7 +196,36 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
 
     if (_selectedAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('계좌를 선택해주세요.')),
+        const SnackBar(content: Text('목표 계좌를 선택해주세요.')),
+      );
+      return;
+    }
+
+    if (_monthlyAmountController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('월 납입 금액을 입력해주세요.')),
+      );
+      return;
+    }
+
+    if (_selectedWithdrawalAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('출금 계좌를 선택해주세요.')),
+      );
+      return;
+    }
+
+    if (_withdrawalDateController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('출금 날짜를 입력해주세요.')),
+      );
+      return;
+    }
+
+    int withdrawalDay = int.tryParse(_withdrawalDateController.text.trim()) ?? 0;
+    if (withdrawalDay < 1 || withdrawalDay > 31) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('출금 날짜는 1일부터 31일 사이로 입력해주세요.')),
       );
       return;
     }
@@ -197,12 +238,23 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
       
       if (currentUser != null) {
-        // 목표 금액을 숫자로 변환
+        // 목표 금액과 월 납입 금액을 숫자로 변환
         int goalAmount = int.tryParse(_goalAmountController.text.trim().replaceAll(',', '')) ?? 0;
+        int monthlyAmount = int.tryParse(_monthlyAmountController.text.trim().replaceAll(',', '')) ?? 0;
         
         if (goalAmount <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('올바른 목표 금액을 입력해주세요.')),
+          );
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        if (monthlyAmount <= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('올바른 월 납입 금액을 입력해주세요.')),
           );
           setState(() {
             _isLoading = false;
@@ -227,9 +279,12 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
               .update({
             'name': _goalNameController.text.trim(),
             'amount': goalAmount,
+            'monthlyAmount': monthlyAmount,
             'startDate': Timestamp.fromDate(_startDate!),
             'endDate': Timestamp.fromDate(_endDate!),
             'bank': _selectedAccountId,
+            'withdrawalAccount': _selectedWithdrawalAccountId,
+            'withdrawalDay': withdrawalDay,
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
@@ -271,14 +326,28 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
     return NumberFormat('#,###').format(amount);
   }
 
-  // 선택된 계좌 정보 가져오기
-  Map<String, dynamic>? _getSelectedAccount() {
-    if (_selectedAccountId == null) return null;
+
+  // 계좌 표시 이름 가져오기
+  String _getAccountDisplayName(String? accountId) {
+    if (accountId == null) return '계좌 선택';
     
     try {
-      return _accounts.firstWhere((account) => account['id'] == _selectedAccountId);
+      final account = _accounts.firstWhere((acc) => acc['id'] == accountId);
+      return account['bank'];
     } catch (e) {
-      return null;
+      return '계좌 선택';
+    }
+  }
+
+  // 계좌 잔액 가져오기
+  String _getAccountBalance(String? accountId) {
+    if (accountId == null) return '';
+    
+    try {
+      final account = _accounts.firstWhere((acc) => acc['id'] == accountId);
+      return '${NumberFormat('#,###').format(account['balance'])}원';
+    } catch (e) {
+      return '';
     }
   }
 
@@ -358,8 +427,36 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
             
             const SizedBox(height: 24),
             
-            // 계좌 선택
-            _buildAccountField(),
+            // 목표 계좌 선택
+            _buildAccountField('목표 계좌', _selectedAccountId, (accountId) {
+              setState(() {
+                _selectedAccountId = accountId;
+              });
+            }),
+            
+            const SizedBox(height: 24),
+            
+            // 월 납입 금액
+            _buildInputField(
+              label: '월 납입 금액',
+              controller: _monthlyAmountController,
+              hintText: '월 납입 금액을 입력해주세요',
+              isAmount: true,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // 출금 계좌 선택
+            _buildAccountField('출금 계좌', _selectedWithdrawalAccountId, (accountId) {
+              setState(() {
+                _selectedWithdrawalAccountId = accountId;
+              });
+            }),
+            
+            const SizedBox(height: 24),
+            
+            // 출금 날짜
+            _buildWithdrawalDateField(),
             
             const SizedBox(height: 32),
             
@@ -536,12 +633,77 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
   }
 
   // 계좌 선택 필드
-  Widget _buildAccountField() {
+  Widget _buildAccountField(String label, String? selectedAccountId, Function(String) onAccountSelected) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final result = await _showSelectAccountDialog(selectedAccountId, label);
+            if (result != null) {
+              onAccountSelected(result['id']);
+            }
+          },
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '',
+                style: TextStyle(fontSize: 16),
+              ),
+              Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        _getAccountDisplayName(selectedAccountId),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (selectedAccountId != null)
+                        Text(
+                          '잔액 ${_getAccountBalance(selectedAccountId)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 5),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 출금 날짜 필드
+  Widget _buildWithdrawalDateField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '계좌 선택',
+          '출금 날짜',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -549,113 +711,180 @@ class _GoalUpdateScreenState extends State<GoalUpdateScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _showAccountSelectionDialog,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
-              borderRadius: BorderRadius.circular(8),
+        TextField(
+          controller: _withdrawalDateController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            hintText: '1-31 사이의 날짜를 입력해주세요',
+            border: OutlineInputBorder(),
+            focusedBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF73AD13)),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.account_balance,
-                  color: Color(0xFF73AD13),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _getSelectedAccount()?['bank'] ?? '계좌 선택',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _getSelectedAccount() != null ? Colors.black87 : Colors.grey,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.grey,
-                ),
-              ],
-            ),
+            suffixText: '일',
           ),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(2),
+          ],
         ),
       ],
     );
   }
 
-  // 계좌 선택 다이얼로그
-  void _showAccountSelectionDialog() {
-    showModalBottomSheet(
+  // 계좌 선택 다이얼로그 표시
+  Future<Map<String, dynamic>?> _showSelectAccountDialog(String? initialSelectedAccountId, String title) async {
+    Map<String, dynamic>? tempSelectedAccount;
+    
+    if (initialSelectedAccountId != null) {
+      try {
+        tempSelectedAccount = _accounts.firstWhere((acc) => acc['id'] == initialSelectedAccountId);
+      } catch (e) {
+        tempSelectedAccount = null;
+      }
+    }
+
+    return await showModalBottomSheet<Map<String, dynamic>?>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '계좌를 선택해주세요',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
-              const SizedBox(height: 20),
-              if (_isLoadingAccounts)
-                const Center(child: CircularProgressIndicator())
-              else if (_accounts.isEmpty)
-                const Center(
-                  child: Text(
-                    '등록된 계좌가 없습니다.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _accounts.length,
-                  itemBuilder: (context, index) {
-                    final account = _accounts[index];
-                    final isSelected = _selectedAccountId == account['id'];
-                    
-                    return ListTile(
-                      leading: const Icon(
-                        Icons.account_balance,
-                        color: Color(0xFF73AD13),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                height: 500,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$title를 설정해주세요.',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      '입출금',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
                       ),
-                      title: Text(
-                        account['bank'],
-                        style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    const Divider(),
+
+                    // 계좌 목록
+                    Expanded(
+                      child: _accounts.isEmpty
+                          ? const Center(child: Text('등록된 계좌가 없습니다.'))
+                          : ListView.builder(
+                              itemCount: _accounts.length,
+                              itemBuilder: (context, index) {
+                                final account = _accounts[index];
+
+                                return ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: _buildAccountIcon(account),
+                                  title: Text(
+                                    account['bank'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  subtitle: Text('${NumberFormat('#,###').format(account['balance'])}원'),
+                                  trailing: Radio<String>(
+                                    value: account['id'],
+                                    groupValue: tempSelectedAccount?['id'],
+                                    onChanged: (String? value) {
+                                      setDialogState(() {
+                                        tempSelectedAccount = account;
+                                      });
+                                    },
+                                    activeColor: const Color(0xFF73AD13),
+                                  ),
+                                  onTap: () {
+                                    setDialogState(() {
+                                      tempSelectedAccount = account;
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // 확인 버튼
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context, tempSelectedAccount);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF73AD13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          minimumSize: const Size(double.infinity, 50),
+                        ),
+                        child: const Text(
+                          '확인',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
-                      subtitle: Text('${NumberFormat('#,###').format(account['balance'])}원'),
-                      trailing: isSelected
-                          ? const Icon(
-                              Icons.check_circle,
-                              color: Color(0xFF73AD13),
-                            )
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          _selectedAccountId = account['id'];
-                        });
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+            );
+          },
         );
       },
+    );
+  }
+
+  // 계좌 아이콘 위젯
+  Widget _buildAccountIcon(Map<String, dynamic> account) {
+    String bankName = account['bank'];
+    Color iconColor = Color(account['iconColor'] ?? 0xFF73AD13);
+    String iconLetter = bankName.isNotEmpty ? bankName[0] : '?';
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: iconColor.withAlpha((0.2 * 255).round()),
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Text(
+          iconLetter,
+          style: TextStyle(
+            color: iconColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 }
