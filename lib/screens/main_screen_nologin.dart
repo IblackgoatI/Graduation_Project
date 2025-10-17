@@ -15,6 +15,7 @@ import 'asset.dart'; // 자산 화면 import (계좌 연결 화면)
 import 'transaction_provider.dart'; // 트랜잭션 프로바이더 import
 import 'transaction.dart'; // 트랜잭션 모델 import
 import 'goal_management.dart'; // 목표 관리 화면 import
+import 'my_page_screen.dart'; // 마이페이지 화면 import
 
 class MainScreenNotLogin extends StatefulWidget {
   final User? user;
@@ -63,12 +64,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
   static List<Map<String, dynamic>> recentTabs = [];
   
   // 탭 이름 매핑
-  final List<String> tabNames = ['홈', '가계부', '커뮤니티', '전체'];
+  final List<String> tabNames = ['홈', '가계부', '커뮤니티', '전체', '마이페이지'];
   final List<IconData> tabIcons = [
     Icons.home, 
     Icons.calendar_today, 
     Icons.people, 
-    Icons.menu
+    Icons.menu,
+    Icons.person
   ];
 
 
@@ -371,8 +373,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
     _animationController.reset();
     _animationController.forward();
     
-    // 현재 선택하는 탭이 '전체' 탭이 아니면 최근 방문 탭에 추가
-    if (index != 3) {
+    // 현재 선택하는 탭이 '전체' 탭이나 '마이페이지' 탭이 아니면 최근 방문 탭에 추가
+    if (index != 3 && index != 4) {
       // 최근 방문 탭에 현재 선택한 탭 추가
       _addToRecentTabs(index);
     }
@@ -414,6 +416,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
       const AccountBookScreen(),
       const CommunityScreen(),
       const AllScreen(),
+      MyPageScreen(user: widget.user),
     ];
 
     return Scaffold(
@@ -494,6 +497,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
               ),
             ),
             label: '전체',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(
+              Icons.person,
+              color: _selectedIndex == 4 ? Colors.black : const Color(0xFFAAA1A1),
+            ),
+            label: '마이페이지',
           ),
         ],
         ),
