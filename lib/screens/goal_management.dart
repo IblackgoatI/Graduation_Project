@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'goal_add.dart';
 import 'goal_update.dart';
+import 'goal_amount_add.dart';
 
 class GoalManagementScreen extends StatefulWidget {
   final User? user;
@@ -540,17 +541,17 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
             width: 120, // 원하는 너비 설정
             child: ElevatedButton(
               onPressed: () async {
-                // 목표 수정 화면으로 이동
+                // 목표 금액 추가 화면으로 이동
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => GoalUpdateScreen(
+                    builder: (context) => GoalAmountAddScreen(
                       goalData: goalData,
                     ),
                   ),
                 );
                 
-                // 목표가 성공적으로 수정되면 데이터 새로고침
+                // 목표 금액이 성공적으로 추가되면 데이터 새로고침
                 if (result == true) {
                   _loadGoalData();
                 }
@@ -563,10 +564,10 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                 minimumSize: const Size(0, 36), // 높이만 유지
               ),
               child: const Text(
-                '목표 수정',
+                '목표 금액 추가',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 11,
                 ),
               ),
             ),
