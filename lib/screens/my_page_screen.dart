@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'my_posts_screen.dart';
+import 'my_comments_screen.dart';
 
 class MyPageScreen extends StatefulWidget {
   final User? user;
@@ -144,6 +146,32 @@ class _MyPageScreenState extends State<MyPageScreen> {
   Widget _buildMenuSection() {
     return Column(
       children: [
+        _buildMenuCard(
+          title: '내가 쓴 글',
+          icon: Icons.article,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MyPostsScreen(user: widget.user),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12.0),
+        _buildMenuCard(
+          title: '내가 쓴 댓글',
+          icon: Icons.comment,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MyCommentsScreen(user: widget.user),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12.0),
         _buildMenuCard(
           title: '계정 설정',
           icon: Icons.settings,

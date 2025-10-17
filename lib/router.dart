@@ -13,6 +13,8 @@ import 'screens/point_management_screen.dart';
 import 'screens/transaction_history.dart';
 import 'screens/goal_management.dart';
 import 'screens/my_page_screen.dart';
+import 'screens/my_posts_screen.dart';
+import 'screens/my_comments_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/admin/login',
@@ -69,6 +71,20 @@ final router = GoRouter(
       builder: (context, state) {
         final user = FirebaseAuth.instance.currentUser;
         return MyPageScreen(user: user);
+      },
+    ),
+    GoRoute(
+      path: '/my_posts',
+      builder: (context, state) {
+        final user = FirebaseAuth.instance.currentUser;
+        return MyPostsScreen(user: user);
+      },
+    ),
+    GoRoute(
+      path: '/my_comments',
+      builder: (context, state) {
+        final user = FirebaseAuth.instance.currentUser;
+        return MyCommentsScreen(user: user);
       },
     ),
   ],
