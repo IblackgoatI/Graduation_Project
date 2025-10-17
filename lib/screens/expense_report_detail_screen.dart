@@ -146,7 +146,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           final userData = userDoc.data();
           if (userData != null && userData['Name'] != null) {
             setState(() {
-              _authorName = userData['Name'];
+              _authorName = userData['Name'].toString();
               _isLoading = false;
             });
           }
@@ -178,9 +178,13 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       for (var doc in commentsSnapshot.docs) {
         Map<String, dynamic> comment = doc.data();
         comment['id'] = doc.id;
+        // Null-safe String 보장
+        comment['writerUserid'] = comment['writerUserid']?.toString() ?? '';
+        comment['writerName'] = comment['writerName']?.toString() ?? '익명';
+        comment['Comment'] = comment['Comment']?.toString() ?? '';
         
         // 댓글 작성자 정보 가져오기
-        if (comment['writerUserid'] != null) {
+        if (comment['writerUserid'].isNotEmpty) {
           final userDoc = await FirebaseFirestore.instance
               .collection('Users')
               .doc(comment['writerUserid'])
@@ -189,7 +193,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           if (userDoc.exists) {
             final userData = userDoc.data();
             if (userData != null && userData['Name'] != null) {
-              comment['writerName'] = userData['Name'];
+              comment['writerName'] = userData['Name'].toString();
             } else {
               comment['writerName'] = '익명';
             }
@@ -214,9 +218,12 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         for (var replyDoc in repliesSnapshot.docs) {
           Map<String, dynamic> reply = replyDoc.data();
           reply['id'] = replyDoc.id;
+          reply['writerUserid'] = reply['writerUserid']?.toString() ?? '';
+          reply['writerName'] = reply['writerName']?.toString() ?? '익명';
+          reply['Comment'] = reply['Comment']?.toString() ?? '';
 
           // 대댓글 작성자 정보 가져오기
-          if (reply['writerUserid'] != null) {
+          if (reply['writerUserid'].isNotEmpty) {
             final replyUserDoc = await FirebaseFirestore.instance
                 .collection('Users')
                 .doc(reply['writerUserid'])
@@ -225,7 +232,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             if (replyUserDoc.exists) {
               final userData = replyUserDoc.data();
               if (userData != null && userData['Name'] != null) {
-                reply['writerName'] = userData['Name'];
+                reply['writerName'] = userData['Name'].toString();
               } else {
                 reply['writerName'] = '익명';
               }
@@ -945,13 +952,19 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
 
   // 댓글 카드 위젯 수정
   Widget _buildCommentCard(Map<String, dynamic> comment) {
-    final timestamp = comment['CreatedAt'] as Timestamp;
-    final dateTime = timestamp.toDate();
+    final timestamp = comment['CreatedAt'] is Timestamp ? comment['CreatedAt'] as Timestamp : null;
+    final dateTime = timestamp?.toDate() ?? DateTime.now();
     final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
-    final replies = comment['replies'] as List<Map<String, dynamic>>? ?? [];
+    final replies = (comment['replies'] as List<dynamic>? ?? <dynamic>[])
+        .map<Map<String, dynamic>>((e) => (e as Map<String, dynamic>)).toList();
     final likes = List<String>.from(comment['likes'] ?? []);
     final currentUser = FirebaseAuth.instance.currentUser;
     final isLiked = currentUser != null && likes.contains(currentUser.uid);
+
+    // 모든 핵심 String/Built-in 객체 null-safe 변환
+    final writerName = comment['writerName']?.toString() ?? '익명';
+    final writerUserid = comment['writerUserid']?.toString() ?? '';
+    final commentContent = comment['Comment']?.toString() ?? '';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -964,11 +977,10 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 댓글 작성자 및 시간
           Row(
             children: [
               Text(
-                comment['writerName'] ?? '익명',
+                writerName,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -982,7 +994,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                   fontSize: 12,
                 ),
               ),
-              if (FirebaseAuth.instance.currentUser?.uid == comment['writerUserid'])
+              if (FirebaseAuth.instance.currentUser?.uid == writerUserid)
                 IconButton(
                   icon: const Icon(Icons.more_vert, size: 20),
                   onPressed: () => _showCommentMenu(comment),
@@ -993,45 +1005,30 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             ],
           ),
           const SizedBox(height: 8),
-
-          // 댓글 내용
           Text(
-            comment['Comment'] ?? '',
+            commentContent,
             style: const TextStyle(
               fontSize: 14,
             ),
           ),
-
-          // 좋아요 및 답글 버튼 행
+          // 좋아요 등 기타 위젯은 그대로
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // 좋아요 버튼
               TextButton.icon(
                 onPressed: () => _toggleLike(comment['id']),
                 icon: Icon(
                   isLiked ? Icons.favorite : Icons.favorite_border,
                   size: 16,
-                  color: isLiked ? Colors.red : Colors.grey[600],
+                  color: isLiked ? Colors.red : Colors.grey,
                 ),
-                label: Text(
-                  likes.length.toString(),
-                  style: TextStyle(
-                    color: isLiked ? Colors.red : Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
+                label: Text('${likes.length}'),
               ),
-              const SizedBox(width: 16),
-              // 답글 버튼
               TextButton.icon(
                 onPressed: () {
                   setState(() {
-                    _selectedCommentId = _selectedCommentId == comment['id'] ? null : comment['id'];
+                    _selectedCommentId =
+                        _selectedCommentId == comment['id'] ? null : comment['id'];
                     _replyController.clear();
                   });
                 },
@@ -1045,8 +1042,6 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
               ),
             ],
           ),
-
-          // 대댓글 작성 폼 - 세로 크기 줄이기
           if (_selectedCommentId == comment['id'])
             Container(
               margin: const EdgeInsets.only(top: 4),
@@ -1079,7 +1074,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                   TextButton(
                     onPressed: _isSubmittingReply
                         ? null
-                        : () => _submitReply(comment['id']),
+                        : () => _submitReply(comment['id']?.toString() ?? ''),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: const Size(0, 30),
@@ -1097,16 +1092,19 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                 ],
               ),
             ),
-
-          // 대댓글 목록
+          // 대댓글
           if (replies.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(top: 8, left: 16),
               child: Column(
                 children: replies.map<Widget>((reply) {
-                  final replyTimestamp = reply['CreatedAt'] as Timestamp;
-                  final replyDateTime = replyTimestamp.toDate();
+                  final replyTimestamp = reply['CreatedAt'] is Timestamp ? reply['CreatedAt'] as Timestamp : null;
+                  final replyDateTime = replyTimestamp?.toDate() ?? DateTime.now();
                   final replyFormattedDate = DateFormat('yyyy.MM.dd HH:mm').format(replyDateTime);
+                  // Null-safe에서 .toString()으로 일관 적용
+                  final replyWriterName = reply['writerName']?.toString() ?? '익명';
+                  final replyWriterUserid = reply['writerUserid']?.toString() ?? '';
+                  final replyCommentContent = reply['Comment']?.toString() ?? '';
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
@@ -1121,7 +1119,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                         Row(
                           children: [
                             Text(
-                              reply['writerName'] ?? '익명',
+                              replyWriterName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 12,
@@ -1135,10 +1133,10 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                                 fontSize: 10,
                               ),
                             ),
-                            if (FirebaseAuth.instance.currentUser?.uid == reply['writerUserid'])
+                            if (FirebaseAuth.instance.currentUser?.uid == replyWriterUserid)
                               IconButton(
                                 icon: const Icon(Icons.more_vert, size: 16),
-                                onPressed: () => _showReplyMenu(comment['id'], reply),
+                                onPressed: () => _showReplyMenu(comment['id']?.toString() ?? '', reply),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
                                 visualDensity: VisualDensity.compact,
@@ -1147,7 +1145,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          reply['Comment'] ?? '',
+                          replyCommentContent,
                           style: const TextStyle(
                             fontSize: 12,
                           ),
