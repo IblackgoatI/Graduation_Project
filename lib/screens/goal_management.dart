@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'goal_add.dart';
 import 'goal_update.dart';
+import 'goal_amount_add.dart';
 
 class GoalManagementScreen extends StatefulWidget {
   final User? user;
@@ -161,9 +162,31 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
     if (goalAmount == 0) return 0.0;
     
-    int accountBalance = _accountBalances[bankId] ?? 0;
-    double percentage = (accountBalance / goalAmount) * 100;
-    return percentage > 100 ? 100.0 : percentage;
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    
+    // 목표 설정 시점의 잔액 (목표 데이터에서 가져오거나 기본값 0 사용)
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    // 현재 잔액에서 초기 잔액을 뺀 증가 금액
+    int increasedAmount = currentBalance - initialBalance;
+    
+    // 증가 금액이 목표 금액에 비해 얼마나 달성되었는지 계산
+    double percentage = (increasedAmount / goalAmount) * 100;
+    
+    // 100%를 넘지 않도록 제한
+    return percentage > 100 ? 100.0 : (percentage < 0 ? 0.0 : percentage);
+  }
+
+  // 증가한 금액 계산 함수
+  int _getIncreasedAmount(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0;
+    
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    int increasedAmount = currentBalance - initialBalance;
+    return increasedAmount < 0 ? 0 : increasedAmount; // 음수인 경우 0 반환
   }
 
   // 응원 문구 생성 함수
@@ -356,13 +379,11 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
   // 목표 데이터가 있을 때의 내용
   Widget _buildGoalContent(Map<String, dynamic> goalData) {
     double progressPercentage = _calculateProgressPercentage(goalData);
-    String? bankId = goalData['bank'];
-    int accountBalance = bankId != null ? (_accountBalances[bankId] ?? 0) : 0;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 목표 제목, D-Day, 휴지통 아이콘
+        // 목표 제목, D-Day, 연필 아이콘, 휴지통 아이콘
         Row(
           children: [
             Expanded(
@@ -383,6 +404,30 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                       color: Color(0xFF7D7D7D),
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () async {
+                      // 목표 수정 화면으로 이동
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GoalUpdateScreen(
+                            goalData: goalData,
+                          ),
+                        ),
+                      );
+                      
+                      // 목표가 성공적으로 수정되면 데이터 새로고침
+                      if (result == true) {
+                        _loadGoalData();
+                      }
+                    },
+                    child: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF7D7D7D),
+                      size: 16,
                     ),
                   ),
                 ],
@@ -436,12 +481,12 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
         
         const SizedBox(height: 8),
         
-        // 계좌 잔액 / 목표 금액과 시작 날짜
+        // 증가한 금액 / 목표 금액과 시작 날짜
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${_formatAmount(accountBalance)} / ${_formatAmount(goalData['amount'])}',
+              '${_formatAmount(_getIncreasedAmount(goalData))} / ${_formatAmount(goalData['amount'])}',
               style: const TextStyle(
                 fontSize: 13,
                 color: Colors.black,
@@ -496,17 +541,17 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
             width: 120, // 원하는 너비 설정
             child: ElevatedButton(
               onPressed: () async {
-                // 목표 수정 화면으로 이동
+                // 목표 금액 추가 화면으로 이동
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => GoalUpdateScreen(
+                    builder: (context) => GoalAmountAddScreen(
                       goalData: goalData,
                     ),
                   ),
                 );
                 
-                // 목표가 성공적으로 수정되면 데이터 새로고침
+                // 목표 금액이 성공적으로 추가되면 데이터 새로고침
                 if (result == true) {
                   _loadGoalData();
                 }
@@ -519,10 +564,10 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                 minimumSize: const Size(0, 36), // 높이만 유지
               ),
               child: const Text(
-                '목표 수정',
+                '목표 금액 추가',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
+                  fontSize: 11,
                 ),
               ),
             ),

@@ -86,7 +86,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         _expenseCategories = expenseCats;
       });
     } catch (e) {
-      print('카테고리 로드 실패: $e');
+      debugPrint('카테고리 로드 실패: $e');
       // 기본 카테고리 사용
       setState(() {
         _incomeCategories = ['급여', '사업수입', '용돈', '판매'];

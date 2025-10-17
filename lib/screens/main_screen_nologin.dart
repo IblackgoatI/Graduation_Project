@@ -292,9 +292,19 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
     int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
     if (goalAmount == 0) return 0.0;
     
-    int accountBalance = _accountBalances[bankId] ?? 0;
-    double percentage = (accountBalance / goalAmount) * 100;
-    return percentage > 100 ? 100.0 : percentage;
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    
+    // 목표 설정 시점의 잔액 (목표 데이터에서 가져오거나 기본값 0 사용)
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    // 현재 잔액에서 초기 잔액을 뺀 증가 금액
+    int increasedAmount = currentBalance - initialBalance;
+    
+    // 증가 금액이 목표 금액에 비해 얼마나 달성되었는지 계산
+    double percentage = (increasedAmount / goalAmount) * 100;
+    
+    // 100%를 넘지 않도록 제한
+    return percentage > 100 ? 100.0 : (percentage < 0 ? 0.0 : percentage);
   }
 
   // 금액 포맷팅 함수
@@ -303,6 +313,18 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
     
     int amountInt = (amount as num).toInt();
     return numberFormat(amountInt) + '원';
+  }
+
+  // 증가한 금액 계산 함수
+  int _getIncreasedAmount(Map<String, dynamic> goalData) {
+    String? bankId = goalData['bank'];
+    if (bankId == null || !_accountBalances.containsKey(bankId)) return 0;
+    
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    int increasedAmount = currentBalance - initialBalance;
+    return increasedAmount < 0 ? 0 : increasedAmount; // 음수인 경우 0 반환
   }
 
 
@@ -794,7 +816,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
               Row(
                 children: [
                   Text(
-                    _formatAmount(firstGoal['amount']),
+                    _formatAmount(_getIncreasedAmount(firstGoal)),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
