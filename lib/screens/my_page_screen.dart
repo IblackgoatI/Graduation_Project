@@ -588,9 +588,10 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
       );
     }
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 125,
+          height: 130,
           child: PageView.builder(
             itemCount: _goals.length,
             controller: PageController(viewportFraction: 1, initialPage: _currentIdx),
@@ -598,12 +599,12 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
             itemBuilder: (context, idx) => _buildGoalCard(_goals[idx]),
           ),
         ),
-        SizedBox(height: 9),
+        SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ...List.generate(_goals.length, (i) => Container(
-              width: 7, height: 7, margin: EdgeInsets.symmetric(horizontal: 3),
+              width: 6, height: 6, margin: EdgeInsets.symmetric(horizontal: 2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: i == _currentIdx ? const Color(0xFF73AD13) : Colors.grey[300],
@@ -611,11 +612,11 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
             )),
           ],
         ),
-        SizedBox(height: 10),
+        SizedBox(height: 8),
         Align(
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.centerRight,
           child: TextButton(
-            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size(10, 24)),
+            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size(10, 20)),
             onPressed: () {
               Navigator.push(
                 context,
@@ -626,7 +627,7 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
             },
             child: Text(
               '진행 중인 목표 ${_goals.length}개 더보기 >',
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+              style: TextStyle(fontSize: 13, color: Colors.grey[800]),
             ),
           ),
         ),
