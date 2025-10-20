@@ -195,9 +195,19 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
     if (goalAmount == 0) return 0.0;
     
-    int accountBalance = _accountBalances[bankId] ?? 0;
-    double percentage = (accountBalance / goalAmount) * 100;
-    return percentage > 100 ? 100.0 : percentage;
+    int currentBalance = _accountBalances[bankId] ?? 0;
+    
+    // 목표 설정 시점의 잔액 (목표 데이터에서 가져오거나 기본값 0 사용)
+    int initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+    
+    // 현재 잔액에서 초기 잔액을 뺀 증가 금액
+    int increasedAmount = currentBalance - initialBalance;
+    
+    // 증가 금액이 목표 금액에 비해 얼마나 달성되었는지 계산
+    double percentage = (increasedAmount / goalAmount) * 100;
+    
+    // 100%를 넘지 않도록 제한
+    return percentage > 100 ? 100.0 : (percentage < 0 ? 0.0 : percentage);
   }
 
   // 목표 섹션 위젯
