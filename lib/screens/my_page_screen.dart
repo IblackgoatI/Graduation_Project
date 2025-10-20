@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_posts_screen.dart';
 import 'my_comments_screen.dart';
 import 'account_list_screen.dart';
+import 'goal_management.dart';
 
 class AccountModel {
   final String bank;
@@ -155,6 +156,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
               child: Column(
                 children: [
                   _buildUserProfileCard(),
+                  const SizedBox(height: 16.0),
+                  GoalOverviewCard(user: widget.user),
                   const SizedBox(height: 16.0),
                   GestureDetector(
                     onTap: () async {
@@ -479,5 +482,237 @@ class _MyPageScreenState extends State<MyPageScreen> {
         );
       },
     );
+  }
+}
+
+class GoalOverviewCard extends StatefulWidget {
+  final User? user;
+  const GoalOverviewCard({super.key, this.user});
+
+  @override
+  State<GoalOverviewCard> createState() => _GoalOverviewCardState();
+}
+
+class _GoalOverviewCardState extends State<GoalOverviewCard> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _goals = [];
+  Map<String, int> _accountBalances = {};
+  int _currentIdx = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchGoals();
+  }
+
+  Future<void> _fetchGoals() async {
+    try {
+      final user = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (user == null) { setState(() { _loading = false; }); return; }
+      // (1) 목표 불러오기
+      final now = DateTime.now();
+      final snap = await FirebaseFirestore.instance
+          .collection('goal')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      var rawGoals = snap.docs.map((d) {
+        final data = d.data();
+        data['id'] = d.id;
+        return data;
+      }).where((g) {
+        final end = (g['endDate'] ?? g['deadline']);
+        DateTime? ed;
+        if (end is Timestamp) ed = end.toDate();
+        else if (end is DateTime) ed = end;
+        return ed == null ? false : ed.isAfter(now);
+      }).toList();
+      if (rawGoals.isEmpty) { setState(() { _goals = []; _loading = false; }); return; }
+      // (2) 계좌별 잔액 불러오기
+      final bankIds = rawGoals.map((g) => g['bank']).where((e) => e != null).toSet();
+      Map<String, int> accountBalances = {};
+      for (final bankId in bankIds) {
+        final assetDoc = await FirebaseFirestore.instance.collection('assets').doc(bankId).get();
+        if (assetDoc.exists) {
+          accountBalances[bankId] = (assetDoc.data()?['balance'] as num?)?.toInt() ?? 0;
+        } else {
+          accountBalances[bankId] = 0;
+        }
+      }
+      // (3) 대표(false=없음) 또는 마감일 가장 가까운 순 정렬
+      rawGoals.sort((a, b) {
+        if ((a['isMain'] ?? false) && !(b['isMain'] ?? false)) return -1;
+        if (!(a['isMain'] ?? false) && (b['isMain'] ?? false)) return 1;
+        final da = a['endDate'] ?? a['deadline'];
+        final db = b['endDate'] ?? b['deadline'];
+        DateTime? eda, edb;
+        if (da is Timestamp) eda = da.toDate(); else if (da is DateTime) eda = da;
+        if (db is Timestamp) edb = db.toDate(); else if (db is DateTime) edb = db;
+        return (eda ?? DateTime(2100)).compareTo(edb ?? DateTime(2100));
+      });
+
+      setState(() {
+        _goals = rawGoals;
+        _accountBalances = accountBalances;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() { _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Card(
+        color: Colors.white,
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(child: CircularProgressIndicator(color: Color(0xFF73AD13))),
+        ),
+      );
+    }
+    if (_goals.isEmpty) {
+      return Card(
+        color: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 22.0, horizontal: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.flag_outlined, color: Colors.grey[400]),
+              SizedBox(width: 8),
+              Text('진행 중인 목표가 없습니다.', style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+            ],
+          ),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        SizedBox(
+          height: 125,
+          child: PageView.builder(
+            itemCount: _goals.length,
+            controller: PageController(viewportFraction: 1, initialPage: _currentIdx),
+            onPageChanged: (i) { setState(() => _currentIdx = i); },
+            itemBuilder: (context, idx) => _buildGoalCard(_goals[idx]),
+          ),
+        ),
+        SizedBox(height: 9),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ...List.generate(_goals.length, (i) => Container(
+              width: 7, height: 7, margin: EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: i == _currentIdx ? const Color(0xFF73AD13) : Colors.grey[300],
+              ),
+            )),
+          ],
+        ),
+        SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size(10, 24)),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => GoalManagementScreen(user: widget.user),
+                ),
+              );
+            },
+            child: Text(
+              '진행 중인 목표 ${_goals.length}개 더보기 >',
+              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGoalCard(Map<String, dynamic> goal) {
+    final DateTime? endD = (goal['endDate'] ?? goal['deadline']) is Timestamp
+        ? (goal['endDate'] ?? goal['deadline']).toDate()
+        : (goal['endDate'] ?? goal['deadline']);
+    final daysLeft = endD == null ? '' : 'D-${endD.difference(DateTime.now()).inDays}';
+    final String name = goal['name'] ?? '';
+    final int goalAmount = (goal['amount'] as num?)?.toInt() ?? 0;
+    final bankId = goal['bank'];
+    final int initialBalance = (goal['initialBalance'] as num?)?.toInt() ?? 0;
+    final int currentBalance = _accountBalances[bankId] ?? 0;
+    final int increasedAmount = (currentBalance - initialBalance).clamp(0, goalAmount);
+    final double percent = goalAmount > 0 ? (increasedAmount / goalAmount * 100) : 0;
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '[$name]',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                SizedBox(width: 6),
+                Container(
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.grey[200]),
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(daysLeft, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                _buildProgressBar(percent),
+                SizedBox(width: 8),
+                Text('${percent.toStringAsFixed(1)}%', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF73AD13))),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text('${_formatAmount(increasedAmount)} / ${_formatAmount(goalAmount)}원', style: TextStyle(fontSize: 15)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar(double percent) {
+    return Expanded(
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Container(
+            height: 11,
+            decoration: BoxDecoration(
+              color: Colors.grey[300], borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+          FractionallySizedBox(
+            widthFactor: percent / 100,
+            child: Container(
+              height: 11,
+              decoration: BoxDecoration(color: Color(0xFF73AD13), borderRadius: BorderRadius.circular(5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAmount(int? v) {
+    if (v == null) return '0';
+    return v.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 }
