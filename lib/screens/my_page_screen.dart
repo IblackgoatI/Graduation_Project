@@ -3,6 +3,39 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'my_posts_screen.dart';
 import 'my_comments_screen.dart';
+import 'account_list_screen.dart';
+
+class AccountModel {
+  final String bank;
+  final String account;
+  final int balance;
+  final String owner;
+  final bool certify;
+  final String pnum;
+  final String userId;
+
+  AccountModel({
+    required this.bank,
+    required this.account,
+    required this.balance,
+    required this.owner,
+    required this.certify,
+    required this.pnum,
+    required this.userId,
+  });
+
+  factory AccountModel.fromMap(Map<String, dynamic> map) {
+    return AccountModel(
+      bank: map['bank'] ?? '',
+      account: map['account'] ?? '',
+      balance: (map['balance'] as num?)?.toInt() ?? 0,
+      owner: map['owner'] ?? '',
+      certify: map['certify'] ?? false,
+      pnum: map['pnum'] ?? '',
+      userId: map['userId'] ?? '',
+    );
+  }
+}
 
 class MyPageScreen extends StatefulWidget {
   final User? user;
@@ -16,11 +49,14 @@ class _MyPageScreenState extends State<MyPageScreen> {
   String _userName = '';
   String _userEmail = '';
   bool _isLoading = true;
+  AccountModel? _accountModel;
+  bool _accountLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _loadAccountInfo();
   }
 
   Future<void> _loadUserInfo() async {
@@ -59,6 +95,39 @@ class _MyPageScreenState extends State<MyPageScreen> {
     }
   }
 
+  Future<void> _loadAccountInfo() async {
+    try {
+      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('assets')
+            .where('userId', isEqualTo: currentUser.uid)
+            .limit(1)
+            .get();
+        if (snapshot.docs.isNotEmpty) {
+          final accountData = snapshot.docs.first.data() as Map<String, dynamic>;
+          setState(() {
+            _accountModel = AccountModel.fromMap(accountData);
+            _accountLoading = false;
+          });
+        } else {
+          setState(() {
+            _accountLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _accountLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('계좌 정보 로드 오류: $e');
+      setState(() {
+        _accountLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,6 +155,22 @@ class _MyPageScreenState extends State<MyPageScreen> {
               child: Column(
                 children: [
                   _buildUserProfileCard(),
+                  const SizedBox(height: 16.0),
+                  GestureDetector(
+                    onTap: () async {
+                      // 로그인 유저 정보 얻기
+                      User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
+                      if (currentUser != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AccountListScreen(userId: currentUser.uid),
+                          ),
+                        );
+                      }
+                    },
+                    child: _buildAccountInfoCard(),
+                  ),
                   const SizedBox(height: 16.0),
                   _buildMenuSection(),
                 ],
@@ -141,6 +226,66 @@ class _MyPageScreenState extends State<MyPageScreen> {
         ),
       ),
     );
+  }
+
+  // 내 계좌 정보 카드
+  Widget _buildAccountInfoCard() {
+    if (_accountLoading) {
+      return const Card(
+        color: Colors.white,
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(child: CircularProgressIndicator(color: Color(0xFF73AD13))),
+        ),
+      );
+    }
+    if (_accountModel == null) {
+      return Card(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Center(
+            child: Text('연결된 계좌가 없습니다.', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+          ),
+        ),
+      );
+    }
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_balance, color: Color(0xFF73AD13)),
+                const SizedBox(width: 8),
+                Text('내 계좌 정보', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const Divider(height: 28),
+            Text('은행명  :  ${_accountModel!.bank}', style: TextStyle(fontSize: 15)),
+            const SizedBox(height: 6),
+            Text('계좌번호:  ${_accountModel!.account}', style: TextStyle(fontSize: 15)),
+            const SizedBox(height: 6),
+            Text('예금주  :  ${_accountModel!.owner}', style: TextStyle(fontSize: 15)),
+            const SizedBox(height: 6),
+            Text('현재잔액:  ${_formatAmount(_accountModel!.balance)} 원', style: TextStyle(fontSize: 15)),
+            if (!_accountModel!.certify)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0),
+                child: Text('※ 인증되지 않은 계좌입니다.', style: TextStyle(color: Colors.red[400], fontSize: 13)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  String _formatAmount(int number) {
+    return number.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
 
   Widget _buildMenuSection() {
