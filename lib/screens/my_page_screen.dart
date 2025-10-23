@@ -591,7 +591,7 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 130,
+          height: 134,
           child: PageView.builder(
             itemCount: _goals.length,
             controller: PageController(viewportFraction: 1, initialPage: _currentIdx),
@@ -626,7 +626,7 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
               );
             },
             child: Text(
-              '진행 중인 목표 ${_goals.length}개 더보기 >',
+              '진행 중인 목표 더보기 >',
               style: TextStyle(fontSize: 13, color: Colors.grey[800]),
             ),
           ),
