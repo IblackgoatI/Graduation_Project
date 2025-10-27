@@ -40,15 +40,19 @@ class AccountBookScreenState extends State<AccountBookScreen>
     // Provider로부터 데이터 가져오기
     final transactionProvider = Provider.of<TransactionProvider>(context);
 
-    // 선택된 월의 수입과 지출 계산
+    // 선택된 월의 수입, 지출, 목표 계산
     final transactions = transactionProvider.transactions;
     int income = 0;
     int expense = 0;
+    int goal = 0;
 
     for (var transaction in transactions) {
       // 선택된 월과 같은 월의 트랜잭션만 필터링
       if (transaction.date.month == _selectedMonth) {
-        if (transaction.type == '수입') {
+        // 카테고리가 '목표'인 경우 별도 통계
+        if (transaction.category == '목표') {
+          goal += transaction.amount.toInt();
+        } else if (transaction.type == '수입') {
           income += transaction.amount.toInt();
         } else {
           expense += transaction.amount.toInt();
@@ -114,7 +118,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
               },
             ),
           ),
-          // 수입과 지출 지표 (한 줄로 출력)
+          // 수입, 지출, 목표 지표
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             color: Colors.white, // 배경색을 흰색으로 설정
@@ -122,49 +126,81 @@ class AccountBookScreenState extends State<AccountBookScreen>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly, // 공간 균등 분배
               children: [
                 // 수입
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '수입 ',
-                        style: TextStyle(
-                          color: Colors.black, // "수입" 텍스트 색상
-                          fontSize: 20,
-                          fontWeight: FontWeight.normal,
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '수입 ',
+                          style: TextStyle(
+                            color: Colors.black, // "수입" 텍스트 색상
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
-                      ),
-                      TextSpan(
-                        text: '${NumberFormat('#,###').format(income)}원',
-                        style: TextStyle(
-                          color: Color(0xFF73AD13), // 가격 색상 (#73AD13)
-                          fontSize: 20,
-                          fontWeight: FontWeight.normal,
+                        TextSpan(
+                          text: '${NumberFormat('#,###').format(income)}원',
+                          style: TextStyle(
+                            color: Color(0xFF73AD13), // 가격 색상 (#73AD13)
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
                 // 지출
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '지출 ',
-                        style: TextStyle(
-                          color: Colors.black, // "지출" 텍스트 색상
-                          fontSize: 20,
-                          fontWeight: FontWeight.normal,
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '지출 ',
+                          style: TextStyle(
+                            color: Colors.black, // "지출" 텍스트 색상
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
-                      ),
-                      TextSpan(
-                        text: '${NumberFormat('#,###').format(expense)}원',
-                        style: TextStyle(
-                          color: Colors.red, // 가격 색상
-                          fontSize: 20,
-                          fontWeight: FontWeight.normal,
+                        TextSpan(
+                          text: '${NumberFormat('#,###').format(expense)}원',
+                          style: TextStyle(
+                            color: Colors.red, // 가격 색상
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                // 목표
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '목표 ',
+                          style: TextStyle(
+                            color: Colors.black, // "목표" 텍스트 색상
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '${NumberFormat('#,###').format(goal)}원',
+                          style: TextStyle(
+                            color: Color(0xFF9C27B0), // 가격 색상 (보라색)
+                            fontSize: 18,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],

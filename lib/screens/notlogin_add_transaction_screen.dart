@@ -632,14 +632,14 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
   Future<void> _saveGoalTransactions(String userId, double amount, int amountInt, TransactionProvider transactionProvider) async {
     final timestamp = DateTime.now();
     
-    // 1. 출금 거래 내역 (지출)
+    // 1. 출금 거래 내역 (지출) - 카테고리는 미분류로 설정 (목표 통계 중복 방지)
     final expenseTransactionData = {
       'userId': userId,
       'type': '지출',
       'amount': amount,
       'date': Timestamp.fromDate(_selectedDate),
       'merchant': _merchantController.text,
-      'category': '목표',
+      'category': '미분류', // 출금은 목표 통계에 포함하지 않음
       'paymentMethod': _selectedExpenseAccountId,
       'memo': _memoController.text,
       'tags': _tags,
@@ -647,14 +647,14 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       'relatedTransactionId': timestamp.toString(), // 관련 거래 식별자
     };
 
-    // 2. 입금 거래 내역 (수입)
+    // 2. 입금 거래 내역 (수입) - 카테고리는 목표로 설정
     final incomeTransactionData = {
       'userId': userId,
       'type': '수입',
       'amount': amount,
       'date': Timestamp.fromDate(_selectedDate),
       'merchant': _merchantController.text,
-      'category': '목표',
+      'category': '목표', // 입금만 목표로 표시
       'paymentMethod': _selectedIncomeAccountId,
       'memo': _memoController.text,
       'tags': _tags,
@@ -690,7 +690,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         merchant: _merchantController.text,
         memo: _memoController.text,
         tags: _tags,
-        category: '목표',
+        category: '미분류', // 출금은 목표 통계에 포함하지 않음
         paymentMethod: _selectedExpenseAccountId!,
       );
 
@@ -702,7 +702,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         merchant: _merchantController.text,
         memo: _memoController.text,
         tags: _tags,
-        category: '목표',
+        category: '목표', // 입금만 목표로 표시
         paymentMethod: _selectedIncomeAccountId!,
       );
 
