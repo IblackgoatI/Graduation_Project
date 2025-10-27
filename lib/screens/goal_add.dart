@@ -246,7 +246,7 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
         }
 
         // Firestore에 목표 저장
-        await FirebaseFirestore.instance.collection('goal').add({
+        DocumentReference goalDocRef = await FirebaseFirestore.instance.collection('goal').add({
           'userId': currentUser.uid,
           'name': _goalNameController.text.trim(),
           'amount': goalAmount,
@@ -260,6 +260,9 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        // 자동이체 스케줄 등록
+        await _scheduleAutoTransfer(goalDocRef.id, currentUser.uid, monthlyAmount, withdrawalDay);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -282,6 +285,58 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
         });
       }
     }
+  }
+
+  // 자동이체 스케줄 등록 함수
+  Future<void> _scheduleAutoTransfer(String goalId, String userId, int amount, int withdrawalDay) async {
+    try {
+      DateTime nextExecutionDate = _calculateNextExecutionDate(withdrawalDay);
+      
+      await FirebaseFirestore.instance.collection('auto_transfer_schedules').add({
+        'goalId': goalId,
+        'userId': userId,
+        'fromAccountId': _selectedWithdrawalAccountId, // 출금 계좌
+        'toAccountId': _selectedAccountId, // 목표 계좌
+        'amount': amount,
+        'withdrawalDay': withdrawalDay,
+        'nextExecutionDate': Timestamp.fromDate(nextExecutionDate),
+        'goalName': _goalNameController.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      
+      debugPrint('자동이체 스케줄 등록 완료: $goalId');
+    } catch (e) {
+      debugPrint('자동이체 스케줄 등록 오류: $e');
+    }
+  }
+
+  // 다음 실행 날짜 계산 (출금날짜 기준으로 다음 달 날짜 계산)
+  DateTime _calculateNextExecutionDate(int withdrawalDay) {
+    DateTime now = DateTime.now();
+    DateTime nextDate;
+    
+    try {
+      // 출금 날짜가 현재 날짜보다 이전이면 다음 달로 설정
+      if (DateTime(now.year, now.month, withdrawalDay).isBefore(now)) {
+        // 다음 달로 이동
+        DateTime nextMonth = DateTime(now.year, now.month + 1, 1);
+        // 해당 월의 마지막 날짜 확인
+        DateTime lastDayOfNextMonth = DateTime(nextMonth.year, nextMonth.month + 1, 0);
+        int actualDay = withdrawalDay > lastDayOfNextMonth.day ? lastDayOfNextMonth.day : withdrawalDay;
+        nextDate = DateTime(nextMonth.year, nextMonth.month, actualDay);
+      } else {
+        // 이번 달 해당 날짜 사용
+        DateTime thisMonthLastDay = DateTime(now.year, now.month + 1, 0);
+        int actualDay = withdrawalDay > thisMonthLastDay.day ? thisMonthLastDay.day : withdrawalDay;
+        nextDate = DateTime(now.year, now.month, actualDay);
+      }
+    } catch (e) {
+      debugPrint('날짜 계산 오류: $e');
+      // 에러 발생 시 기본값으로 현재 날짜 다음 달 1일
+      nextDate = DateTime(now.year, now.month + 1, 1);
+    }
+    
+    return nextDate;
   }
 
   // 금액 포맷팅

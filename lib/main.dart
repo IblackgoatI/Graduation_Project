@@ -13,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 임포트
 import 'router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/category_manager.dart';
+import 'services/auto_transfer_service.dart';
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -49,6 +50,9 @@ Future<void> main() async {
 
   // 카테고리 시스템 초기화
   await CategoryManager.initialize();
+
+  // 앱 시작 시 자동이체 처리
+  processAutoTransfers();
 
   runApp(
     MultiProvider(
