@@ -183,19 +183,20 @@ class _GoalAmountAddScreenState extends State<GoalAmountAddScreen> {
                 color: Color(0xFF73AD13),
               ),
             )
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Card(
-                color: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                ),
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+          : SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Card(
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  elevation: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       // 목표 정보
                       const Text(
                         '목표 정보',
@@ -318,6 +319,7 @@ class _GoalAmountAddScreenState extends State<GoalAmountAddScreen> {
                 ),
               ),
             ),
+      ),
     );
   }
 }

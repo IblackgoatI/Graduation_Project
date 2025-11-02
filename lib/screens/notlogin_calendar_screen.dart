@@ -257,7 +257,7 @@ class NotloginCalendarScreenState extends State<NotloginCalendarScreen> with Sin
                   _focusedDay = focusedDay;
                 });
               },
-              rowHeight: 70, // 달력 셀의 높이 설정
+              rowHeight: 59, // 달력 셀의 높이 설정
               calendarStyle: const CalendarStyle(
                 todayDecoration: BoxDecoration(
                   color: Colors.blue,
