@@ -379,12 +379,14 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
           title: Text(isEdit ? '카테고리 수정' : '새 카테고리 추가'),
           content: SizedBox(
             width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                 // 아이콘 선택
                 Text(
                   '아이콘 선택',
@@ -452,27 +454,39 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text('수입'),
-                          value: '수입',
-                          groupValue: selectedType,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              selectedType = value!;
-                            });
-                          },
+                        child: InkWell(
+                          onTap: () { setDialogState(() { selectedType = '수입'; }); },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Radio<String>(
+                                value: '수입',
+                                groupValue: selectedType,
+                                onChanged: (value) { setDialogState(() { selectedType = value!; }); },
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text('수입', maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
                         ),
                       ),
                       Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text('지출'),
-                          value: '지출',
-                          groupValue: selectedType,
-                          onChanged: (value) {
-                            setDialogState(() {
-                              selectedType = value!;
-                            });
-                          },
+                        child: InkWell(
+                          onTap: () { setDialogState(() { selectedType = '지출'; }); },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Radio<String>(
+                                value: '지출',
+                                groupValue: selectedType,
+                                onChanged: (value) { setDialogState(() { selectedType = value!; }); },
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              const SizedBox(width: 4),
+                              const Text('지출', maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -492,6 +506,8 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: nameController,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(
                     hintText: '카테고리 이름을 입력하세요',
                     border: OutlineInputBorder(),
@@ -499,6 +515,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                   maxLength: 20,
                 ),
               ],
+            ),
             ),
           ),
           actions: [
