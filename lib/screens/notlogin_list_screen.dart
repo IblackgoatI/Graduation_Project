@@ -15,8 +15,13 @@ import 'goal_management.dart';
 
 class NotloginListScreen extends StatefulWidget {
   final int selectedMonth;
+  final Function(DateTime?, DateTime?)? onDateRangeChanged;
   
-  const NotloginListScreen({super.key, this.selectedMonth = 0});
+  const NotloginListScreen({
+    super.key, 
+    this.selectedMonth = 0,
+    this.onDateRangeChanged,
+  });
 
   @override
   NotloginListScreenState createState() => NotloginListScreenState();
@@ -32,6 +37,9 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   // 상세 조건: 카테고리 멀티 선택, 거래유형 세그먼트
   Set<String> _selectedCategories = {};
   int _selectedTypeIndex = 0; // 0 전체, 1 수입, 2 지출
+  // 날짜 범위 필터
+  DateTime? _selectedStartDate;
+  DateTime? _selectedEndDate;
 
   // 목표 관련 상태 변수
   List<Map<String, dynamic>> _goalList = [];
@@ -306,6 +314,8 @@ class NotloginListScreenState extends State<NotloginListScreen> {
 
     final Set<String> tempSelectedCategories = Set<String>.from(_selectedCategories);
     int tempSelectedTypeIndex = _selectedTypeIndex;
+    DateTime? tempStartDate = _selectedStartDate;
+    DateTime? tempEndDate = _selectedEndDate;
 
     await showModalBottomSheet(
       context: context,
@@ -337,34 +347,139 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text('거래유형', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    CupertinoSegmentedControl<int>(
-                      children: const {
-                        0: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('전체')),
-                        1: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('수입')),
-                        2: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('지출')),
-                      },
-                      groupValue: tempSelectedTypeIndex,
-                      onValueChanged: (val) {
-                        setModalState(() { 
-                          tempSelectedTypeIndex = val;
-                          // 거래유형 변경 시 해당 유형의 카테고리만 표시
-                          if (val == 0) {
-                            categories = List<String>.from(allCategories);
-                          } else if (val == 1) {
-                            categories = List<String>.from(incomeCategories);
-                          } else {
-                            categories = List<String>.from(expenseCategories);
-                          }
-                          // 선택된 카테고리 중 현재 표시되지 않는 것들은 선택 해제
-                          tempSelectedCategories.removeWhere((cat) => !categories.contains(cat));
-                        });
-                      },
-                      pressedColor: const Color(0xFF73AD13).withValues(alpha: 0.15),
-                      selectedColor: const Color(0xFF73AD13),
-                      unselectedColor: Colors.white,
-                      borderColor: const Color(0xFF73AD13),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('거래유형', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              CupertinoSegmentedControl<int>(
+                                children: const {
+                                  0: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('전체')),
+                                  1: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('수입')),
+                                  2: Padding(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), child: Text('지출')),
+                                },
+                                groupValue: tempSelectedTypeIndex,
+                                onValueChanged: (val) {
+                                  setModalState(() { 
+                                    tempSelectedTypeIndex = val;
+                                    // 거래유형 변경 시 해당 유형의 카테고리만 표시
+                                    if (val == 0) {
+                                      categories = List<String>.from(allCategories);
+                                    } else if (val == 1) {
+                                      categories = List<String>.from(incomeCategories);
+                                    } else {
+                                      categories = List<String>.from(expenseCategories);
+                                    }
+                                    // 선택된 카테고리 중 현재 표시되지 않는 것들은 선택 해제
+                                    tempSelectedCategories.removeWhere((cat) => !categories.contains(cat));
+                                  });
+                                },
+                                pressedColor: const Color(0xFF73AD13).withValues(alpha: 0.15),
+                                selectedColor: const Color(0xFF73AD13),
+                                unselectedColor: Colors.white,
+                                borderColor: const Color(0xFF73AD13),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('날짜 범위', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () async {
+                                  final DateTime? pickedStart = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: tempStartDate ?? DateTime.now(),
+                                    firstDate: DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                    locale: const Locale('ko', 'KR'),
+                                  );
+                                  if (pickedStart != null) {
+                                    setModalState(() {
+                                      tempStartDate = pickedStart;
+                                      // 종료일이 시작일보다 이전이면 종료일 초기화
+                                      if (tempEndDate != null && tempEndDate!.isBefore(pickedStart)) {
+                                        tempEndDate = null;
+                                      }
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        tempStartDate != null
+                                            ? DateFormat('yyyy.MM.dd').format(tempStartDate!)
+                                            : '시작일',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: tempStartDate != null ? Colors.black : Colors.grey,
+                                        ),
+                                      ),
+                                      const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () async {
+                                  final DateTime? pickedEnd = await showDatePicker(
+                                    context: ctx,
+                                    initialDate: tempEndDate ?? (tempStartDate ?? DateTime.now()),
+                                    firstDate: tempStartDate ?? DateTime(2000),
+                                    lastDate: DateTime(2100),
+                                    locale: const Locale('ko', 'KR'),
+                                  );
+                                  if (pickedEnd != null) {
+                                    setModalState(() {
+                                      tempEndDate = pickedEnd;
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        tempEndDate != null
+                                            ? DateFormat('yyyy.MM.dd').format(tempEndDate!)
+                                            : '종료일',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: tempEndDate != null ? Colors.black : Colors.grey,
+                                        ),
+                                      ),
+                                      const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     const Text('카테고리', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
@@ -407,7 +522,13 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                               setState(() {
                                 _selectedCategories.clear();
                                 _selectedTypeIndex = 0;
+                                _selectedStartDate = null;
+                                _selectedEndDate = null;
                               });
+                              // 날짜 범위 초기화 콜백 호출
+                              if (widget.onDateRangeChanged != null) {
+                                widget.onDateRangeChanged!(null, null);
+                              }
                             },
                             child: const Text('초기화'),
                           ),
@@ -424,7 +545,13 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                               setState(() {
                                 _selectedCategories = tempSelectedCategories;
                                 _selectedTypeIndex = tempSelectedTypeIndex;
+                                _selectedStartDate = tempStartDate;
+                                _selectedEndDate = tempEndDate;
                               });
+                              // 날짜 범위 변경 콜백 호출
+                              if (widget.onDateRangeChanged != null) {
+                                widget.onDateRangeChanged!(tempStartDate, tempEndDate);
+                              }
                             },
                             child: const Text('적용'),
                           ),
@@ -446,32 +573,61 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     final transactionProvider = Provider.of<TransactionProvider>(context);
     final allTransactions = transactionProvider.transactions;
     
-    // 선택된 월에 해당하는 거래만 1차 필터링
-    List<FinancialTransaction> filteredTransactions = widget.selectedMonth > 0
-        ? allTransactions.where((transaction) => 
-            transaction.date.month == widget.selectedMonth).toList()
-        : allTransactions;
-    
-    // 기간 필터(전체/오늘/1주일) 2차 필터링
-    if (_selectedFilterIndex != 0) {
-      final DateTime now = DateTime.now();
-      DateTime start;
-      switch (_selectedFilterIndex) {
-        case 1: // 오늘
-          start = DateTime(now.year, now.month, now.day);
-          break;
-        case 2: // 1주일
-          final from = now.subtract(const Duration(days: 7));
-          start = DateTime(from.year, from.month, from.day);
-          break;
-        default:
-          start = DateTime(1900);
-      }
+    // 날짜 범위 필터링 (날짜 범위가 선택되면 월 필터와 기간 필터 무시)
+    List<FinancialTransaction> filteredTransactions;
+    if (_selectedStartDate != null || _selectedEndDate != null) {
+      // 날짜 범위가 선택되면 전체 거래에서 필터링
+      filteredTransactions = allTransactions;
       filteredTransactions = filteredTransactions.where((t) {
-        final bool afterStart = t.date.isAfter(start) || t.date.isAtSameMomentAs(start);
-        final bool beforeNow = t.date.isBefore(now) || t.date.isAtSameMomentAs(now);
-        return afterStart && beforeNow;
+        // 거래 날짜를 날짜만으로 정규화 (시간 제거)
+        final DateTime transactionDate = DateTime(t.date.year, t.date.month, t.date.day);
+        
+        // 시작일 체크
+        bool afterStart = true;
+        if (_selectedStartDate != null) {
+          final DateTime startDate = DateTime(_selectedStartDate!.year, _selectedStartDate!.month, _selectedStartDate!.day);
+          // 시작일 포함 (같거나 이후)
+          afterStart = !transactionDate.isBefore(startDate);
+        }
+        
+        // 종료일 체크
+        bool beforeEnd = true;
+        if (_selectedEndDate != null) {
+          final DateTime endDate = DateTime(_selectedEndDate!.year, _selectedEndDate!.month, _selectedEndDate!.day);
+          // 종료일 포함 (같거나 이전)
+          beforeEnd = !transactionDate.isAfter(endDate);
+        }
+        
+        return afterStart && beforeEnd;
       }).toList();
+    } else {
+      // 선택된 월에 해당하는 거래만 1차 필터링 (날짜 범위가 없을 때만 적용)
+      filteredTransactions = widget.selectedMonth > 0
+          ? allTransactions.where((transaction) => 
+              transaction.date.month == widget.selectedMonth).toList()
+          : allTransactions;
+      
+      // 기간 필터(전체/오늘/1주일) 2차 필터링 (날짜 범위가 없을 때만 적용)
+      if (_selectedFilterIndex != 0) {
+        final DateTime now = DateTime.now();
+        DateTime start;
+        switch (_selectedFilterIndex) {
+          case 1: // 오늘
+            start = DateTime(now.year, now.month, now.day);
+            break;
+          case 2: // 1주일
+            final from = now.subtract(const Duration(days: 7));
+            start = DateTime(from.year, from.month, from.day);
+            break;
+          default:
+            start = DateTime(1900);
+        }
+        filteredTransactions = filteredTransactions.where((t) {
+          final bool afterStart = t.date.isAfter(start) || t.date.isAtSameMomentAs(start);
+          final bool beforeNow = t.date.isBefore(now) || t.date.isAtSameMomentAs(now);
+          return afterStart && beforeNow;
+        }).toList();
+      }
     }
 
     // 상세 조건 필터링 (거래유형, 카테고리)
@@ -538,7 +694,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                 ),
                 const SizedBox(width: 8.0),
                 _DetailFilterChip(
-                  isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0,
+                  isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0 || _selectedStartDate != null || _selectedEndDate != null,
                   onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
                 ),
               ],

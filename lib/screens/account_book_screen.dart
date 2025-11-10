@@ -22,6 +22,17 @@ class AccountBookScreenState extends State<AccountBookScreen>
 
   // NotloginListScreen에 접근하기 위한 키 생성
   final GlobalKey<NotloginListScreenState> listScreenKey = GlobalKey<NotloginListScreenState>();
+  
+  // 날짜 범위 변경 시 월 업데이트 콜백
+  void _onDateRangeChanged(DateTime? startDate, DateTime? endDate) {
+    if (startDate != null || endDate != null) {
+      // 시작일이 있으면 시작일의 월, 없으면 종료일의 월 사용
+      final DateTime targetDate = startDate ?? endDate!;
+      setState(() {
+        _selectedMonth = targetDate.month;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -232,6 +243,7 @@ class AccountBookScreenState extends State<AccountBookScreen>
                 NotloginListScreen(
                   key: listScreenKey,
                   selectedMonth: _selectedMonth, // 선택된 월 매개변수 전달
+                  onDateRangeChanged: _onDateRangeChanged, // 날짜 범위 변경 콜백 전달
                 ),
                 NotloginCalendarScreen(selectedMonth: _selectedMonth),
               ],
