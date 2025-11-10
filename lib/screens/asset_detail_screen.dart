@@ -582,6 +582,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           }
         }
 
+          // 금액 기준 내림차순 정렬
+          tempList.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
+          
           debugPrint('처리된 고정지출 목록: $tempList');
           debugPrint('총 고정지출 금액: $tempTotalAmount');
 
@@ -1389,43 +1392,102 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '고정지출',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '고정지출',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              if (!_isLoadingFixedExpenses && _fixedExpensesList.isNotEmpty)
+                InkWell(
+                  onTap: () {
+                    _showFixedExpenseDetailsSheet();
+                  },
+                  child: const Text(
+                    '전체보기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF73AD13),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           _isLoadingFixedExpenses
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF73AD13)))
+              ? const Expanded(
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFF73AD13))),
+                )
               : _fixedExpensesList.isEmpty
-                  ? const Text(
-                      '고정지출을 추가하세요',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    )
-                  : InkWell(
-                      onTap: () {
-                        if (_fixedExpensesList.isNotEmpty) {
-                          _showFixedExpenseDetailsSheet();
-                        }
-                      },
-                      child: Center( // 텍스트를 중앙 정렬하기 위해 Center 위젯 추가
+                  ? Expanded(
+                      child: Center(
                         child: Text(
-                          '${_numberFormat(_totalFixedExpenseAmount.toInt())}원',
-                          style: const TextStyle(
-                            fontSize: 18, // 필요에 따라 폰트 크기 조절
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black, // 필요에 따라 색상 조절
+                          '고정지출을 추가하세요',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
                           ),
                         ),
                       ),
+                    )
+                  : Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_numberFormat(_totalFixedExpenseAmount.toInt())}원',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _fixedExpensesList.length > 3 ? 3 : _fixedExpensesList.length,
+                              itemBuilder: (context, index) {
+                                final expense = _fixedExpensesList[index];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          expense['merchant'] ?? '',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.black87,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${_numberFormat((expense['amount'] as double).toInt())}원',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-          const Spacer(),
+          const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
               // 고정지출 추가 시트 표시
@@ -3572,6 +3634,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       // 먼저 UI에서 항목 제거
       setState(() {
         _fixedExpensesList.removeAt(index);
+        // 금액 기준 내림차순 정렬 유지
+        _fixedExpensesList.sort((a, b) => (b['amount'] as double).compareTo(a['amount'] as double));
         // 총액 다시 계산
         _totalFixedExpenseAmount = _fixedExpensesList.fold(
           0.0,
