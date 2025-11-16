@@ -39,10 +39,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   int _cashTotal = 0;
   List<Map<String, dynamic>> _assetAccounts = [];
   
-  // 저축 목표 관련 변수 추가
-  int _savingsGoalAmount = 0; // 저축 목표 금액
+  // 저축 관련 변수 추가
+  int _transferAmount = 0; // 출금 금액
+  int _autoTransferDate = 1; // 자동 이체 날짜 (1-28일)
+  int _savingBalance = 0; // 저축한 총 금액
   Map<String, dynamic>? _selectedSavingAccount; // 선택된 저축 계좌
-  bool _hasSavingGoal = false; // 저축 목표 존재 여부
+  bool _hasSavingGoal = false; // 저축 설정 존재 여부
   
   // 예산 금액과 지출 금액을 저장할 변수
   double _budgetAmount = 0.0; // 예산 금액
@@ -51,13 +53,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   bool _hasBudget = false;
   int _budgetPercentage = 0; // 예산이 수입에서 차지하는 비율
 
-  // 1. 상태 변수 추가
-  int _finalGoalAmount = 0; // Firestore의 goalAmount와 동기화될 변수
-
-  // 알림 상태 추적 변수
-  bool _notified50percent = false;
-  bool _notified90percent = false;
-  bool _notified100percent = false;
 
   // 고정 지출 관련 상태 변수
   List<Map<String, dynamic>> _fixedExpensesList = [];
@@ -328,7 +323,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     }
   }
 
-  // 저축 목표 데이터 로드 함수 
+  // 저축 데이터 로드 함수 
   Future<void> _loadSavingGoalData() async {
     try {
       User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
@@ -341,111 +336,72 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
         if (savingQuery.docs.isNotEmpty) {
           Map<String, dynamic> savingData = savingQuery.docs.first.data() as Map<String, dynamic>;
-          String? selectedAccountId = savingData['selectedAccountId'];
+          
+          // Firestore에서 account, auto_transfer_date, amount, balance 읽기
+          String? accountId = savingData['account'] as String?;
+          int autoTransferDateFromDB = (savingData['auto_transfer_date'] as num?)?.toInt() ?? 1;
+          int amountFromDB = (savingData['amount'] as num?)?.toInt() ?? 0;
+          int balanceFromDB = (savingData['balance'] as num?)?.toInt() ?? 0;
+          
           Map<String, dynamic>? selectedAccount;
 
-          // Firestore에서 monthlyAmount와 goalAmount 읽기
-          int monthlyAmountFromDB = (savingData['monthlyAmount'] as num?)?.toInt() ?? 0;
-          int goalAmountFromDB = (savingData['goalAmount'] as num?)?.toInt() ?? 0;
-
           // 선택된 계좌 정보 찾기 (_assetAccounts가 로드된 후 실행됨)
-          if (selectedAccountId != null && _assetAccounts.isNotEmpty) { // _assetAccounts 비어있는지 확인
+          if (accountId != null && _assetAccounts.isNotEmpty) {
             try {
               selectedAccount = _assetAccounts.firstWhere(
-                (account) => account['id'] == selectedAccountId,
+                (account) => account['id'] == accountId,
               );
             } catch (e) {
-              debugPrint('선택된 저축 계좌를 찾을 수 없습니다 (ID: $selectedAccountId): $e');
+              debugPrint('선택된 저축 계좌를 찾을 수 없습니다 (ID: $accountId): $e');
               selectedAccount = null;
             }
-          } else if (selectedAccountId != null && _assetAccounts.isEmpty) {
-             debugPrint('저축 목표 로드 시 자산 정보(_assetAccounts)가 아직 로드되지 않았습니다.');
+          } else if (accountId != null && _assetAccounts.isEmpty) {
+             debugPrint('저축 데이터 로드 시 자산 정보(_assetAccounts)가 아직 로드되지 않았습니다.');
              selectedAccount = null;
           }
 
-          // 알림 상태 플래그는 Firestore에서 로드하거나, 여기서는 초기화하지 않고 _saveSavingGoal에서 관리
-          // bool notified50 = savingData['notified50percent'] ?? false;
-          // bool notified90 = savingData['notified90percent'] ?? false;
-          // bool notified100 = savingData['notified100percent'] ?? false;
-
           if (mounted) {
             setState(() {
-              _savingsGoalAmount = monthlyAmountFromDB;
-              _finalGoalAmount = goalAmountFromDB;
+              _transferAmount = amountFromDB;
+              _autoTransferDate = autoTransferDateFromDB;
+              _savingBalance = balanceFromDB;
               _selectedSavingAccount = selectedAccount;
               _hasSavingGoal = true;
-              // _notified50percent = notified50; // Firestore에서 로드하는 경우
-              // _notified90percent = notified90;
-              // _notified100percent = notified100;
             });
-          }
-
-          // 달성률 계산 및 알림 (데이터 로드 후 실행)
-          if (_selectedSavingAccount != null && _finalGoalAmount > 0) {
-            int currentBalance = (_selectedSavingAccount!['balance'] as num).toInt();
-            double achievementRate = currentBalance / _finalGoalAmount;
-
-            if (achievementRate >= 1.0 && !_notified100percent) {
-              await asset_screen.showLocalNotification(
-                '저축 목표 달성!',
-                '축하합니다! 저축 목표의 100%를 달성했습니다!',
-              );
-              if (mounted) setState(() { _notified100percent = true; });
-              // Firestore에 알림 상태 저장 로직 추가 가능
-              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified100percent': true});
-            } else if (achievementRate >= 0.9 && !_notified90percent) {
-              await asset_screen.showLocalNotification(
-                '저축 목표 90% 달성!',
-                '저축 목표의 90%를 달성했습니다! 조금만 더 힘내세요!',
-              );
-              if (mounted) setState(() { _notified90percent = true; });
-              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified90percent': true});
-            } else if (achievementRate >= 0.5 && !_notified50percent) {
-              await asset_screen.showLocalNotification(
-                '저축 목표 50% 달성!',
-                '저축 목표의 50%를 달성했습니다!',
-              );
-              if (mounted) setState(() { _notified50percent = true; });
-              // await FirebaseFirestore.instance.collection('saving').doc(savingQuery.docs.first.id).update({'notified50percent': true});
-            }
           }
 
         } else {
           if (mounted) {
             setState(() {
-              _savingsGoalAmount = 0;
-              _finalGoalAmount = 0;
+              _transferAmount = 0;
+              _autoTransferDate = 1;
+              _savingBalance = 0;
               _selectedSavingAccount = null;
               _hasSavingGoal = false;
-              _notified50percent = false; // 목표가 없으면 알림 상태도 초기화
-              _notified90percent = false;
-              _notified100percent = false;
             });
           }
         }
       }
     } catch (e) {
-      debugPrint('저축 목표 정보 로드 오류: $e');
+      debugPrint('저축 정보 로드 오류: $e');
       if (mounted) {
         setState(() {
-          _savingsGoalAmount = 0;
-          _finalGoalAmount = 0;
+          _transferAmount = 0;
+          _autoTransferDate = 1;
+          _savingBalance = 0;
           _selectedSavingAccount = null;
           _hasSavingGoal = false;
-          _notified50percent = false;
-          _notified90percent = false;
-          _notified100percent = false;
         });
       }
     }
   }
 
-  // 저축 목표 저장 함수 
+  // 저축 설정 저장 함수 
   Future<void> _saveSavingGoal() async {
-    User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser; // currentUser 먼저 가져오기
+    User? currentUser = widget.user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-       debugPrint('저축 목표 저장 오류: 사용자가 로그인되지 않았습니다.');
-       if (mounted) { // mounted 확인 후 context 사용
+       debugPrint('저축 설정 저장 오류: 사용자가 로그인되지 않았습니다.');
+       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
            const SnackBar(content: Text('로그인이 필요합니다.')),
          );
@@ -462,61 +418,37 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
       String? selectedAccountId = _selectedSavingAccount?['id'];
 
-      // 목표 금액이 변경될 수 있으므로, 알림 상태 플래그를 초기화합니다.
-      // 단, 현재 잔액이 새 목표 금액에 대해 이미 특정 %를 넘었는지 여부에 따라
-      // 선택적으로 리셋하는 더 정교한 로직을 고려할 수 있습니다.
-      // 여기서는 단순화를 위해 목표 저장 시 관련 플래그를 초기화합니다.
-      // 실제로는 _finalGoalAmount가 이전 값과 다를 때만 초기화하는 것이 더 좋을 수 있습니다.
-      // bool goalAmountChanged = savingQuery.docs.isNotEmpty && (savingQuery.docs.first.data() as Map<String, dynamic>)['goalAmount'] != _finalGoalAmount;
-      // if (goalAmountChanged) { // 또는 항상 초기화
-      if (mounted) {
-        setState(() {
-          _notified50percent = false;
-          _notified90percent = false;
-          _notified100percent = false;
-        });
-      }
-      // }
-
       Map<String, dynamic> dataToSave = {
-        'monthlyAmount': _savingsGoalAmount,
-        'goalAmount': _finalGoalAmount,
-        'selectedAccountId': selectedAccountId,
+        'userId': currentUser.uid,
+        'account': selectedAccountId ?? '',
+        'auto_transfer_date': _autoTransferDate,
+        'amount': _transferAmount,
+        'balance': _savingBalance,
         'updatedAt': FieldValue.serverTimestamp(),
-        // 알림 상태도 함께 저장하는 것을 고려할 수 있습니다.
-        // 'notified50percent': _notified50percent,
-        // 'notified90percent': _notified90percent,
-        // 'notified100percent': _notified100percent,
       };
 
       if (savingQuery.docs.isNotEmpty) {
         String docId = savingQuery.docs.first.id;
         await FirebaseFirestore.instance.collection('saving').doc(docId).update(dataToSave);
       } else {
-        dataToSave['userId'] = currentUser.uid;
         dataToSave['createdAt'] = FieldValue.serverTimestamp();
         await FirebaseFirestore.instance.collection('saving').add(dataToSave);
       }
 
-      // 저장 후 데이터 다시 로드 및 상태 업데이트 (이 과정에서 _loadSavingGoalData 내부의 알림 로직이 실행됨)
+      // 저장 후 데이터 다시 로드
       await _loadSavingGoalData();
-
-
-      // 달성률 계산 및 알림 로직은 _loadSavingGoalData로 이동됨
-
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저축 목표가 저장되었습니다.')),
+          const SnackBar(content: Text('저축 설정이 저장되었습니다.')),
         );
       }
 
     } catch (e) {
-      debugPrint('저축 목표 저장 오류: $e');
-      // await 이후 mounted 확인
+      debugPrint('저축 설정 저장 오류: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar( // context 직접 사용
-          const SnackBar(content: Text('저축 목표 저장 중 오류가 발생했습니다.')),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저축 설정 저장 중 오류가 발생했습니다.')),
         );
       }
     }
@@ -2275,27 +2207,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-  // 이번 달 저축 카드
+  // 저축 현황 카드
   Widget _buildMonthlySavingsCard() {
-    // 선택된 계좌의 잔액 텍스트 (만 단위로 변환)
-    String accountBalanceText = '0';
-    double balanceInTenThousand = 0;
-    if (_selectedSavingAccount != null) {
-      int balance = _selectedSavingAccount!['balance'];
-      balanceInTenThousand = balance / 10000.0;
-      accountBalanceText = balanceInTenThousand.toStringAsFixed(balanceInTenThousand >= 10 ? 0 : 1);
-    }
-
-    // 최종 목표 금액 텍스트 (만 단위로 변환)
-    String finalGoalText = '0';
-    double goalInTenThousand = 0;
-    if (_finalGoalAmount > 0) {
-      goalInTenThousand = _finalGoalAmount / 10000.0;
-      finalGoalText = goalInTenThousand.toStringAsFixed(goalInTenThousand >= 10 ? 0 : 1);
-    }
-
-    // 버튼 텍스트 설정
-    String buttonText = _hasSavingGoal ? '월 목표 변경' : '월 목표 설정';
+    // 저축한 총 금액 텍스트 포맷팅
+    String balanceText = _savingBalance > 0 
+        ? '${_numberFormat(_savingBalance)}원'
+        : '0원';
 
     return _buildStandardCard(
       height: 250,
@@ -2303,7 +2220,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '이번 달 저축',
+            '저축 현황',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
@@ -2311,29 +2228,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             ),
           ),
           const Spacer(),
-          // 저축 계좌 잔액과 목표 금액을 n원/n원 형식으로 표시
+          // 저축한 총 금액만 표시
           Center(
-            child: Column(
-              children: [
-                Text(
-                  '$accountBalanceText만원',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildSavingsProgressBar(balanceInTenThousand, goalInTenThousand),
-                const SizedBox(height: 12),
-                Text(
-                  '목표: $finalGoalText만원',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black,
-                  ),
-                ),
-              ],
+            child: Text(
+              balanceText,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF73AD13),
+              ),
             ),
           ),
           const Spacer(),
@@ -2348,9 +2251,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               ),
               minimumSize: const Size(double.infinity, 36),
             ),
-            child: Text(
-              buttonText,
-              style: const TextStyle(
+            child: const Text(
+              '저축 설정',
+              style: TextStyle(
                 color: Colors.white,
                 fontSize: 11,
               ),
@@ -2361,49 +2264,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-  // 저축 진행 상황 바 위젯
-  Widget _buildSavingsProgressBar(double current, double goal) {
-    double progress = goal > 0 ? (current / goal) : 0;
-    progress = progress.clamp(0.0, 1.0); // 1.0을 넘지 않도록 제한
-    
-    return Stack(
-      children: [
-        // 배경(전체 목표)
-        Container(
-          height: 25,
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(12.5),
-          ),
-        ),
-        // 진행 바(현재 저축액)
-        Container(
-          height: 25,
-          width: MediaQuery.of(context).size.width * 0.35 * progress, // 화면 너비에 비례하게 조정
-          decoration: BoxDecoration(
-            color: Colors.blue,
-            borderRadius: BorderRadius.circular(12.5),
-          ),
-          child: Center(
-            child: Text(
-              '${_numberFormat((current * 10000).toInt())}원',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 월 저축 목표 설정 시트 표시
+  // 저축 설정 시트 표시
   void _showMonthlySavingsGoalSheet() {
     // 시트가 열릴 때 현재 상태를 기반으로 지역 변수 설정
-    int currentMonthlySavingAmount = _savingsGoalAmount; // 월 저축액
-    int currentFinalGoal = _finalGoalAmount; // 최종 목표액
+    int currentTransferAmount = _transferAmount; // 출금 금액
+    int currentAutoTransferDate = _autoTransferDate; // 자동 이체 날짜
     Map<String, dynamic>? currentSelectedAccount = _selectedSavingAccount;
 
     showModalBottomSheet(
@@ -2416,19 +2281,18 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         // StatefulBuilder를 사용하여 시트 내 상태 관리
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
-            // 목표 금액 텍스트 포맷팅
-            String monthlyGoalAmountText = currentMonthlySavingAmount > 0
-                ? '${_numberFormat(currentMonthlySavingAmount)}원'
+            // 출금 금액 텍스트 포맷팅
+            String transferAmountText = currentTransferAmount > 0
+                ? '${_numberFormat(currentTransferAmount)}원'
                 : '0원';
             
-            String finalGoalAmountText = currentFinalGoal > 0
-                ? '${_numberFormat(currentFinalGoal)}원'
-                : '0원';
+            // 자동 이체 날짜 텍스트
+            String autoTransferDateText = '매월 ${currentAutoTransferDate}일';
 
-            // 수입 대비 퍼센트 계산 (월 저축액 기준)
+            // 수입 대비 퍼센트 계산 (출금 금액 기준)
             String percentageText = '월 수입의 0%';
-            if (_incomeAmount > 0 && currentMonthlySavingAmount > 0) {
-              int percentage = ((currentMonthlySavingAmount / _incomeAmount) * 100).round();
+            if (_incomeAmount > 0 && currentTransferAmount > 0) {
+              int percentage = ((currentTransferAmount / _incomeAmount) * 100).round();
               percentageText = '월 수입의 $percentage%';
             } else if (_incomeAmount <= 0) {
               percentageText = '월 수입 없음';
@@ -2456,7 +2320,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '월 저축 목표 설정',
+                          '저축 설정',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -2471,11 +2335,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     const SizedBox(height: 20),
                     InkWell(
                       onTap: () async {
-                        // 월 저축 금액 입력 다이얼로그
-                        final result = await _showSavingsGoalInputDialog(currentMonthlySavingAmount);
+                        // 출금 금액 입력 다이얼로그
+                        final result = await _showSavingsGoalInputDialog(currentTransferAmount);
                         if (result != null) {
                           setSheetState(() {
-                            currentMonthlySavingAmount = result;
+                            currentTransferAmount = result;
                           });
                         }
                       },
@@ -2483,7 +2347,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '월 저축 금액',
+                            '출금 금액',
                             style: TextStyle(fontSize: 16),
                           ),
                           Row(
@@ -2492,7 +2356,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    monthlyGoalAmountText, // 월 저축액 표시
+                                    transferAmountText,
                                     style: const TextStyle(
                                       fontSize: 16,
                                       color: Colors.blue,
@@ -2530,8 +2394,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         }
                       },
                       child: Row(
-                        // ... 저축 계좌 UI ...
-                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             '저축 계좌',
@@ -2573,11 +2436,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                     const SizedBox(height: 20),
                     InkWell(
                       onTap: () async {
-                        // 목표 금액 입력 다이얼로그
-                        final result = await _showFinalGoalInputDialog(currentFinalGoal);
+                        // 자동 이체 날짜 선택 다이얼로그
+                        final result = await _showAutoTransferDateDialog(currentAutoTransferDate);
                         if (result != null) {
                           setSheetState(() {
-                            currentFinalGoal = result; // 시트 내 최종 목표액 업데이트
+                            currentAutoTransferDate = result;
                           });
                         }
                       },
@@ -2585,13 +2448,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '목표 금액',
+                            '자동 이체 날짜',
                             style: TextStyle(fontSize: 16),
                           ),
                           Row(
                             children: [
                               Text(
-                                finalGoalAmountText, // 최종 목표액 표시
+                                autoTransferDateText,
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.blue,
@@ -2615,8 +2478,8 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         final BuildContext currentContext = context;
                         
                         setState(() {
-                          _savingsGoalAmount = currentMonthlySavingAmount; // 월 저축액 업데이트
-                          _finalGoalAmount = currentFinalGoal; // 최종 목표액 업데이트
+                          _transferAmount = currentTransferAmount;
+                          _autoTransferDate = currentAutoTransferDate;
                           _selectedSavingAccount = currentSelectedAccount;
                         });
                         // Firestore에 저장
@@ -2689,7 +2552,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '월 저축 계좌를 설정해주세요.',
+                          '출금 계좌를 설정해주세요.',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -2886,7 +2749,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '월 저축 목표를 입력해주세요.',
+                            '출금 금액을 입력해주세요.',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.normal,
@@ -3086,9 +2949,10 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
     );
   }
 
-  // 목표 금액 입력 다이얼로그 함수 추가
-  Future<int?> _showFinalGoalInputDialog(int initialAmount) async {
-    String input = initialAmount > 0 ? initialAmount.toString() : '0';
+  // 자동 이체 날짜 선택 다이얼로그
+  Future<int?> _showAutoTransferDateDialog(int initialDate) async {
+    int selectedDate = initialDate;
+
     return await showModalBottomSheet<int?>(
       context: context,
       isScrollControlled: true,
@@ -3098,199 +2962,82 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            String formatted = '0원';
-            int current = 0;
-            if (input.isNotEmpty) {
-              current = int.tryParse(input) ?? 0;
-              formatted = '${_numberFormat(current)}원';
-            }
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom
               ),
-              child: SizedBox(
-                height: 500,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            '목표 금액을 입력해주세요.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.normal,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            iconSize: 24,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Center(
-                        child: Text(
-                          formatted,
-                          style: const TextStyle(
-                            fontSize: 26,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '자동 이체 날짜를 선택해주세요.',
+                          style: TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          iconSize: 24,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // 날짜 선택 리스트 (1-31일)
+                    SizedBox(
+                      height: 300,
+                      child: ListView.builder(
+                        itemCount: 31,
+                        itemBuilder: (context, index) {
+                          int date = index + 1;
+                          bool isSelected = selectedDate == date;
+                          
+                          return ListTile(
+                            title: Text('매월 ${date}일'),
+                            trailing: isSelected
+                                ? const Icon(Icons.check, color: Color(0xFF73AD13))
+                                : null,
+                            selected: isSelected,
+                            onTap: () {
+                              setDialogState(() {
+                                selectedDate = date;
+                              });
+                            },
+                          );
+                        },
                       ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildNumberButton('1', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '1';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('2', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '2';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('3', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '3';
-                                    }
-                                  });
-                                }),
-                              ],
-                            ),
-                            // ... 나머지 키패드 행 동일하게 구현 ...
-                            // 두 번째 줄: 4, 5, 6
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildNumberButton('4', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '4';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('5', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '5';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('6', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '6';
-                                    }
-                                  });
-                                }),
-                              ],
-                            ),
-                            // 세 번째 줄: 7, 8, 9
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildNumberButton('7', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '7';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('8', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '8';
-                                    }
-                                  });
-                                }),
-                                _buildNumberButton('9', onPressed: () {
-                                  setDialogState(() {
-                                    if (input == '0') input = '';
-                                    if (input.length < 10) {
-                                      input += '9';
-                                    }
-                                  });
-                                }),
-                              ],
-                            ),
-                            // 마지막 줄: 0, 백스페이스
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                const SizedBox(width: 50), // 자리 맞춤용
-                                _buildNumberButton('0', onPressed: () {
-                                  setDialogState(() {
-                                    if (input != '0') {
-                                      if (input.length < 10) {
-                                        input += '0';
-                                      }
-                                    }
-                                  });
-                                }),
-                                _buildBackspaceButton(onPressed: () {
-                                  setDialogState(() {
-                                    if (input.isNotEmpty) {
-                                      input = input.substring(0, input.length - 1);
-                                      if (input.isEmpty) input = '0';
-                                    }
-                                  });
-                                }),
-                              ],
-                            ),
-                          ],
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context, selectedDate);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF73AD13),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          '확인',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            int amount = int.tryParse(input) ?? 0;
-                            Navigator.pop(context, amount);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF73AD13),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text(
-                            '확인',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             );
