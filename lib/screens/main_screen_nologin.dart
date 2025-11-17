@@ -16,6 +16,7 @@ import 'transaction_provider.dart'; // 트랜잭션 프로바이더 import
 import 'transaction.dart'; // 트랜잭션 모델 import
 import 'goal_management.dart'; // 목표 관리 화면 import
 import 'my_page_screen.dart'; // 마이페이지 화면 import
+import 'ai_analysis_screen.dart'; // AI 분석 화면 import
 
 class MainScreenNotLogin extends StatefulWidget {
   final User? user;
@@ -707,22 +708,17 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                   },
                 ),
                 _buildCategoryButton(
-                  icon: Icons.account_balance,
+                  icon: Icons.psychology,
                   label: 'AI 분석',
                   color: Colors.purple,
                   onTap: () {
-                    // 계좌 추가 화면으로 이동
+                    // AI 분석 화면으로 이동
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AssetScreen(
-                          user: widget.user ?? FirebaseAuth.instance.currentUser,
-                          previousRouteName: 'main_screen_nologin',
-                        ),
+                        builder: (context) => const AIAnalysisScreen(),
                       ),
-                    ).then((returnedUser) {
-                      _loadUserAccounts();
-                    });
+                    );
                   },
                 ),
               ],
@@ -898,57 +894,101 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
 
   // AI 분석 카드를 만드는 메서드
   Widget _buildAIAnalysisCard() {
-    return Card(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.psychology, color: Colors.indigo, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  "AI 분석",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.analytics,
-                      size: 40,
-                      color: Colors.grey,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AIAnalysisScreen(),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF73AD13), Color(0xFF5E8BFE)],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    SizedBox(height: 8),
+                    child: const Icon(
+                      Icons.psychology,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "AI 가계부 분석",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF73AD13).withOpacity(0.1),
+                      const Color(0xFF5E8BFE).withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.lightbulb_outline,
+                          size: 24,
+                          color: const Color(0xFF73AD13),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            "AI가 당신의 지출 습관을 분석해드려요",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Text(
-                      "AI 분석 기능 준비 중",
+                      "• 멍청 비용 탐지\n• 전월 대비 급등 항목 경고\n• 월말 잔액 예측",
                       style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
+                        fontSize: 13,
+                        color: Colors.grey[700],
+                        height: 1.5,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

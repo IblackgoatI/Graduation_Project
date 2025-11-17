@@ -1,0 +1,272 @@
+/// Gemini AI API 서비스
+/// 사용자의 가계부 데이터를 분석하여 피드백을 제공합니다.
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+class GeminiService {
+  // 환경 변수에서 API 키 가져오기
+  static final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+  
+  late final GenerativeModel _model;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  GeminiService() {
+    _model = GenerativeModel(
+      model: 'gemini-2.5-flash',
+      apiKey: _apiKey,
+    );
+  }
+
+  /// 사용자의 거래 내역을 분석하여 AI 피드백 생성
+  Future<Map<String, dynamic>> analyzeSpendingHabits() async {
+    try {
+      final userId = _auth.currentUser?.uid;
+      if (userId == null) {
+        throw Exception('로그인이 필요합니다.');
+      }
+
+      // 1. 현재 월과 이전 월 데이터 수집
+      final now = DateTime.now();
+      final currentMonthStart = DateTime(now.year, now.month, 1);
+      final lastMonthStart = DateTime(now.year, now.month - 1, 1);
+      final lastMonthEnd = DateTime(now.year, now.month, 0, 23, 59, 59);
+
+      // 모든 거래 내역 가져오기 (userId만 필터링)
+      final allQuery = await _firestore
+          .collection('ledger')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      // 현재 월 데이터 필터링 (클라이언트에서)
+      final currentMonthDocs = allQuery.docs.where((doc) {
+        final data = doc.data();
+        if (data['date'] == null) return false;
+        final date = (data['date'] as Timestamp).toDate();
+        return (date.isAfter(currentMonthStart) || date.isAtSameMomentAs(currentMonthStart)) &&
+               (date.isBefore(now) || date.isAtSameMomentAs(now));
+      }).toList();
+
+      // 이전 월 데이터 필터링 (클라이언트에서)
+      final lastMonthDocs = allQuery.docs.where((doc) {
+        final data = doc.data();
+        if (data['date'] == null) return false;
+        final date = (data['date'] as Timestamp).toDate();
+        return (date.isAfter(lastMonthStart) || date.isAtSameMomentAs(lastMonthStart)) &&
+               (date.isBefore(lastMonthEnd) || date.isAtSameMomentAs(lastMonthEnd));
+      }).toList();
+
+      // 예산 정보 가져오기
+      final budgetDoc = await _firestore
+          .collection('budget')
+          .doc(userId)
+          .get();
+      
+      final monthlyBudget = budgetDoc.exists 
+          ? (budgetDoc.data()?['monthlyBudget'] as num?)?.toDouble() ?? 0.0 
+          : 0.0;
+
+      // 2. 데이터 구조화
+      final currentMonthData = _processTransactions(currentMonthDocs);
+      final lastMonthData = _processTransactions(lastMonthDocs);
+
+      // 디버깅 정보 출력
+      debugPrint('=== AI 분석 데이터 ===');
+      debugPrint('현재 월 거래 건수: ${currentMonthDocs.length}');
+      debugPrint('현재 월 지출: ${currentMonthData['totalExpense']}');
+      debugPrint('지난 월 거래 건수: ${lastMonthDocs.length}');
+      debugPrint('지난 월 지출: ${lastMonthData['totalExpense']}');
+      debugPrint('월 예산: $monthlyBudget');
+
+      // 3. Gemini에 전달할 프롬프트 생성
+      final prompt = _buildAnalysisPrompt(
+        currentMonthData,
+        lastMonthData,
+        monthlyBudget,
+        now,
+      );
+
+      // 4. Gemini API 호출 (재시도 로직 포함)
+      String analysisText = '';
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          final response = await _model.generateContent([Content.text(prompt)]);
+          analysisText = response.text ?? '분석 결과를 생성할 수 없습니다.';
+          break; // 성공하면 루프 종료
+        } catch (e) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            throw Exception('서버가 과부하 상태입니다. 잠시 후 다시 시도해주세요.');
+          }
+          // 재시도 전 대기 (1초, 2초, 3초...)
+          await Future.delayed(Duration(seconds: retryCount));
+          debugPrint('Gemini API 재시도 중... ($retryCount/$maxRetries)');
+        }
+      }
+
+      // 5. 결과 파싱 및 반환
+      return {
+        'success': true,
+        'analysis': analysisText,
+        'currentMonthTotal': currentMonthData['totalExpense'],
+        'lastMonthTotal': lastMonthData['totalExpense'],
+        'budget': monthlyBudget,
+        'currentMonthIncome': currentMonthData['totalIncome'],
+      };
+    } catch (e) {
+      debugPrint('Gemini 분석 오류: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
+  /// 거래 내역 처리 및 통계 계산
+  Map<String, dynamic> _processTransactions(List<QueryDocumentSnapshot> docs) {
+    double totalExpense = 0;
+    double totalIncome = 0;
+    Map<String, double> categoryExpense = {};
+    Map<String, int> categoryCount = {};
+    List<Map<String, dynamic>> transactions = [];
+
+    for (var doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final type = data['type'] ?? '';
+      final amount = (data['amount'] as num?)?.toDouble() ?? 0;
+      final category = data['category'] ?? '기타';
+      final merchant = data['merchant'] ?? '';
+      final date = (data['date'] as Timestamp).toDate();
+
+      transactions.add({
+        'type': type,
+        'amount': amount,
+        'category': category,
+        'merchant': merchant,
+        'date': date,
+      });
+
+      if (type == '지출') {
+        totalExpense += amount;
+        categoryExpense[category] = (categoryExpense[category] ?? 0) + amount;
+        categoryCount[category] = (categoryCount[category] ?? 0) + 1;
+      } else if (type == '수입') {
+        totalIncome += amount;
+      }
+    }
+
+    // 카테고리별 평균 지출 계산
+    Map<String, double> categoryAverage = {};
+    categoryExpense.forEach((category, total) {
+      final count = categoryCount[category] ?? 1;
+      categoryAverage[category] = total / count;
+    });
+
+    return {
+      'totalExpense': totalExpense,
+      'totalIncome': totalIncome,
+      'categoryExpense': categoryExpense,
+      'categoryCount': categoryCount,
+      'categoryAverage': categoryAverage,
+      'transactions': transactions,
+    };
+  }
+
+  /// Gemini에 전달할 프롬프트 생성
+  String _buildAnalysisPrompt(
+    Map<String, dynamic> currentMonth,
+    Map<String, dynamic> lastMonth,
+    double budget,
+    DateTime now,
+  ) {
+    final currentExpense = currentMonth['totalExpense'] as double;
+    final lastExpense = lastMonth['totalExpense'] as double;
+    final categoryExpense = currentMonth['categoryExpense'] as Map<String, double>;
+    final categoryCount = currentMonth['categoryCount'] as Map<String, int>;
+    final lastCategoryExpense = lastMonth['categoryExpense'] as Map<String, double>;
+
+    // 남은 일수 계산
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final daysLeft = daysInMonth - now.day;
+    final daysPassed = now.day;
+
+    // 전월 대비 증감 계산
+    final expenseDiff = currentExpense - lastExpense;
+    final expenseChangePercent = lastExpense > 0 ? (expenseDiff / lastExpense * 100) : 0;
+
+    // 예산 대비 비율
+    final budgetUsagePercent = budget > 0 ? (currentExpense / budget * 100) : 0;
+    
+    // 일평균 지출
+    final dailyAverage = daysPassed > 0 ? currentExpense / daysPassed : 0.0;
+    final predictedTotal = dailyAverage * daysInMonth.toDouble();
+
+    final buffer = StringBuffer();
+    buffer.writeln('당신은 가계부 분석 AI입니다. 아래 데이터를 기반으로 간결하게 분석하세요.');
+    buffer.writeln('');
+    buffer.writeln('### 핵심 데이터');
+    buffer.writeln('📅 현재: ${now.month}월 ${now.day}일 (${daysLeft}일 남음)');
+    buffer.writeln('💰 이번 달 지출: ${_formatCurrency(currentExpense)}원');
+    buffer.writeln('📊 월 예산: ${_formatCurrency(budget)}원 (${budgetUsagePercent.toStringAsFixed(1)}% 사용)');
+    buffer.writeln('📈 지난 달 지출: ${_formatCurrency(lastExpense)}원');
+    buffer.writeln('📉 전월 대비: ${expenseDiff >= 0 ? '+' : ''}${_formatCurrency(expenseDiff.abs())}원 (${expenseChangePercent >= 0 ? '+' : ''}${expenseChangePercent.toStringAsFixed(1)}%)');
+    buffer.writeln('');
+    
+    // 상위 3개 카테고리만 표시 + 전월 비교
+    final sortedCategories = categoryExpense.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final top3 = sortedCategories.take(3);
+    
+    buffer.writeln('주요 지출 카테고리:');
+    for (var entry in top3) {
+      final count = categoryCount[entry.key] ?? 0;
+      final lastAmount = lastCategoryExpense[entry.key] ?? 0;
+      final diff = entry.value - lastAmount;
+      final changePercent = lastAmount > 0 ? (diff / lastAmount * 100) : 0;
+      
+      if (lastAmount > 0) {
+        buffer.writeln('- ${entry.key}: ${_formatCurrency(entry.value)}원 (${count}회) [전월 대비 ${diff >= 0 ? '+' : ''}${changePercent.toStringAsFixed(0)}%]');
+      } else {
+        buffer.writeln('- ${entry.key}: ${_formatCurrency(entry.value)}원 (${count}회)');
+      }
+    }
+    buffer.writeln('');
+    
+    buffer.writeln('### 예측');
+    buffer.writeln('일평균 지출: ${_formatCurrency(dailyAverage)}원');
+    buffer.writeln('이대로면 월말 예상 지출: ${_formatCurrency(predictedTotal)}원');
+    if (budget > 0) {
+      final remaining = budget - currentExpense;
+      final dailyLimit = daysLeft > 0 ? remaining / daysLeft.toDouble() : 0.0;
+      buffer.writeln('남은 예산: ${_formatCurrency(remaining)}원');
+      buffer.writeln('하루 사용 가능: ${_formatCurrency(dailyLimit)}원');
+    }
+    buffer.writeln('');
+    
+    buffer.writeln('### 분석 요청 (각 2줄 이내로 간결하게)');
+    buffer.writeln('위 데이터를 바탕으로:');
+    buffer.writeln('🔍 반복 지출: 빈도가 높아 누적된 지출이 있나요?');
+    buffer.writeln('⚠️ 급등 항목: 전월 대비 증가율이 높은 카테고리와 이유는?');
+    buffer.writeln('🔮 월말 예측: 예산 초과 가능성과 대응 방법은?');
+    buffer.writeln('');
+    buffer.writeln('답변 형식: 이모지 + 2줄 이내 핵심만');
+    buffer.writeln('친근한 말투로 구체적 숫자 포함하여 작성');
+
+    return buffer.toString();
+  }
+
+  /// 숫자를 통화 형식으로 변환
+  String _formatCurrency(double amount) {
+    return amount.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+  }
+}
+
