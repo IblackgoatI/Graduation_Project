@@ -53,3 +53,6 @@ macos/
 windows/
 # Environment variables
 .env
+
+# Gemini API ?¤ê? ?¬í•¨???Œì¼
+lib/services/gemini_service.dart

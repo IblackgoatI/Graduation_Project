@@ -14,7 +14,6 @@ import 'router.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/category_manager.dart';
 import 'services/auto_transfer_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // dotenv 추가
 
 // FCM 백그라운드 메시지 핸들러
 @pragma('vm:entry-point')
@@ -30,9 +29,6 @@ FlutterLocalNotificationsPlugin();
 // main() 함수를 async로 변경하고 Firebase 초기화
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 환경 변수 로드
-  await dotenv.load(fileName: ".env");
   
   await Firebase.initializeApp(
     options: FirebaseOptions(
