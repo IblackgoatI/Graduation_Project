@@ -9,6 +9,14 @@ import 'goal_add.dart';
 import 'goal_update.dart';
 import 'goal_amount_add.dart';
 
+const Color _successBadgeColor = Color(0xFFFFD700);
+const Color _successBackgroundColor = Color(0xFFFFFBEC);
+const Color _successBorderColor = Color(0xFFFFE082);
+const Color _successTextColor = Color(0xFF4CAF50);
+const Color _failedBackgroundColor = Color(0xFFF4F4F4);
+const Color _failedBorderColor = Color(0xFFD6D6D6);
+const Color _failedTextColor = Color(0xFF8A8A8A);
+
 class GoalManagementScreen extends StatefulWidget {
   final User? user;
 
@@ -21,10 +29,16 @@ class GoalManagementScreen extends StatefulWidget {
   State<GoalManagementScreen> createState() => _GoalManagementScreenState();
 }
 
+enum _GoalTab {
+  ongoing,
+  ended,
+}
+
 class _GoalManagementScreenState extends State<GoalManagementScreen> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _goalList = [];
   Map<String, int> _accountBalances = {};
+  _GoalTab _selectedTab = _GoalTab.ongoing;
 
   @override
   void initState() {
@@ -52,6 +66,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
           for (var doc in goalQuery.docs) {
             Map<String, dynamic> goalData = doc.data() as Map<String, dynamic>;
             String? bankId = goalData['bank'];
+            goalData['id'] = doc.id;
             
             // bank 필드가 있으면 assets 컬렉션에서 잔액 조회
             if (bankId != null) {
@@ -310,37 +325,139 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      // 목표 카드들
-                      if (_goalList.isNotEmpty) ...[
-                        ..._goalList.asMap().entries.map((entry) {
-                          int index = entry.key;
-                          Map<String, dynamic> goalData = entry.value;
-                          bool isLast = index == _goalList.length - 1;
-                          
-                          return Column(
-                            children: [
-                              _buildGoalCard(goalData),
-                              if (isLast) ...[
-                                const SizedBox(height: 20),
-                                // 플러스 버튼 (마지막 목표 카드 아래)
-                                _buildAddButton(),
-                              ] else
-                                const SizedBox(height: 16),
-                            ],
-                          );
-                        }),
-                      ] else ...[
-                        // 목표가 없을 때
-                        _buildEmptyGoalCard(),
-                        const SizedBox(height: 20),
-                        // 플러스 버튼
-                        _buildAddButton(),
-                      ],
+                      _buildGoalTabBar(),
+                      const SizedBox(height: 16),
+                      _buildGoalSection(),
                     ],
                   ),
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildGoalTabBar() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _buildTabButton(_GoalTab.ongoing, '진행 중'),
+          const SizedBox(width: 8),
+          _buildTabButton(_GoalTab.ended, '종료된 목표'),
+        ],
+      ),
+    );
+  }
+
+  Expanded _buildTabButton(_GoalTab tab, String label) {
+    final bool isSelected = _selectedTab == tab;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          if (_selectedTab != tab) {
+            setState(() {
+              _selectedTab = tab;
+            });
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF73AD13) : Colors.transparent,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF73AD13) : const Color(0xFFDDDDDD),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: isSelected ? Colors.white : const Color(0xFF666666),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoalSection() {
+    if (_selectedTab == _GoalTab.ongoing) {
+      return _buildOngoingGoals();
+    }
+    return _buildEndedGoals();
+  }
+
+  Widget _buildOngoingGoals() {
+    final ongoingGoals = _ongoingGoals;
+    if (ongoingGoals.isEmpty) {
+      return Column(
+        children: [
+          _buildEmptyGoalCard(),
+          const SizedBox(height: 20),
+          _buildAddButton(),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        ...ongoingGoals.asMap().entries.map((entry) {
+          final bool isLast = entry.key == ongoingGoals.length - 1;
+          return Column(
+            children: [
+              _buildGoalCard(entry.value),
+              if (!isLast) const SizedBox(height: 16),
+            ],
+          );
+        }),
+        const SizedBox(height: 20),
+        _buildAddButton(),
+      ],
+    );
+  }
+
+  Widget _buildEndedGoals() {
+    final endedGoals = _endedGoals;
+    if (endedGoals.isEmpty) {
+      return Column(
+        children: [
+          _buildEmptyEndedCard(),
+          const SizedBox(height: 20),
+          _buildAddButton(),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        ...endedGoals.asMap().entries.map((entry) {
+          final bool isLast = entry.key == endedGoals.length - 1;
+          return Column(
+            children: [
+              _buildEndedGoalCard(entry.value),
+              if (!isLast) const SizedBox(height: 16),
+            ],
+          );
+        }),
+        const SizedBox(height: 20),
+        _buildAddButton(),
+      ],
     );
   }
 
@@ -360,6 +477,218 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     );
   }
 
+  Widget _buildEndedGoalCard(Map<String, dynamic> goalData) {
+    final bool isSuccess = _isGoalSuccessful(goalData);
+    final double progressPercentage = _calculateProgressPercentage(goalData);
+    final Color badgeColor = isSuccess ? _successBadgeColor : _failedTextColor;
+    final String badgeText = isSuccess ? '[SUCCESS]' : '[기간 만료]';
+
+    return Card(
+      color: isSuccess ? _successBackgroundColor : _failedBackgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSuccess ? _successBorderColor : _failedBorderColor,
+          width: 1.5,
+        ),
+      ),
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        goalData['name'] ?? '목표명 없음',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isSuccess ? _successTextColor : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isSuccess
+                            ? 'Mission Complete! 🏆'
+                            : '아쉽게 달성하지 못했어요 💤',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isSuccess ? _successTextColor : _failedTextColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 4, horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isSuccess
+                            ? Icons.emoji_events_rounded
+                            : Icons.watch_later_outlined,
+                        size: 14,
+                        color: badgeColor,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        badgeText,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: badgeColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (isSuccess)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _successBorderColor),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.emoji_events_outlined,
+                      color: _successTextColor,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '축하합니다! 100%를 달성했어요.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _successTextColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              Text(
+                '진행도 ${progressPercentage.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _failedTextColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: progressPercentage / 100,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB0B0B0),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_formatAmount(_getIncreasedAmount(goalData))} / ${_formatAmount(goalData['amount'])}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isSuccess ? _successTextColor : _failedTextColor,
+                  ),
+                ),
+                Text(
+                  _formatDate(goalData['endDate'] ?? goalData['deadline']) ?? '',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF9E9E9E),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (isSuccess)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _showGoalHistory(goalData),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _successTextColor,
+                        side: BorderSide(color: _successTextColor),
+                      ),
+                      child: const Text(
+                        '히스토리 보기',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: () => _showDeleteGoalDialog(goalData),
+                    child: const Text(
+                      '삭제',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFCC4D4D),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => _retryGoal(goalData),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF616161),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    '다시 도전하기',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 빈 목표 카드 위젯
   Widget _buildEmptyGoalCard() {
     return Card(
@@ -375,6 +704,164 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
       ),
     );
   }
+
+  Widget _buildEmptyEndedCard() {
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: const [
+            Icon(Icons.emoji_emotions_outlined, size: 40, color: Color(0xFF73AD13)),
+            SizedBox(height: 16),
+            Text(
+              '종료된 목표가 없습니다.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF555555),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              '목표를 달성하거나 기간이 지나면 이곳에서 확인할 수 있어요.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF7A7A7A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showGoalHistory(Map<String, dynamic> goalData) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('목표 히스토리'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('목표명: ${goalData['name'] ?? '-'}'),
+              const SizedBox(height: 8),
+              Text('달성 금액: ${_formatAmount(goalData['amount'])}'),
+              const SizedBox(height: 8),
+              Text('기간: ${_formatDate(goalData['startDate']) ?? '-'} ~ '
+                  '${_formatDate(goalData['endDate'] ?? goalData['deadline']) ?? '-'}'),
+              const SizedBox(height: 16),
+              const Text(
+                '상세 히스토리 기능은 추후 제공될 예정입니다.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('닫기'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _retryGoal(Map<String, dynamic> goalData) async {
+    final int goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
+    if (goalAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('목표 금액 정보가 없어 다시 도전할 수 없습니다.')),
+      );
+      return;
+    }
+
+    final DateTime now = DateTime.now();
+    final DateTime? previousStart = _parseDate(goalData['startDate']);
+    final DateTime? previousEnd =
+        _parseDate(goalData['endDate'] ?? goalData['deadline']);
+    final Duration duration =
+        (previousStart != null && previousEnd != null && previousEnd.isAfter(previousStart))
+            ? previousEnd.difference(previousStart)
+            : const Duration(days: 30);
+
+    final GoalPreset preset = GoalPreset(
+      goalName: goalData['name'] as String?,
+      goalAmount: goalAmount,
+      monthlyAmount: (goalData['monthlyAmount'] as num?)?.toInt(),
+      startDate: now,
+      endDate: now.add(duration),
+      targetAccountId: goalData['bank'] as String?,
+      withdrawalAccountId: goalData['withdrawalAccount'] as String?,
+      withdrawalDay: _parseWithdrawalDay(goalData['withdrawalDay']),
+    );
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GoalAddScreen(
+          user: widget.user,
+          preset: preset,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      setState(() {
+        _selectedTab = _GoalTab.ongoing;
+      });
+      await _loadGoalData();
+    }
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
+  }
+
+  int? _parseWithdrawalDay(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse('$value');
+  }
+
+  bool _isGoalSuccessful(Map<String, dynamic> goalData) {
+    return _calculateProgressPercentage(goalData) >= 100;
+  }
+
+  bool _isGoalExpired(Map<String, dynamic> goalData) {
+    final DateTime? deadline =
+        _parseDate(goalData['endDate'] ?? goalData['deadline']);
+    if (deadline == null) return false;
+
+    final DateTime today = DateTime.now();
+    final DateTime normalizedToday =
+        DateTime(today.year, today.month, today.day);
+    final DateTime normalizedDeadline =
+        DateTime(deadline.year, deadline.month, deadline.day);
+
+    return normalizedDeadline.isBefore(normalizedToday);
+  }
+
+  bool _isGoalEnded(Map<String, dynamic> goalData) {
+    return _isGoalSuccessful(goalData) || _isGoalExpired(goalData);
+  }
+
+  List<Map<String, dynamic>> get _ongoingGoals =>
+      _goalList.where((goal) => !_isGoalEnded(goal)).toList();
+
+  List<Map<String, dynamic>> get _endedGoals =>
+      _goalList.where(_isGoalEnded).toList();
 
   // 목표 데이터가 있을 때의 내용
   Widget _buildGoalContent(Map<String, dynamic> goalData) {
@@ -418,7 +905,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                           ),
                         ),
                       );
-                      
+
                       // 목표가 성공적으로 수정되면 데이터 새로고침
                       if (result == true) {
                         _loadGoalData();
@@ -550,7 +1037,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                     ),
                   ),
                 );
-                
+
                 // 목표 금액이 성공적으로 추가되면 데이터 새로고침
                 if (result == true) {
                   _loadGoalData();

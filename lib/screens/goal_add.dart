@@ -7,12 +7,36 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+class GoalPreset {
+  final String? goalName;
+  final int? goalAmount;
+  final int? monthlyAmount;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? targetAccountId;
+  final String? withdrawalAccountId;
+  final int? withdrawalDay;
+
+  const GoalPreset({
+    this.goalName,
+    this.goalAmount,
+    this.monthlyAmount,
+    this.startDate,
+    this.endDate,
+    this.targetAccountId,
+    this.withdrawalAccountId,
+    this.withdrawalDay,
+  });
+}
+
 class GoalAddScreen extends StatefulWidget {
   final User? user;
+  final GoalPreset? preset;
 
   const GoalAddScreen({
     super.key,
     this.user,
+    this.preset,
   });
 
   @override
@@ -39,6 +63,7 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
   @override
   void initState() {
     super.initState();
+    _applyPresetIfNeeded();
     _loadAccounts();
   }
 
@@ -80,6 +105,32 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
     } catch (e) {
       debugPrint('계좌 목록 로드 오류: $e');
     }
+  }
+
+  void _applyPresetIfNeeded() {
+    final GoalPreset? preset = widget.preset;
+    if (preset == null) return;
+
+    if ((preset.goalName ?? '').isNotEmpty) {
+      _goalNameController.text = preset.goalName!;
+    }
+    if (preset.goalAmount != null && preset.goalAmount! > 0) {
+      _goalAmountController.text =
+          NumberFormat('#,###').format(preset.goalAmount!);
+    }
+    if (preset.monthlyAmount != null && preset.monthlyAmount! > 0) {
+      _monthlyAmountController.text =
+          NumberFormat('#,###').format(preset.monthlyAmount!);
+    }
+    if (preset.withdrawalDay != null && preset.withdrawalDay! > 0) {
+      _withdrawalDateController.text = '${preset.withdrawalDay}';
+    }
+
+    _startDate = preset.startDate ?? _startDate;
+    _endDate = preset.endDate ?? _endDate;
+    _selectedAccountId = preset.targetAccountId ?? _selectedAccountId;
+    _selectedWithdrawalAccountId =
+        preset.withdrawalAccountId ?? _selectedWithdrawalAccountId;
   }
 
   // 다음 단계로 이동
