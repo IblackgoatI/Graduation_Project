@@ -529,7 +529,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: 120,
+            height: 150,
             child: PageView(
               controller: _goalPageController,
               onPageChanged: (index) {
@@ -919,166 +919,161 @@ class NotloginListScreenState extends State<NotloginListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Column(
-        children: [
-          // 기간 필터 + 상세 조건 (우측) 영역
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 8.0,
-                    children: _filters.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final label = entry.value;
-                      final bool isSelected = _selectedFilterIndex == index;
-                      return ChoiceChip(
-                        label: Text(
-                          label,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.w600,
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // 기간 필터 + 상세 조건 영역
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8.0,
+                      children: _filters.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final bool isSelected = _selectedFilterIndex == index;
+                        return ChoiceChip(
+                          label: Text(
+                            label,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedFilterIndex = index;
-                          });
-                        },
-                        selectedColor: const Color(0xFF73AD13),
-                        backgroundColor: Colors.grey.shade200,
-                        side: BorderSide(
-                          color: isSelected ? const Color(0xFF73AD13) : Colors.grey.shade400,
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                _DetailFilterChip(
-                  isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0 || _selectedStartDate != null || _selectedEndDate != null,
-                  onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
-                ),
-              ],
-            ),
-          ),
-          
-          // 목표/예산 그래프 섹션
-          if (_shouldShowGoalBudgetSection) _buildGoalBudgetSection(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                const Text(
-                  '태그 표시',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                Container(
-                  decoration: BoxDecoration(
-                    color: _showTags ? Colors.green : Colors.white,
-                    borderRadius: BorderRadius.circular(4.0),
-                    border: Border.all(
-                      color: _showTags ? Colors.green : Colors.grey,
-                      width: 1.0,
+                          selected: isSelected,
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedFilterIndex = index;
+                            });
+                          },
+                          selectedColor: const Color(0xFF73AD13),
+                          backgroundColor: Colors.grey.shade200,
+                          side: BorderSide(
+                            color: isSelected ? const Color(0xFF73AD13) : Colors.grey.shade400,
+                          ),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        );
+                      }).toList(),
                     ),
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showTags = !_showTags;
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(2.0),
-                      child: Icon(
-                        Icons.check,
-                        size: 18.0,
-                        color: _showTags ? Colors.white : Colors.transparent,
-                      ),
-                    ),
+                  const SizedBox(width: 8.0),
+                  _DetailFilterChip(
+                    isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0 || _selectedStartDate != null || _selectedEndDate != null,
+                    onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
                   ),
-                ),
-              ],
-            ),
-          ),
-          _isLoading
-              ? const Expanded(
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
-              : _transactions.isEmpty
-              ? const Expanded(
-            child: Center(
-              child: Text(
-                '거래 내역이 없습니다.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                ],
               ),
             ),
-          )
-              : Expanded(
-            child: RefreshIndicator(
-              onRefresh: loadTransactions,
-              child: ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: groupedTransactions.entries.map((entry) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
+            // 목표/예산 그래프 섹션
+            if (_shouldShowGoalBudgetSection) _buildGoalBudgetSection(),
+            // 태그 표시
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  const Text(
+                    '태그 표시',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8.0),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _showTags ? Colors.green : Colors.white,
+                      borderRadius: BorderRadius.circular(4.0),
+                      border: Border.all(
+                        color: _showTags ? Colors.green : Colors.grey,
+                        width: 1.0,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showTags = !_showTags;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(2.0),
+                        child: Icon(
+                          Icons.check,
+                          size: 18.0,
+                          color: _showTags ? Colors.white : Colors.transparent,
                         ),
                       ),
-                      ...entry.value.map((transaction) {
-                        return InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TransactionDetailScreen(
-                                  transaction: transaction,
-                                  // 삭제 콜백 전달
-                                  onTransactionDeleted: _deleteTransaction,
-                                ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 상태 및 거래내역
+            if (_isLoading)
+              Container(
+                height: 300,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              )
+            else if (_transactions.isEmpty)
+              Container(
+                height: 200,
+                alignment: Alignment.center,
+                child: const Text(
+                  '거래 내역이 없습니다.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+            else
+              ...groupedTransactions.entries.map((entry) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0, left: 16.0, right: 16.0, top: 8.0),
+                      child: Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    ...entry.value.map((transaction) {
+                      return InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TransactionDetailScreen(
+                                transaction: transaction,
+                                onTransactionDeleted: _deleteTransaction,
                               ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8.0),
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24.0),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withAlpha(26),
-                                  spreadRadius: 1,
-                                  blurRadius: 3,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8.0, left: 16.0, right: 16.0),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withAlpha(26),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                                 Container(
                                   height: 40,
                                   alignment: Alignment.center,
@@ -1136,14 +1131,12 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                             ),
                           ),
                         );
-                      }),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
+                    }).toList(),
+                  ],
+                );
+              }).toList(),
+          ],
+        ),
       ),
     );
   }
