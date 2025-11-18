@@ -671,12 +671,13 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                   label: '계좌 관리',
                   color: Colors.blue,
                   onTap: () {
-                    // 저축 설정 화면으로 이동
+                    // 조회 화면으로 이동 (탭바 숨김)
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AssetDetailScreen(
                           initialTabIndex: 0,
+                          showTabBar: false, // 탭바 숨기기
                         ),
                       ),
                     );
@@ -684,15 +685,16 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                 ),
                 _buildCategoryButton(
                   icon: Icons.wallet,
-                  label: '자산관리',
+                  label: '자산 관리',
                   color: Colors.orange,
                   onTap: () {
-                    // 자산 화면의 목표 탭으로 이동
+                    // 목표 화면으로 이동 (탭바 숨김)
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AssetDetailScreen(
                           initialTabIndex: 1,
+                          showTabBar: false, // 탭바 숨기기
                         ),
                       ),
                     );

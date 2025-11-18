@@ -18,11 +18,13 @@ import 'goal_management.dart';
 class AssetDetailScreen extends StatefulWidget {
   final User? user;
   final int initialTabIndex; // 추가된 파라미터
+  final bool showTabBar; // 탭바 표시 여부
 
   const AssetDetailScreen({
     super.key,
     this.user,
     this.initialTabIndex = 0, // 기본값 0으로 설정
+    this.showTabBar = true, // 기본값 true (탭바 표시)
   });
 
   @override
@@ -764,6 +766,12 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    // 화면 타이틀 결정
+    String title = '자산';
+    if (!widget.showTabBar) {
+      title = widget.initialTabIndex == 0 ? '계좌 관리' : '자산관리';
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -772,46 +780,50 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('자산', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          // 탭바
-          Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey, width: 0.5),
-              ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              tabs: const [
-                Tab(text: '조회'),
-                Tab(text: '목표'),
-              ],
-              labelColor: Colors.black,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.black,
-              indicatorWeight: 2.0,
-            ),
-          ),
-
-          // 탭 내용
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
+      body: widget.showTabBar
+          ? Column(
               children: [
-                // 조회 탭
-                _buildViewTab(),
+                // 탭바
+                Container(
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey, width: 0.5),
+                    ),
+                  ),
+                  child: TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: '조회'),
+                      Tab(text: '목표'),
+                    ],
+                    labelColor: Colors.black,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: Colors.black,
+                    indicatorWeight: 2.0,
+                  ),
+                ),
 
-                // 목표 탭
-                _buildGoalTab(),
+                // 탭 내용
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // 조회 탭
+                      _buildViewTab(),
+
+                      // 목표 탭
+                      _buildGoalTab(),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          ),
-        ],
-      ),
+            )
+          : widget.initialTabIndex == 0
+              ? _buildViewTab()
+              : _buildGoalTab(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           // 자산 추가 화면으로 이동
