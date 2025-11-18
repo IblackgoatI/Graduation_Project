@@ -9,10 +9,10 @@ import 'goal_add.dart';
 import 'goal_update.dart';
 import 'goal_amount_add.dart';
 
-const Color _successBadgeColor = Color(0xFFFFD700);
-const Color _successBackgroundColor = Color(0xFFFFFBEC);
-const Color _successBorderColor = Color(0xFFFFE082);
-const Color _successTextColor = Color(0xFF4CAF50);
+const Color _successBadgeColor = Color(0xFF4CAF50);
+const Color _successBackgroundColor = Color(0xFFE8F5E9);
+const Color _successBorderColor = Color(0xFF81C784);
+const Color _successTextColor = Color(0xFF2E7D32);
 const Color _failedBackgroundColor = Color(0xFFF4F4F4);
 const Color _failedBorderColor = Color(0xFFD6D6D6);
 const Color _failedTextColor = Color(0xFF8A8A8A);
@@ -481,7 +481,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
     final bool isSuccess = _isGoalSuccessful(goalData);
     final double progressPercentage = _calculateProgressPercentage(goalData);
     final Color badgeColor = isSuccess ? _successBadgeColor : _failedTextColor;
-    final String badgeText = isSuccess ? '[SUCCESS]' : '[기간 만료]';
+    final String badgeText = isSuccess ? '[달성 완료]' : '[기간 만료]';
 
     return Card(
       color: isSuccess ? _successBackgroundColor : _failedBackgroundColor,
@@ -516,7 +516,7 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
                       const SizedBox(height: 4),
                       Text(
                         isSuccess
-                            ? 'Mission Complete! 🏆'
+                            ? '목표 달성 완료! 🏆'
                             : '아쉽게 달성하지 못했어요 💤',
                         style: TextStyle(
                           fontSize: 13,
