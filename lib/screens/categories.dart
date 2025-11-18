@@ -24,6 +24,8 @@ const List<String> defaultExpenseCategories = [
   '문화',
   '교육',
   '만남',
+  '목표',
+  '저축',
 ];
 
 // 전체(수입+지출) 카테고리 (기본값, 동적 로드 시 대체됨)
@@ -69,5 +71,3 @@ const List<String> expenseCategories = defaultExpenseCategories;
 
 @deprecated
 const List<String> allCategories = defaultAllCategories;
-
-

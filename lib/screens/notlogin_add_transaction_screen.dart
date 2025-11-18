@@ -90,7 +90,21 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       // 기본 카테고리 사용
       setState(() {
         _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
-        _expenseCategories = ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남', '목표'];
+        _expenseCategories = [
+          '식비',
+          '카페',
+          '간식',
+          '생활',
+          '쇼핑',
+          '뷰티',
+          '교통',
+          '통신',
+          '문화',
+          '교육',
+          '만남',
+          '목표',
+          '저축',
+        ];
       });
     }
   }

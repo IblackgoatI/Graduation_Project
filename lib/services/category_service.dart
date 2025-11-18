@@ -206,6 +206,8 @@ class CategoryService {
         {'name': '문화', 'icon': '🎬', 'type': '지출', 'order': 9},
         {'name': '교육', 'icon': '📚', 'type': '지출', 'order': 10},
         {'name': '만남', 'icon': '👥', 'type': '지출', 'order': 11},
+        {'name': '목표', 'icon': '🎯', 'type': '지출', 'order': 12},
+        {'name': '저축', 'icon': '💰', 'type': '지출', 'order': 13},
       ];
 
       WriteBatch batch = _firestore.batch();

@@ -204,6 +204,16 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
           updatedAt: DateTime.now(),
           userId: 'default',
         ),
+        CategoryModel(
+          id: 'default_16',
+          name: '저축',
+          icon: '💰',
+          type: '지출',
+          order: 12,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          userId: 'default',
+        ),
       ];
     }
 
