@@ -54,6 +54,8 @@ dependencies:
   #ex) logger.d("디버깅 - 예시: $테스트값");
   shared_preferences: ^2.3.4
   fl_chart: ^0.70.2
+  google_generative_ai: ^0.4.6
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_native_splash: ^2.3.4
@@ -114,6 +116,7 @@ flutter:
     - assets/banks/
     - assets/icons/
     - assets/data/
+    - .env # 환경 변수 파일
     
 flutter_native_splash:
   color: "#FFFFFF"  # 스플래시 화면 배경색 (흰색)

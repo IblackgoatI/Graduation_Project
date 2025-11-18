@@ -29,6 +29,7 @@ FlutterLocalNotificationsPlugin();
 // main() 함수를 async로 변경하고 Firebase 초기화
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await Firebase.initializeApp(
     options: FirebaseOptions(
       apiKey: "AIzaSyBWl9e_RC-aBdAr9Cu4K0Jard5vKT-8Jr4",

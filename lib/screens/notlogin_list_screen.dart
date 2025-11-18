@@ -44,6 +44,11 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   // 목표 관련 상태 변수
   List<Map<String, dynamic>> _goalList = [];
   Map<String, int> _accountBalances = {};
+  final PageController _goalPageController = PageController();
+  int _currentGoalPage = 0;
+
+  double? _monthlyBudgetAmount;
+  double _monthlyExpenseAmount = 0;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -54,6 +59,13 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     initializeDateFormatting('ko_KR', null);
     loadTransactions();
     loadGoalData();
+    loadBudgetData();
+  }
+
+  @override
+  void dispose() {
+    _goalPageController.dispose();
+    super.dispose();
   }
 
   Future<void> loadTransactions() async {
@@ -89,6 +101,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
       setState(() {
         _transactions = transactions;
         _isLoading = false;
+        _monthlyExpenseAmount = _calculateCurrentMonthExpenses(transactions);
       });
 
       // 거래내역을 Provider에 저장
@@ -160,10 +173,69 @@ class NotloginListScreenState extends State<NotloginListScreen> {
         setState(() {
           _goalList = goalList;
           _accountBalances = accountBalances;
+          _currentGoalPage = 0;
         });
+        _jumpToGoalPage(0);
       }
     } catch (e) {
       debugPrint('목표 데이터 로드 오류: $e');
+    }
+  }
+
+  Future<void> loadBudgetData() async {
+    try {
+      final String userId = _auth.currentUser?.uid ?? 'anonymous';
+
+      double? budgetAmount;
+      final budgetQuery = await _firestore
+          .collection('budget')
+          .where('userId', isEqualTo: userId)
+          .limit(1)
+          .get();
+
+      if (budgetQuery.docs.isNotEmpty) {
+        final data = budgetQuery.docs.first.data();
+        budgetAmount = (data['goalcost'] as num?)?.toDouble();
+      }
+
+      double monthlyExpense = 0;
+      if (budgetAmount != null && budgetAmount > 0) {
+        final now = DateTime.now();
+        final firstDay = DateTime(now.year, now.month, 1);
+        final lastDay = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+        final expenseQuery = await _firestore
+            .collection('ledger')
+            .where('userId', isEqualTo: userId)
+            .where('type', isEqualTo: '지출')
+            .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(firstDay))
+            .where('date', isLessThanOrEqualTo: Timestamp.fromDate(lastDay))
+            .get();
+
+        for (final doc in expenseQuery.docs) {
+          final amount = (doc.data()['amount'] as num?)?.toDouble() ?? 0;
+          monthlyExpense += amount;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _monthlyBudgetAmount = budgetAmount;
+          _monthlyExpenseAmount = monthlyExpense;
+          _currentGoalPage = 0;
+        });
+        _jumpToGoalPage(0);
+      }
+    } catch (e) {
+      debugPrint('예산 데이터 로드 오류: $e');
+      if (mounted) {
+        setState(() {
+          _monthlyBudgetAmount = null;
+          _monthlyExpenseAmount = 0;
+          _currentGoalPage = 0;
+        });
+        _jumpToGoalPage(0);
+      }
     }
   }
 
@@ -218,14 +290,56 @@ class NotloginListScreenState extends State<NotloginListScreen> {
     return percentage > 100 ? 100.0 : (percentage < 0 ? 0.0 : percentage);
   }
 
-  // 목표 섹션 위젯
-  Widget _buildGoalSection() {
-    if (_goalList.isEmpty) return const SizedBox.shrink();
-    
-    // 첫 번째 목표만 표시
-    Map<String, dynamic> goalData = _goalList.first;
-    double progressPercentage = _calculateProgressPercentage(goalData);
-    
+  void _jumpToGoalPage(int index) {
+    if (_goalPageController.hasClients) {
+      _goalPageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  bool get _hasBudgetData => (_monthlyBudgetAmount ?? 0) > 0;
+
+  bool get _shouldShowGoalBudgetSection =>
+      _goalList.isNotEmpty || _hasBudgetData;
+
+  Color _budgetGaugeColor(double ratio) {
+    if (ratio <= 0.5) {
+      return const Color(0xFF2E7D32); // green
+    }
+    if (ratio <= 0.8) {
+      return const Color(0xFFF9A825); // amber
+    }
+    return const Color(0xFFD32F2F); // red
+  }
+
+  String _budgetStatusLabel(double ratio) {
+    if (ratio <= 0.5) return '여유';
+    if (ratio <= 0.8) return '주의';
+    return '위험';
+  }
+
+  String _formatCurrency(num value) {
+    return NumberFormat('#,###').format(value.round());
+  }
+
+  double _calculateCurrentMonthExpenses(List<FinancialTransaction> source) {
+    final now = DateTime.now();
+    return source.where((transaction) =>
+        transaction.type == '지출' &&
+        transaction.date.year == now.year &&
+        transaction.date.month == now.month).fold(
+        0.0,
+        (total, transaction) => total + transaction.amount);
+  }
+
+  // 목표 카드 위젯
+  Widget _buildGoalCard() {
+    final Map<String, dynamic> goalData = _goalList.first;
+    final double progressPercentage = _calculateProgressPercentage(goalData);
+
     return GestureDetector(
       onTap: () {
         // 목표 관리 화면으로 이동
@@ -258,7 +372,7 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _calculateDDay(goalData['deadline']),
+                  _calculateDDay(goalData['deadline'] ?? goalData['endDate']),
                   style: const TextStyle(
                     color: Color(0xFF7D7D7D),
                     fontSize: 14,
@@ -304,6 +418,158 @@ class NotloginListScreenState extends State<NotloginListScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetCard() {
+    final double budget = _monthlyBudgetAmount ?? 0;
+    final double used = _monthlyExpenseAmount;
+    final double ratio = budget > 0 ? used / budget : 0;
+    final double clampedRatio = ratio.clamp(0.0, 1.0);
+    final Color gaugeColor = _budgetGaugeColor(ratio);
+    final String status = _budgetStatusLabel(ratio);
+    final String percentText =
+        '${(ratio * 100).clamp(0, 999).toStringAsFixed(1)}%';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '이번 달 예산',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Text(
+                status,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: gaugeColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '예산 ${_formatCurrency(budget)}원',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '지출 ${_formatCurrency(used)}원',
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: clampedRatio,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: gaugeColor,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                percentText,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: gaugeColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalBudgetSection() {
+    final List<Widget> pages = [];
+    if (_goalList.isNotEmpty) {
+      pages.add(_buildGoalCard());
+    }
+    if (_hasBudgetData) {
+      pages.add(_buildBudgetCard());
+    }
+    if (pages.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 150,
+            child: PageView(
+              controller: _goalPageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentGoalPage = index;
+                });
+              },
+              children: pages
+                  .map(
+                    (child) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: child,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          if (pages.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(pages.length, (index) {
+                  final bool isActive = index == _currentGoalPage;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: isActive ? 16 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? const Color(0xFF73AD13)
+                          : Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -653,166 +919,161 @@ class NotloginListScreenState extends State<NotloginListScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Column(
-        children: [
-          // 기간 필터 + 상세 조건 (우측) 영역
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 8.0,
-                    children: _filters.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final label = entry.value;
-                      final bool isSelected = _selectedFilterIndex == index;
-                      return ChoiceChip(
-                        label: Text(
-                          label,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black,
-                            fontWeight: FontWeight.w600,
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            // 기간 필터 + 상세 조건 영역
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8.0,
+                      children: _filters.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final label = entry.value;
+                        final bool isSelected = _selectedFilterIndex == index;
+                        return ChoiceChip(
+                          label: Text(
+                            label,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedFilterIndex = index;
-                          });
-                        },
-                        selectedColor: const Color(0xFF73AD13),
-                        backgroundColor: Colors.grey.shade200,
-                        side: BorderSide(
-                          color: isSelected ? const Color(0xFF73AD13) : Colors.grey.shade400,
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                _DetailFilterChip(
-                  isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0 || _selectedStartDate != null || _selectedEndDate != null,
-                  onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
-                ),
-              ],
-            ),
-          ),
-          
-          // 목표 섹션
-          if (_goalList.isNotEmpty) _buildGoalSection(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Row(
-              children: [
-                const Text(
-                  '태그 표시',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                Container(
-                  decoration: BoxDecoration(
-                    color: _showTags ? Colors.green : Colors.white,
-                    borderRadius: BorderRadius.circular(4.0),
-                    border: Border.all(
-                      color: _showTags ? Colors.green : Colors.grey,
-                      width: 1.0,
+                          selected: isSelected,
+                          onSelected: (_) {
+                            setState(() {
+                              _selectedFilterIndex = index;
+                            });
+                          },
+                          selectedColor: const Color(0xFF73AD13),
+                          backgroundColor: Colors.grey.shade200,
+                          side: BorderSide(
+                            color: isSelected ? const Color(0xFF73AD13) : Colors.grey.shade400,
+                          ),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        );
+                      }).toList(),
                     ),
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showTags = !_showTags;
-                      });
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(2.0),
-                      child: Icon(
-                        Icons.check,
-                        size: 18.0,
-                        color: _showTags ? Colors.white : Colors.transparent,
-                      ),
-                    ),
+                  const SizedBox(width: 8.0),
+                  _DetailFilterChip(
+                    isActive: _selectedCategories.isNotEmpty || _selectedTypeIndex != 0 || _selectedStartDate != null || _selectedEndDate != null,
+                    onTap: () => _openDetailFilterBottomSheet(context, allTransactions),
                   ),
-                ),
-              ],
-            ),
-          ),
-          _isLoading
-              ? const Expanded(
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
-              : _transactions.isEmpty
-              ? const Expanded(
-            child: Center(
-              child: Text(
-                '거래 내역이 없습니다.',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                ],
               ),
             ),
-          )
-              : Expanded(
-            child: RefreshIndicator(
-              onRefresh: loadTransactions,
-              child: ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: groupedTransactions.entries.map((entry) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8.0),
-                        child: Text(
-                          entry.key,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                          ),
+            // 목표/예산 그래프 섹션
+            if (_shouldShowGoalBudgetSection) _buildGoalBudgetSection(),
+            // 태그 표시
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                children: [
+                  const Text(
+                    '태그 표시',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8.0),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _showTags ? Colors.green : Colors.white,
+                      borderRadius: BorderRadius.circular(4.0),
+                      border: Border.all(
+                        color: _showTags ? Colors.green : Colors.grey,
+                        width: 1.0,
+                      ),
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          _showTags = !_showTags;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(2.0),
+                        child: Icon(
+                          Icons.check,
+                          size: 18.0,
+                          color: _showTags ? Colors.white : Colors.transparent,
                         ),
                       ),
-                      ...entry.value.map((transaction) {
-                        return InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => TransactionDetailScreen(
-                                  transaction: transaction,
-                                  // 삭제 콜백 전달
-                                  onTransactionDeleted: _deleteTransaction,
-                                ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // 상태 및 거래내역
+            if (_isLoading)
+              Container(
+                height: 300,
+                alignment: Alignment.center,
+                child: const CircularProgressIndicator(),
+              )
+            else if (_transactions.isEmpty)
+              Container(
+                height: 200,
+                alignment: Alignment.center,
+                child: const Text(
+                  '거래 내역이 없습니다.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              )
+            else
+              ...groupedTransactions.entries.map((entry) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0, left: 16.0, right: 16.0, top: 8.0),
+                      child: Text(
+                        entry.key,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ),
+                    ...entry.value.map((transaction) {
+                      return InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TransactionDetailScreen(
+                                transaction: transaction,
+                                onTransactionDeleted: _deleteTransaction,
                               ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 8.0),
-                            padding: const EdgeInsets.all(12.0),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(24.0),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withAlpha(26),
-                                  spreadRadius: 1,
-                                  blurRadius: 3,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                          );
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8.0, left: 16.0, right: 16.0),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withAlpha(26),
+                                spreadRadius: 1,
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                                 Container(
                                   height: 40,
                                   alignment: Alignment.center,
@@ -870,14 +1131,12 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                             ),
                           ),
                         );
-                      }),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
+                    }).toList(),
+                  ],
+                );
+              }).toList(),
+          ],
+        ),
       ),
     );
   }
