@@ -683,9 +683,25 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                   },
                 ),
                 _buildCategoryButton(
-                  icon: Icons.repeat,
-                  label: '목표 관리',
+                  icon: Icons.wallet,
+                  label: '자산관리',
                   color: Colors.orange,
+                  onTap: () {
+                    // 자산 화면의 목표 탭으로 이동
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AssetDetailScreen(
+                          initialTabIndex: 1,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildCategoryButton(
+                  icon: Icons.flag,
+                  label: '목표 관리',
+                  color: Colors.green,
                   onTap: () {
                     // 목표 관리 화면으로 이동
                     Navigator.push(
@@ -693,17 +709,6 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                       MaterialPageRoute(
                         builder: (context) => const GoalManagementScreen(),
                       ),
-                    );
-                  },
-                ),
-                _buildCategoryButton(
-                  icon: Icons.account_balance_wallet,
-                  label: '금융 지식',
-                  color: Colors.green,
-                  onTap: () {
-                    // 예산 설정 화면으로 이동 (추후 구현)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('예산 설정 기능은 준비 중입니다')),
                     );
                   },
                 ),
