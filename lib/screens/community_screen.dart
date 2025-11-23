@@ -24,7 +24,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   
   // 배너 관련
   late PageController _bannerPageController;
-  int _currentBannerIndex = 0;
+  final ValueNotifier<int> _bannerIndexNotifier = ValueNotifier<int>(0);
   Timer? _bannerTimer;
 
   @override
@@ -130,6 +130,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   void dispose() {
     _tabController.dispose();
     _bannerPageController.dispose();
+    _bannerIndexNotifier.dispose();
     _bannerTimer?.cancel();
     super.dispose();
   }
@@ -138,9 +139,10 @@ class _CommunityScreenState extends State<CommunityScreen>
   void _startBannerAutoSlide() {
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (_bannerPageController.hasClients) {
-        _currentBannerIndex = (_currentBannerIndex + 1) % 5;
+        final nextIndex = (_bannerIndexNotifier.value + 1) % 5;
+        _bannerIndexNotifier.value = nextIndex;
         _bannerPageController.animateToPage(
-          _currentBannerIndex,
+          nextIndex,
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeInOut,
         );
@@ -201,12 +203,16 @@ class _CommunityScreenState extends State<CommunityScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 월간 절약왕 TOP 3
-                  _buildTopSaverSection(),
+                  // 배너 섹션 (RepaintBoundary로 감싸서 리빌드 최소화)
+                  RepaintBoundary(
+                    child: _buildTopSaverSection(),
+                  ),
                   const SizedBox(height: 24),
                   
-                  // 20대 부린이님을 위한 커뮤니티
-                  _buildCommunitySection(),
+                  // 20대 부린이님을 위한 커뮤니티 (RepaintBoundary로 감싸서 리빌드 방지)
+                  RepaintBoundary(
+                    child: _buildCommunitySection(),
+                  ),
                   const SizedBox(height: 80), // 버튼을 위한 하단 여백
                 ],
               ),
@@ -262,9 +268,8 @@ class _CommunityScreenState extends State<CommunityScreen>
           child: PageView.builder(
             controller: _bannerPageController,
             onPageChanged: (index) {
-              setState(() {
-                _currentBannerIndex = index;
-              });
+              // setState 대신 ValueNotifier만 업데이트하여 리빌드 방지
+              _bannerIndexNotifier.value = index;
             },
             itemCount: 5,
             itemBuilder: (context, index) {
@@ -273,22 +278,15 @@ class _CommunityScreenState extends State<CommunityScreen>
           ),
         ),
         const SizedBox(height: 8),
-        // 인디케이터
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (index) {
-            return Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _currentBannerIndex == index
-                    ? const Color(0xFF8BC34A)
-                    : Colors.grey[300],
-              ),
+        // ValueListenableBuilder를 사용하여 인디케이터만 업데이트
+        ValueListenableBuilder<int>(
+          valueListenable: _bannerIndexNotifier,
+          builder: (context, currentIndex, child) {
+            return _BannerIndicator(
+              currentIndex: currentIndex,
+              itemCount: 5,
             );
-          }),
+          },
         ),
       ],
     );
@@ -474,7 +472,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                 final doc = snapshot.data!.docs[index];
                 final data = doc.data() as Map<String, dynamic>;
                 
-                return _buildExpenseReportCard(doc.id, data);
+                return _ExpenseReportCard(docId: doc.id, data: data);
               },
             );
           },
@@ -482,9 +480,31 @@ class _CommunityScreenState extends State<CommunityScreen>
       ],
     );
   }
-  
-  // 소비 리포트 카드 위젯
-  Widget _buildExpenseReportCard(String docId, Map<String, dynamic> data) {
+}
+
+// 소비 리포트 카드를 별도 위젯으로 분리
+class _ExpenseReportCard extends StatelessWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+
+  const _ExpenseReportCard({
+    required this.docId,
+    required this.data,
+  });
+
+  String _timeAgo(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return '방금 전';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inDays < 7) return '${diff.inDays}일 전';
+    return DateFormat('yyyy.MM.dd').format(date);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final title = data['Heading'] as String? ?? '제목 없음';
     final content = data['Content'] as String? ?? '';
 
@@ -560,8 +580,10 @@ class _CommunityScreenState extends State<CommunityScreen>
       ),
     );
   }
-  
-  // 카테고리 요약 표시 위젯
+}
+
+// 사용하지 않는 메서드들 (경고만 발생)
+extension _CommunityScreenStateExtension on _CommunityScreenState {
   Widget _buildCategorySummary(Map<String, dynamic> reportData) {
     // ExpenseReportScreen에서 반환된 데이터 구조 사용
     final totalAmount = reportData['total_expense'] ?? 0;
@@ -693,16 +715,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-  String _timeAgo(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return '방금 전';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24) return '${diff.inHours}시간 전';
-    if (diff.inDays < 7) return '${diff.inDays}일 전';
-    return DateFormat('yyyy.MM.dd').format(date);
-  }
 }
 
 // ExpenseComparisonTab 클래스 포함 (지출 비교 탭 코드 시작)
@@ -1506,5 +1518,36 @@ class PieChartPainter extends CustomPainter {
       return oldDelegate.sections != sections;
     }
     return true;
+  }
+}
+
+// 배너 인디케이터를 별도 위젯으로 분리하여 리빌드 최소화
+class _BannerIndicator extends StatelessWidget {
+  final int currentIndex;
+  final int itemCount;
+
+  const _BannerIndicator({
+    required this.currentIndex,
+    required this.itemCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(itemCount, (index) {
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: currentIndex == index
+                ? const Color(0xFF8BC34A)
+                : Colors.grey[300],
+          ),
+        );
+      }),
+    );
   }
 }
