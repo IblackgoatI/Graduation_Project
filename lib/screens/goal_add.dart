@@ -352,6 +352,7 @@ class _GoalAddScreenState extends State<GoalAddScreen> {
         'withdrawalDay': withdrawalDay,
         'nextExecutionDate': Timestamp.fromDate(nextExecutionDate),
         'goalName': _goalNameController.text.trim(),
+        'type': 'goal',
         'createdAt': FieldValue.serverTimestamp(),
       });
       

@@ -437,6 +437,13 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         await FirebaseFirestore.instance.collection('saving').add(dataToSave);
       }
 
+      await _upsertSavingAutoTransferSchedule(
+        currentUser.uid,
+        selectedAccountId,
+        _transferAmount,
+        _autoTransferDate,
+      );
+
       // 저장 후 데이터 다시 로드
       await _loadSavingGoalData();
 
@@ -453,6 +460,73 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           const SnackBar(content: Text('저축 설정 저장 중 오류가 발생했습니다.')),
         );
       }
+    }
+  }
+
+  Future<void> _upsertSavingAutoTransferSchedule(
+    String userId,
+    String? accountId,
+    int amount,
+    int transferDay,
+  ) async {
+    try {
+      final QuerySnapshot scheduleQuery = await FirebaseFirestore.instance
+          .collection('auto_transfer_schedules')
+          .where('userId', isEqualTo: userId)
+          .where('type', isEqualTo: 'saving')
+          .limit(1)
+          .get();
+
+      if (accountId == null || accountId.isEmpty || amount <= 0) {
+        if (scheduleQuery.docs.isNotEmpty) {
+          await scheduleQuery.docs.first.reference.delete();
+          debugPrint('저축 자동이체 스케줄 삭제: 필수 정보 부족');
+        }
+        return;
+      }
+
+      final DateTime nextExecutionDate = _calculateNextAutoTransferDate(transferDay);
+      final Map<String, dynamic> scheduleData = {
+        'userId': userId,
+        'type': 'saving',
+        'amount': amount,
+        'savingAccountId': accountId,
+        'scheduledDay': transferDay,
+        'nextExecutionDate': Timestamp.fromDate(nextExecutionDate),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (scheduleQuery.docs.isNotEmpty) {
+        await scheduleQuery.docs.first.reference.update(scheduleData);
+      } else {
+        await FirebaseFirestore.instance.collection('auto_transfer_schedules').add({
+          ...scheduleData,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      debugPrint('저축 자동이체 스케줄 저장 오류: $e');
+    }
+  }
+
+  DateTime _calculateNextAutoTransferDate(int day) {
+    final DateTime now = DateTime.now();
+    try {
+      final DateTime thisMonthLastDay = DateTime(now.year, now.month + 1, 0);
+      final int clampedDay = day.clamp(1, thisMonthLastDay.day).toInt();
+      DateTime candidate = DateTime(now.year, now.month, clampedDay);
+
+      if (!candidate.isBefore(now)) {
+        return candidate;
+      }
+
+      final DateTime nextMonth = DateTime(now.year, now.month + 1, 1);
+      final DateTime nextMonthLastDay = DateTime(nextMonth.year, nextMonth.month + 1, 0);
+      final int nextClampedDay = day.clamp(1, nextMonthLastDay.day).toInt();
+      return DateTime(nextMonth.year, nextMonth.month, nextClampedDay);
+    } catch (e) {
+      debugPrint('저축 자동이체 날짜 계산 오류: $e');
+      return DateTime(now.year, now.month + 1, 1);
     }
   }
 
