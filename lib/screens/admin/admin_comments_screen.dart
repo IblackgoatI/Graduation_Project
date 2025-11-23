@@ -4,9 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'admin_layout.dart';
 
-class AdminCommentsScreen extends StatelessWidget {
+class AdminCommentsScreen extends StatefulWidget {
   const AdminCommentsScreen({super.key});
+
+  @override
+  State<AdminCommentsScreen> createState() => _AdminCommentsScreenState();
+}
+
+class _AdminCommentsScreenState extends State<AdminCommentsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<String> _fetchWriterName(String userId) async {
     try {
@@ -24,12 +39,11 @@ class AdminCommentsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('댓글 관리'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+    return AdminLayout(
+      currentMenu: '댓글 관리',
+      title: '댓글 관리',
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -37,6 +51,7 @@ class AdminCommentsScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
+                    controller: _searchController,
                     decoration: InputDecoration(
                       hintText: '댓글 검색',
                       prefixIcon: const Icon(Icons.search),
@@ -44,19 +59,26 @@ class AdminCommentsScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(width: 16),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // 검색 기능 구현
+                    setState(() {
+                      _searchQuery = _searchController.text;
+                    });
                   },
                   icon: const Icon(Icons.search),
                   label: const Text('검색'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -86,102 +108,138 @@ class AdminCommentsScreen extends StatelessWidget {
                             .snapshots(),
                         builder: (context, commentsSnapshot) {
                           if (commentsSnapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                            return const SizedBox.shrink();
                           }
                           if (!commentsSnapshot.hasData || commentsSnapshot.data!.docs.isEmpty) {
                             return const SizedBox.shrink();
                           }
 
-                          final comments = commentsSnapshot.data!.docs;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  '게시물: ${postData['Heading'] ?? '제목 없음'}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                          var comments = commentsSnapshot.data!.docs;
+                          
+                          // 검색 필터링
+                          if (_searchQuery.isNotEmpty) {
+                            comments = comments.where((comment) {
+                              final data = comment.data() as Map<String, dynamic>;
+                              final commentText = (data['Comment'] ?? '').toString().toLowerCase();
+                              return commentText.contains(_searchQuery.toLowerCase());
+                            }).toList();
+                          }
+
+                          if (comments.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '게시물: ${postData['Heading'] ?? '제목 없음'}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(height: 16),
+                                  DataTable(
+                                    columns: const [
+                                      DataColumn(label: Text('댓글 내용')),
+                                      DataColumn(label: Text('작성자')),
+                                      DataColumn(label: Text('작성일')),
+                                      DataColumn(label: Text('작업')),
+                                    ],
+                                    rows: comments.map((comment) {
+                                      final data = comment.data() as Map<String, dynamic>;
+                                      final timestamp = data['CreatedAt'] as Timestamp;
+                                      final dateTime = timestamp.toDate();
+                                      final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
+                                      final writerUserId = data['writerUserid'] as String?;
+
+                                      return DataRow(
+                                        cells: [
+                                          DataCell(
+                                            SizedBox(
+                                              width: 200,
+                                              child: Text(
+                                                data['Comment'] ?? '',
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          DataCell(
+                                            FutureBuilder<String>(
+                                              future: writerUserId != null 
+                                                  ? _fetchWriterName(writerUserId) 
+                                                  : Future.value('알 수 없음'),
+                                              builder: (context, nameSnapshot) {
+                                                if (nameSnapshot.connectionState == ConnectionState.waiting) {
+                                                  return const Text('로딩 중...');
+                                                }
+                                                return Text(nameSnapshot.data ?? '알 수 없음');
+                                              },
+                                            ),
+                                          ),
+                                          DataCell(Text(formattedDate)),
+                                          DataCell(
+                                            IconButton(
+                                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                              onPressed: () async {
+                                                final bool? confirm = await showDialog<bool>(
+                                                  context: context,
+                                                  builder: (BuildContext context) {
+                                                    return AlertDialog(
+                                                      title: const Text('댓글 삭제'),
+                                                      content: const Text('이 댓글을 삭제하시겠습니까?'),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () => Navigator.of(context).pop(false),
+                                                          child: const Text('취소'),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () => Navigator.of(context).pop(true),
+                                                          child: const Text(
+                                                            '삭제',
+                                                            style: TextStyle(color: Colors.red),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+
+                                                if (confirm == true) {
+                                                  try {
+                                                    await comment.reference.delete();
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        const SnackBar(content: Text('댓글이 삭제되었습니다.')),
+                                                      );
+                                                    }
+                                                  } catch (e) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(context).showSnackBar(
+                                                        SnackBar(content: Text('오류가 발생했습니다: $e')),
+                                                      );
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
                               ),
-                              ...comments.map((comment) {
-                                final data = comment.data() as Map<String, dynamic>;
-                                final timestamp = data['CreatedAt'] as Timestamp;
-                                final dateTime = timestamp.toDate();
-                                final formattedDate = DateFormat('yyyy.MM.dd HH:mm').format(dateTime);
-                                final writerUserId = data['writerUserid'] as String?;
-
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: ListTile(
-                                    title: Text(data['Comment'] ?? ''),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        FutureBuilder<String>(
-                                          future: writerUserId != null ? _fetchWriterName(writerUserId) : Future.value('알 수 없음'),
-                                          builder: (context, nameSnapshot) {
-                                            if (nameSnapshot.connectionState == ConnectionState.waiting) {
-                                              return const Text('작성자: 로딩 중...');
-                                            }
-                                            return Text('작성자: ${nameSnapshot.data ?? '알 수 없음'}');
-                                          },
-                                        ),
-                                        Text('작성일: $formattedDate'),
-                                      ],
-                                    ),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () async {
-                                        // 삭제 확인 다이얼로그
-                                        final bool? confirm = await showDialog<bool>(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return AlertDialog(
-                                              title: const Text('댓글 삭제'),
-                                              content: const Text('이 댓글을 삭제하시겠습니까?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(context).pop(false),
-                                                  child: const Text('취소'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () => Navigator.of(context).pop(true),
-                                                  child: const Text(
-                                                    '삭제',
-                                                    style: TextStyle(color: Colors.red),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-
-                                        if (confirm == true) {
-                                          try {
-                                            // 댓글 삭제
-                                            await comment.reference.delete();
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('댓글이 삭제되었습니다.')),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text('오류가 발생했습니다: $e')),
-                                              );
-                                            }
-                                          }
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ],
+                            ),
                           );
                         },
                       );
