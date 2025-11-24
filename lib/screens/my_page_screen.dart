@@ -159,6 +159,8 @@ class _MyPageScreenState extends State<MyPageScreen> {
                   const SizedBox(height: 16.0),
                   GoalOverviewCard(user: widget.user),
                   const SizedBox(height: 16.0),
+                  GoalStatusSection(user: widget.user),
+                  const SizedBox(height: 16.0),
                   GestureDetector(
                     onTap: () async {
                       // 로그인 유저 정보 얻기
@@ -715,5 +717,262 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
   String _formatAmount(int? v) {
     if (v == null) return '0';
     return v.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+}
+
+class GoalStatusSection extends StatefulWidget {
+  final User? user;
+  const GoalStatusSection({super.key, this.user});
+
+  @override
+  State<GoalStatusSection> createState() => _GoalStatusSectionState();
+}
+
+class _GoalStatusSectionState extends State<GoalStatusSection> {
+  bool _loading = true;
+  int _successCount = 0;
+  int _failedCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoalStatus();
+  }
+
+  Future<void> _loadGoalStatus() async {
+    try {
+      final user = widget.user ?? FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          _loading = false;
+        });
+        return;
+      }
+
+      // 목표 데이터 불러오기
+      final snap = await FirebaseFirestore.instance
+          .collection('goal')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      if (snap.docs.isEmpty) {
+        setState(() {
+          _loading = false;
+        });
+        return;
+      }
+
+      // 계좌 잔액 불러오기
+      final bankIds = snap.docs
+          .map((doc) => (doc.data()['bank'] as String?))
+          .whereType<String>()
+          .toSet();
+
+      Map<String, int> accountBalances = {};
+      for (final bankId in bankIds) {
+        final assetDoc = await FirebaseFirestore.instance
+            .collection('assets')
+            .doc(bankId)
+            .get();
+        if (assetDoc.exists) {
+          accountBalances[bankId] =
+              (assetDoc.data()?['balance'] as num?)?.toInt() ?? 0;
+        } else {
+          accountBalances[bankId] = 0;
+        }
+      }
+
+      // 성공/실패 개수 계산
+      int successCount = 0;
+      int failedCount = 0;
+
+      for (var doc in snap.docs) {
+        final goalData = doc.data();
+        final bankId = goalData['bank'] as String?;
+        if (bankId == null || !accountBalances.containsKey(bankId)) continue;
+
+        final goalAmount = (goalData['amount'] as num?)?.toInt() ?? 0;
+        if (goalAmount == 0) continue;
+
+        final currentBalance = accountBalances[bankId] ?? 0;
+        final initialBalance = (goalData['initialBalance'] as num?)?.toInt() ?? 0;
+        
+        // goal_management.dart와 동일한 로직 사용
+        int increasedAmount = currentBalance - initialBalance;
+        // goal_management.dart의 _isGoalSuccessful은 _calculateProgressPercentage >= 100을 체크
+        // 하지만 실제로는 increasedAmount >= goalAmount를 체크하는 것과 같음
+        double progressPercentage = goalAmount > 0 ? (increasedAmount / goalAmount) * 100 : 0.0;
+        // 100%를 넘지 않도록 제한 (하지만 increasedAmount >= goalAmount면 성공)
+        progressPercentage = progressPercentage > 100 ? 100.0 : (progressPercentage < 0 ? 0.0 : progressPercentage);
+        final bool isSuccessful = increasedAmount >= goalAmount;
+
+        // 종료 여부 확인 (goal_management.dart의 _isGoalEnded 로직과 동일)
+        final endDate = goalData['endDate'] ?? goalData['deadline'];
+        DateTime? deadline;
+        if (endDate is Timestamp) {
+          deadline = endDate.toDate();
+        } else if (endDate is DateTime) {
+          deadline = endDate;
+        }
+
+        // 종료 여부 확인 (goal_management.dart의 _isGoalEnded 로직과 동일)
+        // 종료된 목표만 성공/실패로 카운트
+        if (deadline != null) {
+          final today = DateTime.now();
+          final normalizedToday = DateTime(today.year, today.month, today.day);
+          final normalizedDeadline = DateTime(deadline.year, deadline.month, deadline.day);
+
+          // 기간이 만료되었거나 진행률이 100% 이상인 경우 종료된 목표로 간주
+          final bool isExpired = normalizedDeadline.isBefore(normalizedToday) || 
+                                 normalizedDeadline.isAtSameMomentAs(normalizedToday);
+          final bool isEnded = isSuccessful || isExpired;
+
+          if (isEnded) {
+            if (isSuccessful) {
+              successCount++;
+            } else {
+              failedCount++;
+            }
+          }
+        }
+      }
+
+      setState(() {
+        _successCount = successCount;
+        _failedCount = failedCount;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('목표 상태 로드 오류: $e');
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Card(
+        color: Colors.white,
+        child: Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Center(child: CircularProgressIndicator(color: Color(0xFF73AD13))),
+        ),
+      );
+    }
+
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '목표 현황',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 16.0),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatusCard(
+                    title: '성공한 목표',
+                    count: _successCount,
+                    icon: Icons.check_circle,
+                    color: const Color(0xFF4CAF50),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GoalManagementScreen(
+                            user: widget.user,
+                            initialFilter: GoalFilter.success,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12.0),
+                Expanded(
+                  child: _buildStatusCard(
+                    title: '실패한 목표',
+                    count: _failedCount,
+                    icon: Icons.cancel,
+                    color: const Color(0xFF8A8A8A),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GoalManagementScreen(
+                            user: widget.user,
+                            initialFilter: GoalFilter.failed,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCard({
+    required String title,
+    required int count,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12.0),
+          border: Border.all(
+            color: color.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8.0),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4.0),
+            Text(
+              '$count개',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

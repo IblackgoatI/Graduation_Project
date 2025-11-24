@@ -17,21 +17,29 @@ const Color _failedBackgroundColor = Color(0xFFF4F4F4);
 const Color _failedBorderColor = Color(0xFFD6D6D6);
 const Color _failedTextColor = Color(0xFF8A8A8A);
 
+enum _GoalTab {
+  ongoing,
+  ended,
+}
+
+enum GoalFilter {
+  all,
+  success,
+  failed,
+}
+
 class GoalManagementScreen extends StatefulWidget {
   final User? user;
+  final GoalFilter? initialFilter;
 
   const GoalManagementScreen({
     super.key,
     this.user,
+    this.initialFilter,
   });
 
   @override
   State<GoalManagementScreen> createState() => _GoalManagementScreenState();
-}
-
-enum _GoalTab {
-  ongoing,
-  ended,
 }
 
 class _GoalManagementScreenState extends State<GoalManagementScreen> {
@@ -39,10 +47,16 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
   List<Map<String, dynamic>> _goalList = [];
   Map<String, int> _accountBalances = {};
   _GoalTab _selectedTab = _GoalTab.ongoing;
+  GoalFilter? _currentFilter;
 
   @override
   void initState() {
     super.initState();
+    _currentFilter = widget.initialFilter;
+    // 필터가 있으면 ended 탭으로 설정
+    if (_currentFilter != null && _currentFilter != GoalFilter.all) {
+      _selectedTab = _GoalTab.ended;
+    }
     _loadGoalData();
   }
 
@@ -434,30 +448,95 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
 
   Widget _buildEndedGoals() {
     final endedGoals = _endedGoals;
-    if (endedGoals.isEmpty) {
-      return Column(
-        children: [
-          _buildEmptyEndedCard(),
-          const SizedBox(height: 20),
-          _buildAddButton(),
-        ],
-      );
-    }
-
+    
     return Column(
       children: [
-        ...endedGoals.asMap().entries.map((entry) {
-          final bool isLast = entry.key == endedGoals.length - 1;
-          return Column(
+        _buildFilterBar(),
+        const SizedBox(height: 16),
+        if (endedGoals.isEmpty)
+          Column(
             children: [
-              _buildEndedGoalCard(entry.value),
-              if (!isLast) const SizedBox(height: 16),
+              _buildEmptyEndedCard(),
+              const SizedBox(height: 20),
+              _buildAddButton(),
             ],
-          );
-        }),
-        const SizedBox(height: 20),
-        _buildAddButton(),
+          )
+        else
+          Column(
+            children: [
+              ...endedGoals.asMap().entries.map((entry) {
+                final bool isLast = entry.key == endedGoals.length - 1;
+                return Column(
+                  children: [
+                    _buildEndedGoalCard(entry.value),
+                    if (!isLast) const SizedBox(height: 16),
+                  ],
+                );
+              }),
+              const SizedBox(height: 20),
+              _buildAddButton(),
+            ],
+          ),
       ],
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _buildFilterButton('전체', GoalFilter.all),
+          const SizedBox(width: 8),
+          _buildFilterButton('성공', GoalFilter.success),
+          const SizedBox(width: 8),
+          _buildFilterButton('실패', GoalFilter.failed),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String label, GoalFilter filter) {
+    final isSelected = _currentFilter == filter || 
+        (_currentFilter == null && filter == GoalFilter.all);
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _currentFilter = filter;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+                color: isSelected ? const Color(0xFF73AD13) : Colors.grey[600],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -860,8 +939,17 @@ class _GoalManagementScreenState extends State<GoalManagementScreen> {
   List<Map<String, dynamic>> get _ongoingGoals =>
       _goalList.where((goal) => !_isGoalEnded(goal)).toList();
 
-  List<Map<String, dynamic>> get _endedGoals =>
-      _goalList.where(_isGoalEnded).toList();
+  List<Map<String, dynamic>> get _endedGoals {
+    final ended = _goalList.where(_isGoalEnded).toList();
+    if (_currentFilter == null || _currentFilter == GoalFilter.all) {
+      return ended;
+    } else if (_currentFilter == GoalFilter.success) {
+      return ended.where((goal) => _isGoalSuccessful(goal)).toList();
+    } else if (_currentFilter == GoalFilter.failed) {
+      return ended.where((goal) => !_isGoalSuccessful(goal)).toList();
+    }
+    return ended;
+  }
 
   // 목표 데이터가 있을 때의 내용
   Widget _buildGoalContent(Map<String, dynamic> goalData) {
