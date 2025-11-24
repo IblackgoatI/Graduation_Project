@@ -116,7 +116,7 @@ flutter:
     - assets/banks/
     - assets/icons/
     - assets/data/
-    - .env # 환경 변수 파일
+    
     
 flutter_native_splash:
   color: "#FFFFFF"  # 스플래시 화면 배경색 (흰색)
