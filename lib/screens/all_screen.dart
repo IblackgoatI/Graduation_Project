@@ -1,11 +1,19 @@
 /// 모든 기능 화면
 /// 앱의 모든 주요 기능 및 설정 화면으로 이동할 수 있는 메뉴를 제공합니다.
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
 import 'settings_screen.dart'; // SettingsScreen import 추가
 import 'attendance_screen.dart'; // AttendanceScreen import 추가
 import 'daily_quiz_screen.dart'; // DailyQuizScreen import 추가
 import 'point_management_screen.dart'; // PointManagementScreen import 추가
+import 'asset.dart'; // AssetScreen (자산 인증)
+import 'notlogin_add_transaction_screen.dart'; // NotloginAddTransactionScreen (가계부 작성)
+import 'goal_management.dart'; // GoalManagementScreen (내 자산 목표)
+import 'account_list_screen.dart'; // AccountListScreen (자산 연결/해제)
+import 'asset_detail_screen.dart'; // AssetDetailScreen (내 자산)
+import 'expense_report_screen.dart'; // ExpenseReportScreen (내 소비)
+import 'community_screen.dart'; // CommunityScreen (커뮤니티)
 
 class AllScreen extends StatefulWidget {
   const AllScreen({super.key});
@@ -46,13 +54,30 @@ class _AllScreenState extends State<AllScreen> {
           // 최근 방문 탭이 없을 경우 기본 메뉴 표시
           if (recentTabs.isEmpty) ...[
           _buildMenuItem('자산 인증', Icons.verified_user, () {
-            // TODO: 자산 인증 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AssetScreen(user: user),
+              ),
+            );
           }),
           _buildMenuItem('가계부 작성', Icons.edit_note, () {
-            // TODO: 가계부 작성 화면으로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotloginAddTransactionScreen(),
+              ),
+            );
           }),
           _buildMenuItem('내 자산 목표', Icons.track_changes, () {
-            // TODO: 내 자산 목표 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GoalManagementScreen(user: user),
+              ),
+            );
           }),
           ] 
           // 최근 방문 탭이 있을 경우 해당 탭들 표시
@@ -70,23 +95,6 @@ class _AllScreenState extends State<AllScreen> {
               );
             }).toList(),
           ],
-          
-          _buildSectionTitle('부린이 금융 지식'),
-          _buildMenuItem('저축과 이자', Icons.savings, () {
-            // TODO: 저축과 이자 화면으로 이동
-          }),
-          _buildMenuItem('선물과 부채', Icons.card_giftcard, () {
-            // TODO: 선물과 부채 화면으로 이동
-          }),
-          _buildMenuItem('투자', Icons.trending_up, () {
-            // TODO: 투자 화면으로 이동
-          }),
-          _buildMenuItem('세금', Icons.receipt_long, () {
-            // TODO: 세금 화면으로 이동
-          }),
-          _buildMenuItem('보험', Icons.security, () {
-            // TODO: 보험 화면으로 이동
-          }),
           
           _buildSectionTitle('부린이 기능'),
           _buildMenuItem('출석 체크', Icons.calendar_today, () {
@@ -107,32 +115,67 @@ class _AllScreenState extends State<AllScreen> {
               MaterialPageRoute(builder: (context) => const PointManagementScreen()),
             );
           }),
-          _buildMenuItem('저축과 이자', Icons.savings, () {
-            // TODO: 저축과 이자 화면으로 이동
-          }),
           _buildMenuItem('자산 인증', Icons.verified_user, () {
-            // TODO: 자산 인증 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AssetScreen(user: user),
+              ),
+            );
           }),
           _buildMenuItem('자산 연결, 해제', Icons.link, () {
-            // TODO: 자산 연결/해제 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            if (user != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AccountListScreen(userId: user.uid),
+                ),
+              );
+            }
           }),
           _buildMenuItem('내 자산', Icons.account_balance_wallet, () {
-            // TODO: 내 자산 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AssetDetailScreen(user: user),
+              ),
+            );
           }),
           _buildMenuItem('내 자산 목표', Icons.track_changes, () {
-            // TODO: 내 자산 목표 화면으로 이동
+            final user = FirebaseAuth.instance.currentUser;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GoalManagementScreen(user: user),
+              ),
+            );
           }),
           _buildMenuItem('내 소비', Icons.shopping_cart, () {
-            // TODO: 내 소비 화면으로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ExpenseReportScreen(),
+              ),
+            );
           }),
           _buildMenuItem('가계부 작성', Icons.edit_note, () {
-            // TODO: 가계부 작성 화면으로 이동
-          }),
-          _buildMenuItem('내 포인트', Icons.stars, () {
-            // TODO: 내 포인트 화면으로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotloginAddTransactionScreen(),
+              ),
+            );
           }),
           _buildMenuItem('커뮤니티', Icons.people, () {
-            // TODO: 커뮤니티 화면으로 이동
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CommunityScreen(),
+              ),
+            );
           }),
         ],
       ),
