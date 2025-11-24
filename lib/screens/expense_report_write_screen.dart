@@ -5,10 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'expense_report_screen.dart';
 import 'expense_report_detail_screen.dart';
 import 'transaction_provider.dart';
-import 'transaction.dart';
 
 class ExpenseReportWriteScreen extends StatefulWidget {
   final bool isEditing;
@@ -210,48 +210,56 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     }
   }
   
-  // 월 선택 다이얼로그
+  // 월 선택 다이얼로그 (그래프 포함)
   Future<DateTime?> _showMonthPickerDialog() async {
     return showDialog<DateTime>(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            padding: const EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   '소비 리포트 월 선택',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: _monthsWithTransactions.map((month) {
-                    return ListTile(
-                      title: Text(
-                        '${month.year}년 ${month.month}월',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context, month);
-                      },
-                    );
-                  }).toList(),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _monthsWithTransactions.length,
+                    itemBuilder: (context, index) {
+                      final month = _monthsWithTransactions[index];
+                      return _MonthItemWithGraph(
+                        month: month,
+                        currentUser: _currentUser!,
+                        onTap: () {
+                          Navigator.pop(context, month);
+                        },
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  child: const Text('취소'),
+                  child: const Text(
+                    '취소',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
               ],
             ),
@@ -705,6 +713,276 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// 월 선택 아이템 (그래프 포함)
+class _MonthItemWithGraph extends StatefulWidget {
+  final DateTime month;
+  final User currentUser;
+  final VoidCallback onTap;
+
+  const _MonthItemWithGraph({
+    required this.month,
+    required this.currentUser,
+    required this.onTap,
+  });
+
+  @override
+  State<_MonthItemWithGraph> createState() => _MonthItemWithGraphState();
+}
+
+class _MonthItemWithGraphState extends State<_MonthItemWithGraph> {
+  Map<String, double>? _categoryExpenses;
+  double? _totalExpense;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMonthData();
+  }
+
+  Future<void> _loadMonthData() async {
+    try {
+      final startDate = DateTime(widget.month.year, widget.month.month, 1);
+      final endDate = DateTime(widget.month.year, widget.month.month + 1, 0);
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('ledger')
+          .where('userId', isEqualTo: widget.currentUser.uid)
+          .where('type', isEqualTo: '지출')
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .get();
+
+      double total = 0;
+      Map<String, double> categories = {};
+
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        if (data.containsKey('amount') && data.containsKey('category')) {
+          final amount = (data['amount'] as num).toDouble();
+          final category = data['category'] as String;
+          total += amount;
+          categories.update(category, (value) => value + amount, ifAbsent: () => amount);
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _totalExpense = total;
+          _categoryExpenses = categories;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('월 데이터 로드 중 오류: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatNumber(double number) {
+    return NumberFormat('#,###').format(number.round());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 월 정보
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${widget.month.year}년 ${widget.month.month}월',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (_totalExpense != null)
+                    Text(
+                      '${_formatNumber(_totalExpense!)}원',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // 그래프 영역
+              if (_isLoading)
+                const SizedBox(
+                  height: 120,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_categoryExpenses == null || _categoryExpenses!.isEmpty)
+                Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '소비 내역이 없습니다',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  height: 120,
+                  child: Row(
+                    children: [
+                      // 파이 차트
+                      Expanded(
+                        flex: 2,
+                        child: _buildPieChart(),
+                      ),
+                      const SizedBox(width: 16),
+                      // 카테고리 범례
+                      Expanded(
+                        flex: 3,
+                        child: _buildCategoryLegend(),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPieChart() {
+    if (_categoryExpenses == null || _totalExpense == null || _totalExpense == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final sortedCategories = _categoryExpenses!.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final colors = [
+      Colors.red[300]!,
+      Colors.pink[300]!,
+      Colors.orange[300]!,
+      Colors.purple[300]!,
+      Colors.blue[300]!,
+      Colors.amber[300]!,
+      Colors.teal[300]!,
+      Colors.indigo[300]!,
+      Colors.lime[300]!,
+      Colors.green[300]!,
+      Colors.cyan[300]!,
+      Colors.brown[300]!,
+    ];
+
+    return PieChart(
+      PieChartData(
+        sections: sortedCategories.take(5).map((entry) {
+          final index = sortedCategories.indexOf(entry);
+          final percent = (entry.value / _totalExpense!) * 100;
+          return PieChartSectionData(
+            color: colors[index % colors.length],
+            value: entry.value,
+            title: percent > 5 ? '${percent.toStringAsFixed(0)}%' : '',
+            radius: 35,
+            titleStyle: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          );
+        }).toList(),
+        sectionsSpace: 2,
+        centerSpaceRadius: 20,
+      ),
+    );
+  }
+
+  Widget _buildCategoryLegend() {
+    if (_categoryExpenses == null || _totalExpense == null || _totalExpense == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final sortedCategories = _categoryExpenses!.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final colors = [
+      Colors.red[300]!,
+      Colors.pink[300]!,
+      Colors.orange[300]!,
+      Colors.purple[300]!,
+      Colors.blue[300]!,
+      Colors.amber[300]!,
+      Colors.teal[300]!,
+      Colors.indigo[300]!,
+      Colors.lime[300]!,
+      Colors.green[300]!,
+      Colors.cyan[300]!,
+      Colors.brown[300]!,
+    ];
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: sortedCategories.take(4).map((entry) {
+        final index = sortedCategories.indexOf(entry);
+        final color = colors[index % colors.length];
+        final percent = (entry.value / _totalExpense!) * 100;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  entry.key,
+                  style: const TextStyle(fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${percent.toStringAsFixed(1)}%',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

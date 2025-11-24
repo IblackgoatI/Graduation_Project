@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import 'expense_report_write_screen.dart';  // 소비 리포트 글쓰기 화면 import
 import 'expense_report_detail_screen.dart';  // 소비 리포트 상세 화면 import
+import 'ai_analysis_screen.dart';  // AI 분석 화면 import
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -19,15 +21,19 @@ class _CommunityScreenState extends State<CommunityScreen>
   late TabController _tabController;
   String userName = '부린이님'; // 기본값 설정
   int userAge = 0; // 사용자 나이 저장 변수
-  List<Map<String, dynamic>> _topSavers = []; // 월간 절약왕 TOP 3 데이터
-  bool _isLoadingTopSavers = false; // 절약왕 데이터 로딩 상태
+  
+  // 배너 관련
+  late PageController _bannerPageController;
+  final ValueNotifier<int> _bannerIndexNotifier = ValueNotifier<int>(0);
+  Timer? _bannerTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _bannerPageController = PageController();
     _loadUserInfo(); // 사용자 정보 로드
-    _loadTopSavers(); // 월간 절약왕 정보 로드
+    _startBannerAutoSlide(); // 배너 자동 슬라이드 시작
   }
 
   // Firebase에서 사용자 정보를 가져오는 함수
@@ -107,75 +113,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     }
   }
 
-  // 월간 절약왕 TOP 3 데이터를 로드하는 함수
-  Future<void> _loadTopSavers() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingTopSavers = true;
-    });
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('community')
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _topSavers = [];
-            _isLoadingTopSavers = false;
-          });
-        }
-        return;
-      }
-
-      List<Map<String, dynamic>> allPostsData = [];
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data();
-        // report_data 필드와 그 안의 total_expense 필드 확인
-        if (data.containsKey('report_data') &&
-            data['report_data'] is Map &&
-            (data['report_data'] as Map).containsKey('total_expense')) {
-          
-          final reportData = data['report_data'] as Map<String, dynamic>;
-          final totalExpense = reportData['total_expense'];
-
-          if (totalExpense != null && totalExpense is num) {
-            // 상세 화면에 전달할 데이터 구성. 문서 ID 포함.
-            Map<String, dynamic> postEntry = {
-              'id': doc.id, // Firestore 문서 ID
-              'author_name': data['author_name'] ?? '익명', // 작성자 이름
-              'total_expense_for_ranking': totalExpense.toDouble(), // 랭킹 정렬용
-              ...data, // community 문서의 나머지 모든 필드
-            };
-            allPostsData.add(postEntry);
-          }
-        }
-      }
-
-      // total_expense_for_ranking 기준으로 오름차순 정렬
-      allPostsData.sort((a, b) {
-        final expenseA = a['total_expense_for_ranking'] as double;
-        final expenseB = b['total_expense_for_ranking'] as double;
-        return expenseA.compareTo(expenseB);
-      });
-
-      if (mounted) {
-        setState(() {
-          _topSavers = allPostsData.take(3).toList();
-          _isLoadingTopSavers = false;
-        });
-      }
-
-    } catch (e) {
-      debugPrint('월간 절약왕 정보 로드 중 오류: $e');
-      if (mounted) {
-        setState(() {
-          _topSavers = [];
-          _isLoadingTopSavers = false;
-        });
-      }
-    }
-  }
 
   // 나이를 연령대 문자열로 변환하는 함수
   String _getAgeGroup(int age) {
@@ -192,7 +129,25 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _bannerPageController.dispose();
+    _bannerIndexNotifier.dispose();
+    _bannerTimer?.cancel();
     super.dispose();
+  }
+
+  // 배너 자동 슬라이드 시작
+  void _startBannerAutoSlide() {
+    _bannerTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_bannerPageController.hasClients) {
+        final nextIndex = (_bannerIndexNotifier.value + 1) % 5;
+        _bannerIndexNotifier.value = nextIndex;
+        _bannerPageController.animateToPage(
+          nextIndex,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   @override
@@ -248,12 +203,16 @@ class _CommunityScreenState extends State<CommunityScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 월간 절약왕 TOP 3
-                  _buildTopSaverSection(),
+                  // 배너 섹션 (RepaintBoundary로 감싸서 리빌드 최소화)
+                  RepaintBoundary(
+                    child: _buildTopSaverSection(),
+                  ),
                   const SizedBox(height: 24),
                   
-                  // 20대 부린이님을 위한 커뮤니티
-                  _buildCommunitySection(),
+                  // 20대 부린이님을 위한 커뮤니티 (RepaintBoundary로 감싸서 리빌드 방지)
+                  RepaintBoundary(
+                    child: _buildCommunitySection(),
+                  ),
                   const SizedBox(height: 80), // 버튼을 위한 하단 여백
                 ],
               ),
@@ -299,119 +258,137 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-   Widget _buildTopSaverSection() {
+  // 배너 섹션
+  Widget _buildTopSaverSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '월간 절약왕 TOP 3',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_isLoadingTopSavers)
-          const Center(child: CircularProgressIndicator())
-        else if (_topSavers.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: Center(
-              child: Text(
-                '아직 절약왕 정보가 없어요.\n첫 번째 소비 리포트를 공유해보세요!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _topSavers.length,
+        SizedBox(
+          height: 140,
+          child: PageView.builder(
+            controller: _bannerPageController,
+            onPageChanged: (index) {
+              // setState 대신 ValueNotifier만 업데이트하여 리빌드 방지
+              _bannerIndexNotifier.value = index;
+            },
+            itemCount: 5,
             itemBuilder: (context, index) {
-              final saverData = _topSavers[index];
-              String name = saverData['author_name'] as String? ?? '익명';
-              String emoji;
-              switch (index) {
-                case 0:
-                  emoji = '🥇'; // 1위
-                  break;
-                case 1:
-                  emoji = '🥈'; // 2위
-                  break;
-                case 2:
-                  emoji = '🥉'; // 3위
-                  break;
-                default:
-                  emoji = '😊'; 
-              }
-              // saverData에는 'id'를 포함한 게시글 전체 정보가 들어있음
-              return _buildRankingItem(
-                index + 1,
-                name,
-                emoji,
-                saverData, 
-              );
+              return _buildBannerCard(index);
             },
           ),
+        ),
+        const SizedBox(height: 8),
+        // ValueListenableBuilder를 사용하여 인디케이터만 업데이트
+        ValueListenableBuilder<int>(
+          valueListenable: _bannerIndexNotifier,
+          builder: (context, currentIndex, child) {
+            return _BannerIndicator(
+              currentIndex: currentIndex,
+              itemCount: 5,
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildRankingItem(int rank, String name, String emoji, Map<String, dynamic> postData) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 24, 
-            child: Text(
-              '$rank',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
+  // 배너 카드 빌드
+  Widget _buildBannerCard(int index) {
+    final banners = [
+      {
+        'text': '나의 소비 성향은?\nAI 분석 보러가기',
+        'color': const Color(0xFFF3E5F5), // 연한 보라색
+        'icon': '🤖',
+        'onTap': () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AIAnalysisScreen(),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            emoji,
-            style: const TextStyle(fontSize: 24),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-              overflow: TextOverflow.ellipsis,
+          );
+        },
+      },
+      {
+        'text': '배달비 0원!\nKB(가짜)카드 출시',
+        'color': const Color(0xFFFFF9C4), // 연한 노란색
+        'icon': '🛵',
+        'onTap': () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('광고 배너입니다.')),
+          );
+        },
+      },
+      {
+        'text': '포인트 적립\n최대 10% 캐시백',
+        'color': const Color(0xFFE3F2FD), // 연한 파랑
+        'icon': '💰',
+        'onTap': () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('광고 배너입니다.')),
+          );
+        },
+      },
+      {
+        'text': '목표 저축 달성\n축하 포인트 지급',
+        'color': const Color(0xFFE8F5E9), // 연한 초록
+        'icon': '🎯',
+        'onTap': () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('광고 배너입니다.')),
+          );
+        },
+      },
+      {
+        'text': '소비 리포트 공유\n추천인 포인트 받기',
+        'color': const Color(0xFFF5F5F5), // 연한 회색
+        'icon': '📊',
+        'onTap': () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('광고 배너입니다.')),
+          );
+        },
+      },
+    ];
+
+    final banner = banners[index];
+
+    return GestureDetector(
+      onTap: banner['onTap'] as VoidCallback,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: banner['color'] as Color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ExpenseReportDetailScreen(postData: postData),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  banner['text'] as String,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8BC34A),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
               ),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            ),
-            child: const Text('리포트 보기'),
+              const SizedBox(width: 12),
+              Text(
+                banner['icon'] as String,
+                style: const TextStyle(fontSize: 48),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -495,7 +472,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                 final doc = snapshot.data!.docs[index];
                 final data = doc.data() as Map<String, dynamic>;
                 
-                return _buildExpenseReportCard(doc.id, data);
+                return _ExpenseReportCard(docId: doc.id, data: data);
               },
             );
           },
@@ -503,9 +480,31 @@ class _CommunityScreenState extends State<CommunityScreen>
       ],
     );
   }
-  
-  // 소비 리포트 카드 위젯
-  Widget _buildExpenseReportCard(String docId, Map<String, dynamic> data) {
+}
+
+// 소비 리포트 카드를 별도 위젯으로 분리
+class _ExpenseReportCard extends StatelessWidget {
+  final String docId;
+  final Map<String, dynamic> data;
+
+  const _ExpenseReportCard({
+    required this.docId,
+    required this.data,
+  });
+
+  String _timeAgo(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return '방금 전';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    if (diff.inDays < 7) return '${diff.inDays}일 전';
+    return DateFormat('yyyy.MM.dd').format(date);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final title = data['Heading'] as String? ?? '제목 없음';
     final content = data['Content'] as String? ?? '';
 
@@ -581,8 +580,10 @@ class _CommunityScreenState extends State<CommunityScreen>
       ),
     );
   }
-  
-  // 카테고리 요약 표시 위젯
+}
+
+// 사용하지 않는 메서드들 (경고만 발생)
+extension _CommunityScreenStateExtension on _CommunityScreenState {
   Widget _buildCategorySummary(Map<String, dynamic> reportData) {
     // ExpenseReportScreen에서 반환된 데이터 구조 사용
     final totalAmount = reportData['total_expense'] ?? 0;
@@ -714,16 +715,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-  String _timeAgo(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-
-    if (diff.inMinutes < 1) return '방금 전';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24) return '${diff.inHours}시간 전';
-    if (diff.inDays < 7) return '${diff.inDays}일 전';
-    return DateFormat('yyyy.MM.dd').format(date);
-  }
 }
 
 // ExpenseComparisonTab 클래스 포함 (지출 비교 탭 코드 시작)
@@ -1527,5 +1518,36 @@ class PieChartPainter extends CustomPainter {
       return oldDelegate.sections != sections;
     }
     return true;
+  }
+}
+
+// 배너 인디케이터를 별도 위젯으로 분리하여 리빌드 최소화
+class _BannerIndicator extends StatelessWidget {
+  final int currentIndex;
+  final int itemCount;
+
+  const _BannerIndicator({
+    required this.currentIndex,
+    required this.itemCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(itemCount, (index) {
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: currentIndex == index
+                ? const Color(0xFF8BC34A)
+                : Colors.grey[300],
+          ),
+        );
+      }),
+    );
   }
 }
