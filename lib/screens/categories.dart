@@ -24,7 +24,7 @@ const List<String> defaultExpenseCategories = [
   '문화',
   '교육',
   '만남',
-  '목표',
+  '목표 저축',
   '저축',
 ];
 

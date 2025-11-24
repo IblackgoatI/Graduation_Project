@@ -60,8 +60,8 @@ class AccountBookScreenState extends State<AccountBookScreen>
     for (var transaction in transactions) {
       // 선택된 월과 같은 월의 트랜잭션만 필터링
       if (transaction.date.month == _selectedMonth) {
-        // 카테고리가 '목표'인 경우 별도 통계
-        if (transaction.category == '목표') {
+        // 카테고리가 '목표 저축'인 경우 별도 통계
+        if (transaction.category == '목표 저축') {
           goal += transaction.amount.toInt();
         } else if (transaction.type == '수입') {
           income += transaction.amount.toInt();

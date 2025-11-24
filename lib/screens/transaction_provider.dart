@@ -12,16 +12,16 @@ class TransactionProvider with ChangeNotifier {
 
   // 수입과 지출의 총합 계산
   double get totalIncome => _transactions
-      .where((transaction) => transaction.type == '수입' && transaction.category != '목표')
+      .where((transaction) => transaction.type == '수입' && transaction.category != '목표 저축')
       .fold(0, (sum, transaction) => sum + transaction.amount);
 
   double get totalExpense => _transactions
-      .where((transaction) => transaction.type == '지출' && transaction.category != '목표')
+      .where((transaction) => transaction.type == '지출' && transaction.category != '목표 저축')
       .fold(0, (sum, transaction) => sum + transaction.amount);
 
   // 목표의 총합 계산
   double get totalGoal => _transactions
-      .where((transaction) => transaction.category == '목표')
+      .where((transaction) => transaction.category == '목표 저축')
       .fold(0, (sum, transaction) => sum + transaction.amount);
 
   // 거래 추가
