@@ -318,6 +318,34 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
     return numberFormat(amountInt) + '원';
   }
 
+  // D-Day 계산 함수
+  String _calculateDDay(dynamic endDate) {
+    try {
+      DateTime end;
+      if (endDate is Timestamp) {
+        end = endDate.toDate();
+      } else if (endDate is String) {
+        end = DateTime.parse(endDate);
+      } else {
+        return "D-Day 계산 오류";
+      }
+      
+      final now = DateTime.now();
+      final difference = end.difference(DateTime(now.year, now.month, now.day));
+      final days = difference.inDays;
+      
+      if (days > 0) {
+        return "D-$days";
+      } else if (days == 0) {
+        return "D-Day!";
+      } else {
+        return "D+${-days}";
+      }
+    } catch (e) {
+      return "D-Day 계산 오류";
+    }
+  }
+
   // 증가한 금액 계산 함수
   int _getIncreasedAmount(Map<String, dynamic> goalData) {
     String? bankId = goalData['bank'];
@@ -797,7 +825,41 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                   "목표 현황",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const Spacer(),
+                // 가로줄 추가
+                Container(
+                  height: 16,
+                  width: 1,
+                  color: Colors.grey[300],
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                // 목표 이름과 D-Day를 같은 Row에 배치
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (firstGoal != null && firstGoal['name'] != null)
+                        Text(
+                          firstGoal!['name'],
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      if (firstGoal != null && firstGoal['endDate'] != null)
+                        Text(
+                          _calculateDDay(firstGoal!['endDate']),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[500],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 GestureDetector(
                   onTap: () {
                     // 목표 관리 화면으로 이동
