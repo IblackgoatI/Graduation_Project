@@ -440,9 +440,9 @@ class NotloginListScreenState extends State<NotloginListScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                '이번 달 예산',
-                style: TextStyle(
+              Text(
+                '${DateTime.now().year}년 ${DateTime.now().month}월 예산',
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
