@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
+import 'package:fl_chart/fl_chart.dart' show BarTooltipItem, BarChart, BarChartData, BarChartGroupData, BarChartRodData, FlTitlesData, FlBorderData, FlGridData, BarTouchData, BarTouchTooltipData, AxisTitles, SideTitles, BarChartAlignment;
 import 'admin_layout.dart';
 
 class AdminMainScreen extends StatefulWidget {
@@ -20,6 +22,224 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
   int _reportedComments = 0;
   int _activeQuizzes = 0;
   bool _isLoading = true;
+
+  // 주간/월간/연간 게시물 추이 데이터
+  List<Map<String, dynamic>> _weeklyData = [];
+  List<Map<String, dynamic>> _monthlyData = [];
+  List<Map<String, dynamic>> _yearlyData = [];
+  int _selectedChartType = 0; // 0: 주간, 1: 월간, 2: 연간
+
+  // 주간/월간 차트 데이터 로드
+  Future<void> _loadChartData() async {
+    final now = DateTime.now();
+
+    // 주간 데이터 (최근 7일)
+    _weeklyData = [];
+    for (int i = 6; i >= 0; i--) {
+      final date = now.subtract(Duration(days: i));
+      final start = DateTime(date.year, date.month, date.day);
+      final end = start.add(const Duration(days: 1));
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .where('created_at', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('created_at', isLessThan: Timestamp.fromDate(end))
+          .get();
+
+      _weeklyData.add({
+        'date': '${date.month}/${date.day}',
+        'count': snapshot.docs.length,
+      });
+    }
+
+    // 월간 데이터 (1월~12월)
+    _monthlyData = [];
+    for (int month = 1; month <= 12; month++) {
+      final date = DateTime(now.year, month, 1);
+      final nextMonth = month == 12 
+          ? DateTime(now.year + 1, 1, 1)
+          : DateTime(now.year, month + 1, 1);
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .where('created_at', isGreaterThanOrEqualTo: Timestamp.fromDate(date))
+          .where('created_at', isLessThan: Timestamp.fromDate(nextMonth))
+          .get();
+
+      _monthlyData.add({
+        'date': '$month월',
+        'count': snapshot.docs.length,
+      });
+    }
+
+    // 연간 데이터 (2024년~현재 연도)
+    _yearlyData = [];
+    for (int year = 2024; year <= now.year; year++) {
+      final startDate = DateTime(year, 1, 1);
+      final endDate = DateTime(year + 1, 1, 1);
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('community')
+          .where('created_at', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('created_at', isLessThan: Timestamp.fromDate(endDate))
+          .get();
+
+      _yearlyData.add({
+        'date': '$year년',
+        'count': snapshot.docs.length,
+      });
+    }
+  }
+
+  // 차트 위젯 생성
+  Widget _buildChart() {
+    final data = _selectedChartType == 0 
+        ? _weeklyData 
+        : (_selectedChartType == 1 ? _monthlyData : _yearlyData);
+
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '게시물 통계',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                ToggleButtons(
+                  isSelected: [
+                    _selectedChartType == 0, 
+                    _selectedChartType == 1,
+                    _selectedChartType == 2,
+                  ],
+                  onPressed: (index) {
+                    setState(() {
+                      _selectedChartType = index;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8.0),
+                  selectedColor: Colors.white,
+                  fillColor: Colors.blue,
+                  color: Colors.blue,
+                  constraints: const BoxConstraints(
+                    minHeight: 36.0,
+                    minWidth: 60.0,
+                  ),
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text('주간'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text('월간'),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Text('연간'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            SizedBox(
+              height: 250,
+              child: BarChart(
+                duration: const Duration(milliseconds: 1000), // 1초로 늘려 더 부드럽게 전환
+                curve: Curves.easeInOut,
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: data.isEmpty 
+                      ? 10.0 // 데이터가 없을 때 기본값
+                      : math.max(1.0, (data.map((e) => e['count'] as int).reduce((a, b) => a > b ? a : b) * 1.2).roundToDouble()),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (_) => Colors.blueGrey,
+                      tooltipMargin: 0,
+                      tooltipPadding: const EdgeInsets.all(8),
+                      tooltipRoundedRadius: 8,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${data[groupIndex]['date']}\n${rod.toY.toInt()}개',
+                          const TextStyle(color: Colors.white),
+                        );
+                      },
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index >= 0 && index < data.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                data[index]['date'].toString().split(' ')[0],
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                            );
+                          }
+                          return const Text('');
+                        },
+                        reservedSize: 30,
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Text(value.toInt().toString());
+                        },
+                        reservedSize: 40,
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(show: true),
+                  barGroups: data.isEmpty
+                      ? []
+                      : List.generate(
+                          data.length,
+                          (index) => BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: (data[index]['count'] as int).toDouble(),
+                                color: Colors.blue,
+                                width: 20,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ],
+                          ),
+                        ),
+                  gridData: FlGridData(show: true),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -58,6 +278,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
           .get();
       _activeQuizzes = quizzesSnapshot.docs.length;
 
+      // 주간/월간 데이터 로드
+      await _loadChartData();
+
       setState(() {
         _isLoading = false;
       });
@@ -94,6 +317,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildChart(),
           // 요약 카드들
           Row(
             children: [
