@@ -102,7 +102,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
           '문화',
           '교육',
           '만남',
-          '목표 저축',
+          '목표',
           '저축',
         ];
       });
@@ -366,7 +366,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
     }).toList());
 
     // 목표 카테고리인 경우 입금/출금 계좌 선택 다이얼로그 표시
-    if (_selectedCategory == '목표 저축') {
+    if (_selectedCategory == '목표') {
       _showGoalAccountDialog(currentContext, paymentMethods);
     } else {
       _showSinglePaymentMethodDialog(currentContext, paymentMethods);
@@ -606,7 +606,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       }
 
       // 목표 카테고리인 경우 입금/출금 계좌 검증
-      if (_selectedCategory == '목표 저축') {
+      if (_selectedCategory == '목표') {
         if (_selectedExpenseAccountId == null || _selectedIncomeAccountId == null) {
           scaffoldMessenger.showSnackBar(
             const SnackBar(content: Text('출금 계좌와 입금 계좌를 모두 선택해주세요.')),
@@ -624,7 +624,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
 
       String userId = FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
-      if (_selectedCategory == '목표 저축') {
+      if (_selectedCategory == '목표') {
         // 목표 카테고리인 경우 두 개의 거래 내역 생성
         await _saveGoalTransactions(userId, amount, amountInt, transactionProvider);
       } else {
@@ -653,7 +653,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       'amount': amount,
       'date': Timestamp.fromDate(_selectedDate),
       'merchant': _merchantController.text,
-      'category': '목표 저축', // 목표 저축으로 통일
+      'category': '미분류', // 출금은 목표 통계에 포함하지 않음
       'paymentMethod': _selectedExpenseAccountId,
       'memo': _memoController.text,
       'tags': _tags,
@@ -668,7 +668,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
       'amount': amount,
       'date': Timestamp.fromDate(_selectedDate),
       'merchant': _merchantController.text,
-      'category': '목표 저축', // 목표 저축으로 통일
+      'category': '목표', // 입금만 목표로 표시
       'paymentMethod': _selectedIncomeAccountId,
       'memo': _memoController.text,
       'tags': _tags,
@@ -704,7 +704,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         merchant: _merchantController.text,
         memo: _memoController.text,
         tags: _tags,
-        category: '목표 저축', // 목표 저축으로 통일
+        category: '미분류', // 출금은 목표 통계에 포함하지 않음
         paymentMethod: _selectedExpenseAccountId!,
       );
 
@@ -716,7 +716,7 @@ class NotloginAddTransactionScreenState extends State<NotloginAddTransactionScre
         merchant: _merchantController.text,
         memo: _memoController.text,
         tags: _tags,
-        category: '목표 저축', // 목표 저축으로 통일
+        category: '목표', // 입금만 목표로 표시
         paymentMethod: _selectedIncomeAccountId!,
       );
 

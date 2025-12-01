@@ -128,9 +128,9 @@ class _GoalAmountAddScreenState extends State<GoalAmountAddScreen> {
               'amount': amount,
               'date': FieldValue.serverTimestamp(),
               'merchant': widget.goalData['name'],
-              'category': '목표 저축',
+              'category': '목표',
               'paymentMethod': bankId,
-              'memo': '목표 저축',
+              'memo': '목표',
               'tags': [],
               'createdAt': FieldValue.serverTimestamp(),
             });
