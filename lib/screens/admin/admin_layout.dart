@@ -57,6 +57,7 @@ class AdminLayout extends StatelessWidget {
           ),
           const Divider(color: Colors.grey, height: 1),
           _buildMenuItem(context, '대시보드', Icons.dashboard, '대시보드', '/admin'),
+          _buildMenuItem(context, '회원 관리', Icons.people, '회원 관리', '/admin/users'),
           _buildMenuItem(context, '게시물 관리', Icons.article, '게시물 관리', '/admin/posts'),
           _buildMenuItem(context, '댓글 관리', Icons.comment, '댓글 관리', '/admin/comments'),
           _buildMenuItem(context, '퀴즈 관리', Icons.quiz, '퀴즈 관리', '/admin/quiz_management'),
