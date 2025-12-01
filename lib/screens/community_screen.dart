@@ -8,6 +8,7 @@ import 'dart:async';
 import 'expense_report_write_screen.dart';  // 소비 리포트 글쓰기 화면 import
 import 'expense_report_detail_screen.dart';  // 소비 리포트 상세 화면 import
 import 'ai_analysis_screen.dart';  // AI 분석 화면 import
+import 'package:url_launcher/url_launcher.dart';
 
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
@@ -26,6 +27,45 @@ class _CommunityScreenState extends State<CommunityScreen>
   late PageController _bannerPageController;
   final ValueNotifier<int> _bannerIndexNotifier = ValueNotifier<int>(0);
   Timer? _bannerTimer;
+  final List<Map<String, dynamic>> _financeBanners = [];
+
+  List<Map<String, dynamic>> get _presetBanners => [
+        {
+          'text': '나의 소비 성향은?\nAI 분석 보러가기',
+          'color': const Color(0xFFF3E5F5),
+          'icon': '🤖',
+          'onTap': () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AIAnalysisScreen(),
+              ),
+            );
+          },
+        },
+        {
+          'text': '배달비 0원!\nKB(가짜)카드 출시',
+          'color': const Color.fromARGB(255, 54, 53, 44),
+          'icon': '🛵',
+          'onTap': () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('광고 배너입니다.')),
+            );
+          },
+        },
+        {
+          'text': '포인트 적립\n최대 10% 캐시백',
+          'color': const Color(0xFFE3F2FD),
+          'icon': '💰',
+          'onTap': () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('광고 배너입니다.')),
+            );
+          },
+        },
+      ];
+
+  int get _totalBannerCount => _presetBanners.length + _financeBanners.length;
 
   @override
   void initState() {
@@ -34,6 +74,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     _bannerPageController = PageController();
     _loadUserInfo(); // 사용자 정보 로드
     _startBannerAutoSlide(); // 배너 자동 슬라이드 시작
+    _fetchFinanceBanners();
   }
 
   // Firebase에서 사용자 정보를 가져오는 함수
@@ -138,8 +179,10 @@ class _CommunityScreenState extends State<CommunityScreen>
   // 배너 자동 슬라이드 시작
   void _startBannerAutoSlide() {
     _bannerTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_bannerPageController.hasClients) {
-        final nextIndex = (_bannerIndexNotifier.value + 1) % 5;
+      final totalBanners = _totalBannerCount;
+      if (_bannerPageController.hasClients && totalBanners > 0) {
+        final nextIndex =
+            (_bannerIndexNotifier.value + 1) % totalBanners;
         _bannerIndexNotifier.value = nextIndex;
         _bannerPageController.animateToPage(
           nextIndex,
@@ -148,6 +191,35 @@ class _CommunityScreenState extends State<CommunityScreen>
         );
       }
     });
+  }
+  
+  Future<void> _fetchFinanceBanners() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('finance')
+          .limit(3)
+          .get();
+      final products = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'bankCompany': data['bankCompany'] ?? '금융기관',
+          'name': data['name'] ?? '상품명',
+          'base_rate': data['base_rate'],
+          'max_rate': data['max_rate'],
+          'link': data['link'],
+        };
+      }).toList();
+
+      if (!mounted || products.isEmpty) return;
+
+      setState(() {
+        _financeBanners
+          ..clear()
+          ..addAll(products.take(3));
+      });
+    } catch (e) {
+      debugPrint('금융상품 배너 로드 중 오류 발생: $e');
+    }
   }
 
   @override
@@ -271,7 +343,7 @@ class _CommunityScreenState extends State<CommunityScreen>
               // setState 대신 ValueNotifier만 업데이트하여 리빌드 방지
               _bannerIndexNotifier.value = index;
             },
-            itemCount: 5,
+            itemCount: _totalBannerCount,
             itemBuilder: (context, index) {
               return _buildBannerCard(index);
             },
@@ -284,7 +356,7 @@ class _CommunityScreenState extends State<CommunityScreen>
           builder: (context, currentIndex, child) {
             return _BannerIndicator(
               currentIndex: currentIndex,
-              itemCount: 5,
+              itemCount: _totalBannerCount,
             );
           },
         ),
@@ -294,103 +366,188 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   // 배너 카드 빌드
   Widget _buildBannerCard(int index) {
-    final banners = [
-      {
-        'text': '나의 소비 성향은?\nAI 분석 보러가기',
-        'color': const Color(0xFFF3E5F5), // 연한 보라색
-        'icon': '🤖',
-        'onTap': () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AIAnalysisScreen(),
-            ),
-          );
-        },
-      },
-      {
-        'text': '배달비 0원!\nKB(가짜)카드 출시',
-        'color': const Color(0xFFFFF9C4), // 연한 노란색
-        'icon': '🛵',
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('광고 배너입니다.')),
-          );
-        },
-      },
-      {
-        'text': '포인트 적립\n최대 10% 캐시백',
-        'color': const Color(0xFFE3F2FD), // 연한 파랑
-        'icon': '💰',
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('광고 배너입니다.')),
-          );
-        },
-      },
-      {
-        'text': '목표 저축 달성\n축하 포인트 지급',
-        'color': const Color(0xFFE8F5E9), // 연한 초록
-        'icon': '🎯',
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('광고 배너입니다.')),
-          );
-        },
-      },
-      {
-        'text': '소비 리포트 공유\n추천인 포인트 받기',
-        'color': const Color(0xFFF5F5F5), // 연한 회색
-        'icon': '📊',
-        'onTap': () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('광고 배너입니다.')),
-          );
-        },
-      },
-    ];
-
-    final banner = banners[index];
-
-    return GestureDetector(
-      onTap: banner['onTap'] as VoidCallback,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: banner['color'] as Color,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  banner['text'] as String,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                banner['icon'] as String,
-                style: const TextStyle(fontSize: 48),
+    if (index < _presetBanners.length) {
+      final banner = _presetBanners[index];
+      return GestureDetector(
+        onTap: banner['onTap'] as VoidCallback,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          decoration: BoxDecoration(
+            color: banner['color'] as Color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    banner['text'] as String,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  banner['icon'] as String,
+                  style: const TextStyle(fontSize: 48),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final financeIndex = index - _presetBanners.length;
+    final product = _financeBanners[financeIndex];
+    return _buildFinanceBannerCard(product);
+  }
+
+  Widget _buildFinanceBannerCard(Map<String, dynamic> product) {
+    final bank = product['bankCompany']?.toString() ?? '금융기관';
+    final name = product['name']?.toString() ?? '상품명';
+    final baseRate = _formatRate(product['base_rate']);
+    final maxRate = _formatRate(product['max_rate']);
+    final link = product['link']?.toString();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.15),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              bank, // 금융기관 이름
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    name, // 상품 이름
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 90),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '$baseRate (기본)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$maxRate (최고)',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                width: 110,
+                height: 27,
+                child: ElevatedButton(
+                  onPressed: () => _launchFinanceLink(link),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8BC34A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    '알아보기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  String _formatRate(dynamic rate) {
+    if (rate == null) return '-';
+    final raw = rate.toString().trim();
+    if (raw.isEmpty) return '-';
+    return raw.contains('%') ? raw : '$raw%';
+  }
+
+  Future<void> _launchFinanceLink(String? link) async {
+    if (link == null || link.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('유효한 링크가 없습니다.')),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(link);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('잘못된 링크입니다.')),
+      );
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('페이지를 열 수 없습니다.')),
+      );
+    }
   }
 
   Widget _buildCommunitySection() {
