@@ -45,7 +45,7 @@ class _CommunityScreenState extends State<CommunityScreen>
         },
         {
           'text': '배달비 0원!\nKB(가짜)카드 출시',
-          'color': const Color.fromARGB(255, 54, 53, 44),
+          'color': const Color.fromARGB(255, 255, 230, 0),
           'icon': '🛵',
           'onTap': () {
             ScaffoldMessenger.of(context).showSnackBar(
