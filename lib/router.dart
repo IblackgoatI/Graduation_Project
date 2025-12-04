@@ -10,6 +10,7 @@ import 'screens/admin/admin_users_screen.dart';
 import 'screens/attendance_screen.dart';
 import 'screens/daily_quiz_screen.dart';
 import 'screens/admin/admin_quiz_management_screen.dart';
+import 'screens/admin/admin_finance_management.dart';
 import 'screens/point_management_screen.dart';
 import 'screens/transaction_history.dart';
 import 'screens/goal_management.dart';
@@ -51,6 +52,10 @@ final router = GoRouter(
     GoRoute(
       path: '/admin/quiz_management',
       builder: (context, state) => const AdminQuizManagementScreen(),
+    ),
+    GoRoute(
+      path: '/admin/finance',
+      builder: (context, state) => const AdminFinanceManagementScreen(),
     ),
     GoRoute(
       path: '/point_management',

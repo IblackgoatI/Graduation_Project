@@ -61,6 +61,7 @@ class AdminLayout extends StatelessWidget {
           _buildMenuItem(context, '게시물 관리', Icons.article, '게시물 관리', '/admin/posts'),
           _buildMenuItem(context, '댓글 관리', Icons.comment, '댓글 관리', '/admin/comments'),
           _buildMenuItem(context, '퀴즈 관리', Icons.quiz, '퀴즈 관리', '/admin/quiz_management'),
+          _buildMenuItem(context, '금융상품 관리', Icons.account_balance, '금융상품 관리', '/admin/finance'),
           _buildMenuItem(context, '설정', Icons.settings, '설정', '/admin'),
         ],
       ),
