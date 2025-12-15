@@ -968,6 +968,11 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
             const SizedBox(height: 16.0),
 
+            // === 여기에 유저 총 자산 박스 추가 ===
+            _buildTotalAssetSectionForGoalTab(),
+            const SizedBox(height: 16.0),
+            // =============================
+
             // 두 번째 줄: 이번 달 수입 & 이번 달 저축
             Row(
               children: [
@@ -3938,6 +3943,47 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         );
       }
     }
+  }
+
+  // === 총 자산 박스: 목표 탭용 ===
+  Widget _buildTotalAssetSectionForGoalTab() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16.0),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AssetDetailScreen(
+              user: widget.user ?? FirebaseAuth.instance.currentUser,
+            ),
+          ),
+        );
+      },
+      child: _buildStandardCard(
+        height: 100,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              '총 자산',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              '${_numberFormat(_totalAssets)}원',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF73AD13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
