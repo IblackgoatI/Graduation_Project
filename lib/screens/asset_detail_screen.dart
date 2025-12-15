@@ -449,15 +449,15 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저축 설정이 저장되었습니다.')),
+          const SnackBar(content: Text('저금통 설정이 저장되었습니다.')),
         );
       }
 
     } catch (e) {
-      debugPrint('저축 설정 저장 오류: $e');
+      debugPrint('저금통 설정 저장 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('저축 설정 저장 중 오류가 발생했습니다.')),
+          const SnackBar(content: Text('저금통 설정 저장 중 오류가 발생했습니다.')),
         );
       }
     }
@@ -2309,7 +2309,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                '저축 현황',
+                '저금통 현황',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -2352,7 +2352,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               minimumSize: const Size(double.infinity, 36),
             ),
             child: const Text(
-              '저축하기',
+              '저금하기',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 11,
@@ -2379,7 +2379,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
             // 출금 계좌 정보 텍스트
-            String accountBankText = '출금 계좌 선택';
+            String accountBankText = '저금 계좌 선택';
             String accountBalanceText = '';
 
             if (selectedWithdrawAccount != null) {
@@ -2409,7 +2409,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '저축 금액 추가',
+                          '저금통 금액 추가',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -2490,7 +2490,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              '출금 계좌',
+                              '저금 계좌',
                               style: TextStyle(fontSize: 16),
                             ),
                             Row(
@@ -2536,7 +2536,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         onPressed: () async {
                           if (selectedWithdrawAccount == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('출금 계좌를 선택해주세요.')),
+                              const SnackBar(content: Text('저금 계좌를 선택해주세요.')),
                             );
                             return;
                           }
@@ -2570,7 +2570,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                           minimumSize: const Size(double.infinity, 50),
                         ),
                         child: const Text(
-                          '저축하기',
+                          '저금하기',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -2847,7 +2847,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '저축 설정',
+                          '저금통 설정',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -2874,7 +2874,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '출금 금액',
+                            '저금 금액',
                             style: TextStyle(fontSize: 16),
                           ),
                           Row(
@@ -2924,7 +2924,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '저축 계좌',
+                            '저금 계좌',
                             style: TextStyle(
                               fontSize: 16,
                             ),
@@ -2975,7 +2975,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            '자동 이체 날짜',
+                            '자동 저금 날짜',
                             style: TextStyle(fontSize: 16),
                           ),
                           Row(
@@ -3503,7 +3503,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          '자동 이체 날짜를 선택해주세요.',
+                          '자동 저금 날짜를 선택해주세요.',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
