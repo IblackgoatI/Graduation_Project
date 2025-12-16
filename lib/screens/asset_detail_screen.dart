@@ -1560,9 +1560,9 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      '고정 지출 상세 내역',
-                      style: TextStyle(
+                    Text(
+                      '${DateFormat('M월').format(DateTime.now())} 고정 지출 상세 내역',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
