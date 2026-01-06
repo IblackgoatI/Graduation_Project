@@ -524,8 +524,11 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
       }).where((g) {
         final end = (g['endDate'] ?? g['deadline']);
         DateTime? ed;
-        if (end is Timestamp) ed = end.toDate();
-        else if (end is DateTime) ed = end;
+        if (end is Timestamp) {
+          ed = end.toDate();
+        } else if (end is DateTime) {
+          ed = end;
+        }
         return ed == null ? false : ed.isAfter(now);
       }).toList();
       if (rawGoals.isEmpty) { setState(() { _goals = []; _loading = false; }); return; }
@@ -547,8 +550,16 @@ class _GoalOverviewCardState extends State<GoalOverviewCard> {
         final da = a['endDate'] ?? a['deadline'];
         final db = b['endDate'] ?? b['deadline'];
         DateTime? eda, edb;
-        if (da is Timestamp) eda = da.toDate(); else if (da is DateTime) eda = da;
-        if (db is Timestamp) edb = db.toDate(); else if (db is DateTime) edb = db;
+        if (da is Timestamp) {
+          eda = da.toDate();
+        } else if (da is DateTime) {
+          eda = da;
+        }
+        if (db is Timestamp) {
+          edb = db.toDate();
+        } else if (db is DateTime) {
+          edb = db;
+        }
         return (eda ?? DateTime(2100)).compareTo(edb ?? DateTime(2100));
       });
 

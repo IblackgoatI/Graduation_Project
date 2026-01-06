@@ -67,7 +67,7 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         _expenseCategories = expenseCats;
       });
     } catch (e) {
-      print('카테고리 로드 실패: $e');
+      debugPrint('카테고리 로드 실패: $e');
       // 기본 카테고리 사용
       setState(() {
         _incomeCategories = ['급여', '사업수입', '용돈', '판매'];
@@ -295,103 +295,6 @@ class TransactionDetailScreenState extends State<TransactionDetailScreen> {
         ),
       ),
     );
-  }
-
-  // 수정 모드에서 사용할 다이얼로그
-  void _showTypeDialog() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return Container(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _type = '수입';
-                              // 분류가 변경되면 카테고리 초기화
-                              _category = '미분류';
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: _type == '수입' ? Colors.black : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '수입',
-                                style: TextStyle(
-                                  fontWeight: _type == '수입' ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              _type = '지출';
-                              // 분류가 변경되면 카테고리 초기화
-                              _category = '미분류';
-                            });
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: _type == '지출' ? Colors.black : Colors.transparent,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '지출',
-                                style: TextStyle(
-                                  fontWeight: _type == '지출' ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).then((value) {
-      // 바텀시트가 닫힌 후 메인 화면의 상태 업데이트
-      if (mounted) {
-        setState(() {});
-      }
-    });
   }
 
   // 카테고리 선택 다이얼로그

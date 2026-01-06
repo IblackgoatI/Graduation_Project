@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -56,7 +55,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading users: $e');
+      debugPrint('Error loading users: $e');
       setState(() {
         _isLoading = false;
       });
@@ -200,7 +199,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         final age = user['age'] ?? '미기입';
         final gender = user['gender'] ?? '미기입';
         final createdAt = _formatDate(user['createdAt']);
-        final userId = user['userId'] ?? '';
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),

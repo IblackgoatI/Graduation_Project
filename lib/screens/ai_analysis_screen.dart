@@ -1,5 +1,6 @@
 /// AI 가계부 분석 화면
 /// Gemini AI를 활용하여 사용자의 지출 습관을 분석하고 피드백을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:fluttertest/services/gemini_service.dart';
 import 'package:intl/intl.dart';

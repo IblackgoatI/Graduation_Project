@@ -1,4 +1,6 @@
 /// 카테고리 관리자 - 기존 하드코딩된 카테고리를 동적 시스템으로 마이그레이션
+library;
+import 'package:flutter/material.dart';
 import '../services/category_service.dart';
 import '../models/category_model.dart';
 
@@ -16,7 +18,7 @@ class CategoryManager {
       await _categoryService.initializeDefaultCategories();
       _isInitialized = true;
     } catch (e) {
-      print('카테고리 초기화 오류: $e');
+      debugPrint('카테고리 초기화 오류: $e');
     }
   }
 
@@ -29,7 +31,7 @@ class CategoryManager {
           .map((category) => category.name)
           .toList();
     } catch (e) {
-      print('수입 카테고리 로드 실패: $e');
+      debugPrint('수입 카테고리 로드 실패: $e');
       return ['급여', '사업수입', '용돈', '판매']; // 기본값 반환
     }
   }
@@ -43,7 +45,7 @@ class CategoryManager {
           .map((category) => category.name)
           .toList();
     } catch (e) {
-      print('지출 카테고리 로드 실패: $e');
+      debugPrint('지출 카테고리 로드 실패: $e');
       return ['식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남', '목표', '저축']; // 기본값 반환
     }
   }
@@ -54,7 +56,7 @@ class CategoryManager {
       await _loadCategoriesIfNeeded();
       return _cachedCategories.map((category) => category.name).toList();
     } catch (e) {
-      print('전체 카테고리 로드 실패: $e');
+      debugPrint('전체 카테고리 로드 실패: $e');
       return ['급여', '사업수입', '용돈', '판매', '식비', '카페', '간식', '생활', '쇼핑', '뷰티', '교통', '통신', '문화', '교육', '만남', '목표', '저축']; // 기본값 반환
     }
   }
@@ -64,7 +66,7 @@ class CategoryManager {
     try {
       _cachedCategories = await _categoryService.getUserCategories();
     } catch (e) {
-      print('카테고리 새로고침 오류: $e');
+      debugPrint('카테고리 새로고침 오류: $e');
     }
   }
 

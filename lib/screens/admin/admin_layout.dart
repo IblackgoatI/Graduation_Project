@@ -1,5 +1,6 @@
 /// 관리자 화면 공통 레이아웃
 /// 사이드바와 헤더가 포함된 웹 스타일 레이아웃을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';

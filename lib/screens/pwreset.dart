@@ -1,16 +1,16 @@
 /// 비밀번호 재설정 화면
 /// 사용자가 비밀번호를 재설정할 수 있도록 이메일 기반의 비밀번호 재설정 기능을 제공합니다.
+library;
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore 사용
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'login.dart';
 
 
 class PasswordResetScreen extends StatefulWidget {
-  const PasswordResetScreen({Key? key}) : super(key: key);
+  const PasswordResetScreen({super.key});
 
   @override
   State<PasswordResetScreen> createState() => _PasswordResetScreenState();

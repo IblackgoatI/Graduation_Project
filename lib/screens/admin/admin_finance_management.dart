@@ -1,5 +1,6 @@
 /// 관리자 금융상품 관리 화면
 /// finance 컬렉션의 금융상품을 조회, 추가, 삭제하는 기능을 제공합니다.
+library;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

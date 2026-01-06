@@ -1,5 +1,6 @@
 /// 앱의 전반적인 라우팅 설정을 담당하는 파일입니다.
 /// GoRouter 패키지를 사용하여 화면 간의 이동 경로를 정의합니다.
+library;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'screens/admin/admin_main_screen.dart';

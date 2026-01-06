@@ -1,5 +1,6 @@
 /// 커뮤니티 화면
 /// 사용자 간의 게시물 및 댓글 소통을 위한 커뮤니티 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -200,7 +201,7 @@ class _CommunityScreenState extends State<CommunityScreen>
           .limit(3)
           .get();
       final products = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         return {
           'bankCompany': data['bankCompany'] ?? '금융기관',
           'name': data['name'] ?? '상품명',
@@ -737,141 +738,6 @@ class _ExpenseReportCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// 사용하지 않는 메서드들 (경고만 발생)
-extension _CommunityScreenStateExtension on _CommunityScreenState {
-  Widget _buildCategorySummary(Map<String, dynamic> reportData) {
-    // ExpenseReportScreen에서 반환된 데이터 구조 사용
-    final totalAmount = reportData['total_expense'] ?? 0;
-    final formattedAmount = NumberFormat('#,###').format(totalAmount);
-    final categories = reportData['categories'] as Map<String, dynamic>? ?? {};
-    
-    // 카테고리 데이터를 금액 기준으로 정렬
-    final sortedCategories = categories.entries.toList()
-      ..sort((a, b) => (b.value as num).compareTo(a.value as num));
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 총 금액
-        Text(
-          '$formattedAmount원',
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        // 상위 3개 카테고리만 표시
-        ...sortedCategories.take(3).map((entry) {
-          final categoryName = entry.key;
-          final amount = (entry.value is int) ? entry.value.toDouble() : (entry.value as num).toDouble();
-          final percent = totalAmount > 0 ? (amount / totalAmount * 100) : 0;
-          
-          return Container(
-            margin: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                // 카테고리명
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    categoryName,
-                    style: const TextStyle(
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                
-                // 퍼센트
-                Expanded(
-                  flex: 1,
-                  child: Text(
-                    '${percent.toStringAsFixed(1)}%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-                
-                // 금액
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    '${NumberFormat('#,###').format(amount)}원',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  // 파이 차트 위젯
-  Widget _buildPieChart(Map<String, dynamic> reportData) {
-    final categories = reportData['categories'] as Map<String, dynamic>? ?? {};
-    final totalAmount = reportData['total_expense'] ?? 0;
-    
-    // 카테고리가 없으면 기본 아이콘 표시
-    if (categories.isEmpty || totalAmount == 0) {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.pie_chart,
-          size: 40,
-          color: Colors.grey,
-        ),
-      );
-    }
-    
-    // 카테고리 데이터 변환
-    List<Map<String, dynamic>> chartData = [];
-    
-    // 색상 정의
-    final colors = [
-      Colors.red[300]!,
-      Colors.blue[300]!,
-      Colors.green[300]!,
-      Colors.purple[300]!,
-      Colors.orange[300]!,
-      Colors.teal[300]!,
-      Colors.pink[300]!,
-      Colors.indigo[300]!,
-    ];
-    
-    int colorIndex = 0;
-    categories.forEach((key, value) {
-      final amount = (value is int) ? value.toDouble() : (value as num).toDouble();
-      final percent = totalAmount > 0 ? amount / totalAmount : 0.0;
-      
-      chartData.add({
-        'color': colors[colorIndex % colors.length],
-        'percent': percent,
-      });
-      
-      colorIndex++;
-    });
-    
-    // CustomPaint를 사용하여 파이 차트 그리기
-    return CustomPaint(
-      size: const Size(80, 80),
-      painter: PieChartPainter(sections: chartData),
-    );
-  }
-
 }
 
 // ExpenseComparisonTab 클래스 포함 (지출 비교 탭 코드 시작)

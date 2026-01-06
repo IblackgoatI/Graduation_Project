@@ -1,5 +1,6 @@
 /// 포인트 관리 화면
 /// 사용자의 현재 보유 포인트 및 누적 포인트를 표시하고, 포인트를 획득할 수 있는 방법들의 진행 상황을 보여줍니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

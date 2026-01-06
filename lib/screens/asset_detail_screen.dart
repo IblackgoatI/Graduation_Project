@@ -46,8 +46,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
   int _autoTransferDate = 1; // 자동 이체 날짜 (1-28일)
   int _savingBalance = 0; // 저축한 총 금액
   Map<String, dynamic>? _selectedSavingAccount; // 선택된 저축 계좌
-  bool _hasSavingGoal = false; // 저축 설정 존재 여부
-  
+
   // 예산 금액과 지출 금액을 저장할 변수
   double _budgetAmount = 0.0; // 예산 금액
   double _expensesAmount = 0.0; // 지출 금액
@@ -368,7 +367,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               _autoTransferDate = autoTransferDateFromDB;
               _savingBalance = balanceFromDB;
               _selectedSavingAccount = selectedAccount;
-              _hasSavingGoal = true;
             });
           }
 
@@ -379,7 +377,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
               _autoTransferDate = 1;
               _savingBalance = 0;
               _selectedSavingAccount = null;
-              _hasSavingGoal = false;
             });
           }
         }
@@ -392,7 +389,6 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
           _autoTransferDate = 1;
           _savingBalance = 0;
           _selectedSavingAccount = null;
-          _hasSavingGoal = false;
         });
       }
     }
@@ -2819,7 +2815,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                 : '0원';
             
             // 자동 이체 날짜 텍스트
-            String autoTransferDateText = '매월 ${currentAutoTransferDate}일';
+            String autoTransferDateText = '매월 $currentAutoTransferDate일';
 
             // 수입 대비 퍼센트 계산 (출금 금액 기준)
             String percentageText = '월 수입의 0%';
@@ -3534,7 +3530,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
                           bool isSelected = selectedDate == date;
                           
                           return ListTile(
-                            title: Text('매월 ${date}일'),
+                            title: Text('매월 $date일'),
                             trailing: isSelected
                                 ? const Icon(Icons.check, color: Color(0xFF73AD13))
                                 : null,

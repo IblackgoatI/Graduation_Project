@@ -1,5 +1,6 @@
 /// 로그인하지 않은 사용자를 위한 메인 화면 (또는 초기 로그인 시 진입 화면)
 /// 다양한 금융 관련 탭 (대시보드, 가계부, 커뮤니티, 전체 기능)을 제공하며, 최근 방문 탭을 관리합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -315,7 +316,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
     if (amount == null) return '0원';
     
     int amountInt = (amount as num).toInt();
-    return numberFormat(amountInt) + '원';
+    return '${numberFormat(amountInt)}원';
   }
 
   // D-Day 계산 함수
@@ -839,7 +840,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                     children: [
                       if (firstGoal != null && firstGoal['name'] != null)
                         Text(
-                          firstGoal!['name'],
+                          firstGoal['name'],
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -850,7 +851,7 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                         ),
                       if (firstGoal != null && firstGoal['endDate'] != null)
                         Text(
-                          _calculateDDay(firstGoal!['endDate']),
+                          _calculateDDay(firstGoal['endDate']),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[500],

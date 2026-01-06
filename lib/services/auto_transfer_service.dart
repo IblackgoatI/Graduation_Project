@@ -1,5 +1,7 @@
+
 /// 자동이체 서비스
 /// 목표 계좌로 자동 이체를 처리하는 서비스입니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:firebase_auth/firebase_auth.dart';

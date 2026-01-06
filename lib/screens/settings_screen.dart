@@ -1,5 +1,6 @@
 /// 설정 화면
 /// 사용자 계정 관리 (로그아웃), 알림 설정 등 앱의 전반적인 설정을 관리합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Firebase Auth 패키지 import
 import 'package:shared_preferences/shared_preferences.dart'; // SharedPreferences 패키지 import
@@ -103,7 +104,6 @@ class SettingsScreen extends StatelessWidget {
                               ),
                               TextButton(
                                 onPressed: () {
-                                  // TODO: 로그아웃 로직 구현
                                   _logout(context);
                                 },
                                 child: const Text(

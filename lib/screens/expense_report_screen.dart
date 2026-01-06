@@ -1,16 +1,14 @@
 /// 지출 보고서 목록 화면
 /// 사용자가 작성한 지출 보고서 게시물 목록을 표시하고 관리합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart'; // FL Chart 패키지 추가
-import 'package:go_router/go_router.dart';
-import 'expense_report_write_screen.dart';
-import 'expense_report_detail_screen.dart';
 
 class ExpenseReportScreen extends StatefulWidget {
-  const ExpenseReportScreen({Key? key}) : super(key: key);
+  const ExpenseReportScreen({super.key});
 
   @override
   State<ExpenseReportScreen> createState() => _ExpenseReportScreenState();
@@ -80,7 +78,7 @@ class ExpenseReportScreen extends StatefulWidget {
       };
 
     } catch (e) {
-      print('Error in generateAndSaveReportDataForCommunityPost: $e');
+      debugPrint('Error in generateAndSaveReportDataForCommunityPost: $e');
       return null;
     }
   }
@@ -93,7 +91,6 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
   bool isLoading = true; // 로딩 상태
   String currentMonth = DateFormat('M').format(DateTime.now()); // 현재 월 (숫자)
   String currentMonthText = DateFormat('MM월').format(DateTime.now()); // 월 표시용 텍스트
-  bool _showAllCategories = false; // 모든 카테고리 표시 여부
   final User? _currentUser = FirebaseAuth.instance.currentUser; // 현재 사용자 정보 추가
   
   // 화면에 표시할 카테고리 목록
@@ -140,7 +137,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         // 사용자 이름 가져오기
         final userDoc = await FirebaseFirestore.instance
             .collection('Users')
-            .doc(_currentUser!.uid)
+            .doc(_currentUser.uid)
             .get();
         
         if (userDoc.exists) {
@@ -151,14 +148,14 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         }
         
         // 현재 월의 거래 내역 가져오기
-        await _loadExpenseData(_currentUser!.uid);
+        await _loadExpenseData(_currentUser.uid);
       }
       
       setState(() {
         isLoading = false;
       });
     } catch (e) {
-      print('사용자 정보 로드 중 오류 발생: $e');
+      debugPrint('사용자 정보 로드 중 오류 발생: $e');
       setState(() {
         isLoading = false;
       });
@@ -175,7 +172,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
       DateTime startDate = DateTime(int.parse(currentYear), int.parse(currentMonth), 1);
       DateTime endDate = DateTime(int.parse(currentYear), int.parse(currentMonth) + 1, 0);
       
-      print('조회 기간: $startDate ~ $endDate');
+      debugPrint('조회 기간: $startDate ~ $endDate');
       
       // Firestore에서 현재 달의 거래 내역 가져오기
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
@@ -186,7 +183,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
           .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
       
-      print('조회된 거래 내역 수: ${querySnapshot.docs.length}');
+      debugPrint('조회된 거래 내역 수: ${querySnapshot.docs.length}');
       
       // 총 지출 금액 및 카테고리별 금액 계산
       double total = 0;
@@ -220,10 +217,10 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         sortedCategories = sorted;
       });
       
-      print('총 지출: $totalExpense');
-      print('카테고리별 지출: $categoryExpenses');
+      debugPrint('총 지출: $totalExpense');
+      debugPrint('카테고리별 지출: $categoryExpenses');
     } catch (e) {
-      print('지출 데이터 로드 중 오류 발생: $e');
+      debugPrint('지출 데이터 로드 중 오류 발생: $e');
     }
   }
   
@@ -249,7 +246,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
                   children: [
                     // 소비 리포트 설명
                     Text(
-                      '${userName}님의 $currentMonthText 소비 패턴을 확인하고 공유해보세요',
+                      '$userName님의 $currentMonthText 소비 패턴을 확인하고 공유해보세요',
                       style: const TextStyle(
                         fontSize: 16,
                         color: Colors.grey,
@@ -303,7 +300,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "${userName}님의 $currentMonthText 소비 리포트",
+              "$userName님의 $currentMonthText 소비 리포트",
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30.0),
@@ -566,7 +563,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
             'categories': categoryExpenses,
             'total_expense': totalExpense,
           },
-          'userId': _currentUser!.uid,
+          'userId': _currentUser.uid,
         };
         
         // Firestore에 리포트 저장
@@ -596,7 +593,7 @@ class _ExpenseReportScreenState extends State<ExpenseReportScreen> {
         _showShareOptionsDialog(result);
       }
     } catch (e) {
-      print('소비 리포트 공유 중 오류 발생: $e');
+      debugPrint('소비 리포트 공유 중 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('소비 리포트 공유 중 오류가 발생했습니다: $e'),
