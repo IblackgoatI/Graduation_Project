@@ -1016,8 +1016,8 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      const Color(0xFF73AD13).withOpacity(0.1),
-                      const Color(0xFF5E8BFE).withOpacity(0.1),
+                      const Color(0xFF73AD13).withValues(alpha: 0.1),
+                      const Color(0xFF5E8BFE).withValues(alpha: 0.1),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12.0),
