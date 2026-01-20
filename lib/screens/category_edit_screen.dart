@@ -227,7 +227,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
           // 뒤로가기 시 카테고리 선택 화면으로 돌아가기
           Navigator.pop(context);
