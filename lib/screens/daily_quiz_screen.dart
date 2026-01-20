@@ -51,7 +51,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
   bool _isAnswerChecked = false; // 정답 확인 버튼 눌렀는지 여부
   bool _isQuizSolvedToday = false; // 오늘 퀴즈 풀었는지 여부
   bool _isLoading = true;
-  String _quizSolvedDate = ''; // 퀴즈를 푼 날짜 (YYYY-MM-DD)
+// 퀴즈를 푼 날짜 (YYYY-MM-DD)
 
   @override
   void initState() {
@@ -84,7 +84,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       if (userQuizDoc.exists) {
         setState(() {
           _isQuizSolvedToday = true;
-          _quizSolvedDate = todayDate;
         });
         // 이미 풀린 퀴즈라면 해당 퀴즈 정보를 가져와서 보여줍니다.
         final solvedQuizId = userQuizDoc.data()?['quizId'];
@@ -145,7 +144,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
     if (userQuizDoc.exists) {
       setState(() {
         _isQuizSolvedToday = true;
-        _quizSolvedDate = todayDate;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -214,7 +212,6 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
 
     setState(() {
       _isQuizSolvedToday = true;
-      _quizSolvedDate = todayDate;
     });
   }
 

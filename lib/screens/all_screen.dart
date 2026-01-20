@@ -1,5 +1,6 @@
 /// 모든 기능 화면
 /// 앱의 모든 주요 기능 및 설정 화면으로 이동할 수 있는 메뉴를 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'main_screen_nologin.dart'; // MainScreenNotLogin 클래스 가져오기
@@ -93,7 +94,7 @@ class _AllScreenState extends State<AllScreen> {
                   }
                 },
               );
-            }).toList(),
+            }),
           ],
           
           _buildSectionTitle('부린이 기능'),

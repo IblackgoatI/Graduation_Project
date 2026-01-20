@@ -1,5 +1,6 @@
 /// 로그인 화면
 /// 사용자 로그인을 처리하고, 자동 로그인 기능을 제공합니다.
+library;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

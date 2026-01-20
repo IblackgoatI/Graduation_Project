@@ -1,5 +1,6 @@
 /// 지출 보고서 작성 화면
 /// 사용자가 새로운 지출 보고서 게시물을 작성할 수 있도록 합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'expense_report_screen.dart';
-import 'expense_report_detail_screen.dart';
 import 'transaction_provider.dart';
 
 class ExpenseReportWriteScreen extends StatefulWidget {
@@ -15,10 +15,10 @@ class ExpenseReportWriteScreen extends StatefulWidget {
   final Map<String, dynamic>? postData;
 
   const ExpenseReportWriteScreen({
-    Key? key,
+    super.key,
     this.isEditing = false,
     this.postData,
-  }) : super(key: key);
+  });
 
   @override
   State<ExpenseReportWriteScreen> createState() => _ExpenseReportWriteScreenState();
@@ -31,13 +31,13 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
   bool _isSubmitting = false;
   
   bool _isUploading = false;
-  bool _formChanged = false; // 폼 변경 여부
+
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   String _userName = '부린이님';
   Map<String, dynamic>? _reportData; // 소비 리포트 데이터 저장용 변수
   
   // 실제 거래 내역이 있는 월 목록
-  List<DateTime> _monthsWithTransactions = [];
+  final List<DateTime> _monthsWithTransactions = [];
   
   @override
   void initState() {
@@ -119,7 +119,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
       if (_currentUser != null) {
         final userDoc = await FirebaseFirestore.instance
             .collection('Users')
-            .doc(_currentUser!.uid)
+            .doc(_currentUser.uid)
             .get();
         
         if (userDoc.exists) {
@@ -132,7 +132,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
         }
       }
     } catch (e) {
-      print('사용자 정보 로드 중 오류 발생: $e');
+      debugPrint('사용자 정보 로드 중 오류 발생: $e');
     }
   }
   
@@ -170,7 +170,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     try {
       // 선택한 월로 소비 리포트 생성
       final result = await ExpenseReportScreen.generateAndSaveReportDataForCommunityPost(
-        _currentUser!, 
+        _currentUser,
         _userName,
         selectedMonth.month, // 선택한 월 전달
         selectedMonth.year,  // 선택한 년도 전달
@@ -196,7 +196,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
         );
       }
     } catch (e) {
-      print('소비 리포트 처리 중 오류: $e');
+      debugPrint('소비 리포트 처리 중 오류: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('소비 리포트 처리 중 오류가 발생했습니다: $e'),
@@ -269,110 +269,9 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
     );
   }
   
-  // 리포트 글 업로드
-  Future<void> _uploadReport() async {
-    // 제목이나 내용이 비어있는지 확인
-    if (_titleController.text.trim().isEmpty || _contentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('제목과 내용을 모두 입력해주세요'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    
-    // 소비 리포트가 첨부되지 않았다면 사용자에게 확인
-    if (_reportData == null) {
-      final confirm = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('소비 리포트 미첨부'),
-          content: const Text('소비 리포트가 첨부되지 않았습니다. 계속 진행하시겠습니까?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('취소'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('계속 진행'),
-            ),
-          ],
-        ),
-      );
-      
-      if (confirm != true) {
-        return;
-      }
-    }
-    
-    setState(() {
-      _isUploading = true;
-    });
-    
-    try {
-      if (_currentUser != null) {
-        // 현재 월 정보 가져오기
-        String currentMonth = DateFormat('M').format(DateTime.now());
-        
-        // 문서 ID를 위한 랜덤 숫자 생성
-        final random = DateTime.now().millisecondsSinceEpoch;
-        
-        // 게시글 데이터 준비
-        final postData = {
-          'Heading': _titleController.text.trim(),
-          'Content': _contentController.text.trim(),
-          'userId': _currentUser!.uid,
-          'author_name': _userName,
-          'Month': _reportData?['month_text']?.replaceAll('월', '') ?? DateFormat('M').format(DateTime.now()), // 리포트 데이터의 월 또는 현재 월
-          'writeNumber': random.toString(),
-          'report_data': _reportData, // 불러온 리포트 데이터 첨부
-          'created_at': Timestamp.now(),
-        };
-        
-        // Firestore의 community 컬렉션에 데이터 저장
-        final docRef = await FirebaseFirestore.instance.collection('community').add(postData);
-        
-        // 저장된 문서 ID 가져오기
-        final savedDoc = await docRef.get();
-        final savedData = savedDoc.data() ?? {};
-        savedData['id'] = docRef.id;
-        
-        // 업로드 후 상세 화면으로 이동
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ExpenseReportDetailScreen(
-                postData: savedData,
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      print('리포트 업로드 중 오류 발생: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('리포트 업로드 중 오류가 발생했습니다'),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-        });
-      }
-    }
-  }
-
   // 폼 상태 업데이트
   void _updateFormState() {
     setState(() {
-      _formChanged = true;
     });
   }
 
@@ -488,15 +387,7 @@ class _ExpenseReportWriteScreenState extends State<ExpenseReportWriteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String currentMonthDisplay = DateFormat('M월').format(DateTime.now()); // UI 표시용
-    
-    // 제목과 내용이 비어있는지 확인하는 변수
-    bool isFormValid = _titleController.text.trim().isNotEmpty && 
-                       _contentController.text.trim().isNotEmpty;
-                       
-    // 작성하기 버튼 활성화 조건 - 제목과 내용은 필수, 소비 리포트는 필수 아님
-    bool canSubmit = isFormValid;
-    
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(

@@ -244,7 +244,7 @@ class _GoalAmountAddScreenState extends State<GoalAmountAddScreen> {
                             ),
                           ),
                           Text(
-                            NumberFormat('#,###').format(_currentBalance) + '원',
+                            '${NumberFormat('#,###').format(_currentBalance)}원',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

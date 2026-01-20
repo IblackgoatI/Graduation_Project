@@ -1,6 +1,8 @@
 /// 카테고리 관리 서비스
+library;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../models/category_model.dart';
 
 class CategoryService {
@@ -28,7 +30,7 @@ class CategoryService {
 
       return categories;
     } catch (e) {
-      print('카테고리 로드 오류: $e');
+      debugPrint('카테고리 로드 오류: $e');
       return [];
     }
   }
@@ -59,7 +61,7 @@ class CategoryService {
 
       return filteredCategories;
     } catch (e) {
-      print('카테고리 로드 오류: $e');
+      debugPrint('카테고리 로드 오류: $e');
       return [];
     }
   }
@@ -67,17 +69,17 @@ class CategoryService {
   // 새 카테고리 추가
   Future<String?> addCategory(CategoryModel category) async {
     try {
-      print('CategoryService.addCategory 시작');
+      debugPrint('CategoryService.addCategory 시작');
       
       final user = _auth.currentUser;
-      print('현재 사용자: ${user?.uid}');
+      debugPrint('현재 사용자: ${user?.uid}');
       
       // 사용자가 로그인하지 않은 경우 익명 사용자로 처리
       String userId = user?.uid ?? 'anonymous';
-      print('사용자 ID: $userId');
+      debugPrint('사용자 ID: $userId');
 
       // 현재 사용자의 카테고리 개수 확인하여 order 설정
-      print('기존 카테고리 조회 중...');
+      debugPrint('기존 카테고리 조회 중...');
       QuerySnapshot snapshot = await _firestore
           .collection('categories')
           .where('userId', isEqualTo: userId)
@@ -89,7 +91,7 @@ class CategoryService {
           .where((data) => data['type'] == category.type)
           .toList();
 
-      print('기존 카테고리 개수: ${typeCategories.length}');
+      debugPrint('기존 카테고리 개수: ${typeCategories.length}');
 
       int maxOrder = 0;
       for (var data in typeCategories) {
@@ -97,7 +99,7 @@ class CategoryService {
         if (order > maxOrder) maxOrder = order;
       }
 
-      print('새 카테고리 order: ${maxOrder + 1}');
+      debugPrint('새 카테고리 order: ${maxOrder + 1}');
 
       CategoryModel newCategory = category.copyWith(
         userId: userId,
@@ -106,15 +108,15 @@ class CategoryService {
         updatedAt: DateTime.now(),
       );
 
-      print('Firestore에 카테고리 저장 중...');
+      debugPrint('Firestore에 카테고리 저장 중...');
       DocumentReference docRef = await _firestore
           .collection('categories')
           .add(newCategory.toMap());
 
-      print('카테고리 저장 완료, ID: ${docRef.id}');
+      debugPrint('카테고리 저장 완료, ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
-      print('카테고리 추가 오류: $e');
+      debugPrint('카테고리 추가 오류: $e');
       return null;
     }
   }
@@ -129,7 +131,7 @@ class CategoryService {
 
       return true;
     } catch (e) {
-      print('카테고리 수정 오류: $e');
+      debugPrint('카테고리 수정 오류: $e');
       return false;
     }
   }
@@ -144,7 +146,7 @@ class CategoryService {
 
       return true;
     } catch (e) {
-      print('카테고리 삭제 오류: $e');
+      debugPrint('카테고리 삭제 오류: $e');
       return false;
     }
   }
@@ -167,7 +169,7 @@ class CategoryService {
       await batch.commit();
       return true;
     } catch (e) {
-      print('카테고리 순서 변경 오류: $e');
+      debugPrint('카테고리 순서 변경 오류: $e');
       return false;
     }
   }
@@ -226,7 +228,7 @@ class CategoryService {
       await batch.commit();
       return true;
     } catch (e) {
-      print('기본 카테고리 초기화 오류: $e');
+      debugPrint('기본 카테고리 초기화 오류: $e');
       return false;
     }
   }

@@ -1,5 +1,6 @@
 /// 관리자 메인 화면
 /// 게시물 및 댓글 관리 등 관리자 기능으로 이동하는 대시보드를 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,7 +17,7 @@ class AdminMainScreen extends StatefulWidget {
 }
 
 class _AdminMainScreenState extends State<AdminMainScreen> {
-  String _selectedMenu = '대시보드';
+  final String _selectedMenu = '대시보드';
   int _totalPosts = 0;
   int _todayPosts = 0;
   int _reportedComments = 0;

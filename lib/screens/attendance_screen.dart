@@ -1,5 +1,6 @@
 /// 출석 체크 화면
 /// 사용자별 출석 기록을 관리하고, 연속 출석에 따른 포인트 지급 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -122,9 +123,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       // 포인트 계산 (연속 출석에 따라 차등 지급)
       int points = 10; // 기본 포인트
-      if (_currentStreak >= 20) points = 50; // New rule for 50P based on image
-      else if (_currentStreak >= 7) points = 30;
-      else if (_currentStreak >= 3) points = 20;
+      if (_currentStreak >= 20) {
+        points = 50; // New rule for 50P based on image
+      } else if (_currentStreak >= 7) {
+        points = 30;
+      }
+      else if (_currentStreak >= 3) {
+        points = 20;
+      }
 
       // Firestore에 데이터 업데이트 (attendance 컬렉션)
       await FirebaseFirestore.instance
@@ -175,7 +181,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('출석 체크 완료! ${points}포인트가 지급되었습니다.'),
+            content: Text('출석 체크 완료! $points포인트가 지급되었습니다.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -289,7 +295,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   orElse: () => {},
                                 );
                                 final isAttended = attendanceEntry.isNotEmpty;
-                                final pointsEarned = isAttended ? attendanceEntry['points'] as int : 0;
 
                                 return Container(
                                   decoration: BoxDecoration(

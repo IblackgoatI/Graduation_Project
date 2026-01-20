@@ -1,5 +1,6 @@
 /// 고정 지출 목록 화면
 /// 사용자의 고정 지출 내역을 조회하고 관리합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'transaction_provider.dart';
@@ -19,7 +20,7 @@ class FixedExpenseListScreen extends StatefulWidget {
 class FixedExpenseListScreenState extends State<FixedExpenseListScreen> {
   bool _isLoading = true;
   List<FinancialTransaction> _transactions = [];
-  List<FinancialTransaction> _selectedTransactions = [];
+  final List<FinancialTransaction> _selectedTransactions = [];
   List<FinancialTransaction> _filteredTransactions = []; // 검색 결과를 위한 리스트
   final TextEditingController _searchController = TextEditingController(); // 검색어 컨트롤러
   Set<String> _existingFixedExpenseIds = {}; // 기존 고정지출 ID 저장

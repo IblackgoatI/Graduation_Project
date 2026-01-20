@@ -1,5 +1,6 @@
 /// 관리자 로그인 화면
 /// 관리자 권한으로 로그인하여 관리자 전용 기능을 사용할 수 있도록 합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 

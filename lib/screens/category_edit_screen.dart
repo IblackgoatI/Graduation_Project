@@ -1,6 +1,6 @@
 /// 카테고리 편집 화면
+library;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../models/category_model.dart';
 import '../services/category_service.dart';
 import 'category_manager.dart';
@@ -40,7 +40,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('카테고리 로드 실패, 기본 카테고리 사용: $e');
+      debugPrint('카테고리 로드 실패, 기본 카테고리 사용: $e');
       // 인덱스 문제로 실패한 경우 기본 카테고리 사용
       _loadDefaultCategories();
     }
@@ -227,7 +227,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
           // 뒤로가기 시 카테고리 선택 화면으로 돌아가기
           Navigator.pop(context);
@@ -257,8 +257,8 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
           onPressed: () {
             _showDebugInfo();
           },
-          child: const Icon(Icons.info),
           mini: true,
+          child: const Icon(Icons.info),
         ),
         body: _isLoading
             ? const Center(child: CircularProgressIndicator())
@@ -407,7 +407,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Container(
+                SizedBox(
                   height: 120,
                   child: GridView.builder(
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -597,7 +597,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
 
   Future<void> _addCategory(String name, String icon, String type) async {
     try {
-      print('카테고리 추가 시도: $name, $icon, $type');
+      debugPrint('카테고리 추가 시도: $name, $icon, $type');
       
       final newCategory = CategoryModel(
         id: '', // 서비스에서 생성됨
@@ -610,24 +610,24 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         userId: '', // 서비스에서 설정됨
       );
 
-      print('새 카테고리 모델 생성 완료');
+      debugPrint('새 카테고리 모델 생성 완료');
       
       final categoryId = await _categoryService.addCategory(newCategory);
-      print('카테고리 추가 결과: $categoryId');
+      debugPrint('카테고리 추가 결과: $categoryId');
       
       if (categoryId != null) {
-        print('카테고리 추가 성공, 목록 새로고침 시작');
+        debugPrint('카테고리 추가 성공, 목록 새로고침 시작');
         // 캐시 초기화
         CategoryManager.clearCache();
         await _loadCategories();
         _showSuccessSnackBar('카테고리가 추가되었습니다.');
-        print('카테고리 추가 완료');
+        debugPrint('카테고리 추가 완료');
       } else {
-        print('카테고리 추가 실패: categoryId가 null');
+        debugPrint('카테고리 추가 실패: categoryId가 null');
         _showErrorSnackBar('카테고리 추가에 실패했습니다.');
       }
     } catch (e) {
-      print('카테고리 추가 중 오류: $e');
+      debugPrint('카테고리 추가 중 오류: $e');
       _showErrorSnackBar('카테고리 추가 중 오류가 발생했습니다: $e');
     }
   }

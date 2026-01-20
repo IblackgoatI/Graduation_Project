@@ -1,6 +1,7 @@
 /// 가계부 카테고리 상수 정의 (공통 사용)
 /// 이제 동적 카테고리 시스템을 사용합니다.
-
+library;
+import 'package:flutter/material.dart';
 import 'category_manager.dart';
 
 // 수입 카테고리 (기본값, 동적 로드 시 대체됨)
@@ -39,7 +40,7 @@ Future<List<String>> getIncomeCategories() async {
   try {
     return await CategoryManager.getIncomeCategories();
   } catch (e) {
-    print('수입 카테고리 로드 실패, 기본값 사용: $e');
+    debugPrint('수입 카테고리 로드 실패, 기본값 사용: $e');
     return defaultIncomeCategories;
   }
 }
@@ -48,7 +49,7 @@ Future<List<String>> getExpenseCategories() async {
   try {
     return await CategoryManager.getExpenseCategories();
   } catch (e) {
-    print('지출 카테고리 로드 실패, 기본값 사용: $e');
+    debugPrint('지출 카테고리 로드 실패, 기본값 사용: $e');
     return defaultExpenseCategories;
   }
 }
@@ -57,17 +58,17 @@ Future<List<String>> getAllCategories() async {
   try {
     return await CategoryManager.getAllCategories();
   } catch (e) {
-    print('전체 카테고리 로드 실패, 기본값 사용: $e');
+    debugPrint('전체 카테고리 로드 실패, 기본값 사용: $e');
     return defaultAllCategories;
   }
 }
 
 // 하위 호환성을 위한 상수 (deprecated)
-@deprecated
+@Deprecated('Use getIncomeCategories() instead.')
 const List<String> incomeCategories = defaultIncomeCategories;
 
-@deprecated
+@Deprecated('Use getExpenseCategories() instead.')
 const List<String> expenseCategories = defaultExpenseCategories;
 
-@deprecated
+@Deprecated('Use getAllCategories() instead.')
 const List<String> allCategories = defaultAllCategories;

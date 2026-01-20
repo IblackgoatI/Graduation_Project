@@ -1,5 +1,6 @@
 /// 관리자 게시물 관리 화면 
 /// 모든 게시물을 조회하고, 검색 및 삭제 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';

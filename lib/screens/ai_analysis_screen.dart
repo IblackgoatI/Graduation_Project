@@ -1,5 +1,6 @@
 /// AI 가계부 분석 화면
 /// Gemini AI를 활용하여 사용자의 지출 습관을 분석하고 피드백을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:fluttertest/services/gemini_service.dart';
 import 'package:intl/intl.dart';
@@ -110,7 +111,7 @@ class _AIAnalysisScreenState extends State<AIAnalysisScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   spreadRadius: 2,
                   blurRadius: 8,
                   offset: const Offset(0, 2),
@@ -258,7 +259,7 @@ class _AIAnalysisScreenState extends State<AIAnalysisScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF73AD13).withOpacity(0.1),
+                    color: const Color(0xFF73AD13).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
@@ -305,8 +306,8 @@ class _AIAnalysisScreenState extends State<AIAnalysisScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: difference > 0
-                      ? Colors.red.withOpacity(0.1)
-                      : Colors.green.withOpacity(0.1),
+                      ? Colors.red.withValues(alpha: 0.1)
+                      : Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -465,12 +466,12 @@ class _AIAnalysisScreenState extends State<AIAnalysisScreen> {
 
   Widget _buildHelpCard() {
     return Card(
-      color: const Color(0xFF73AD13).withOpacity(0.05),
+      color: const Color(0xFF73AD13).withValues(alpha: 0.05),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: const Color(0xFF73AD13).withOpacity(0.2),
+          color: const Color(0xFF73AD13).withValues(alpha: 0.2),
           width: 1,
         ),
       ),

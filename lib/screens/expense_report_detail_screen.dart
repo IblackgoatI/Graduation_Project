@@ -1,5 +1,6 @@
 /// 지출 보고서 상세 화면
 /// 특정 게시물의 상세 내용을 보여주고, 댓글 및 답글을 관리하며 삭제 기능을 제공합니다.
+library;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -74,9 +75,9 @@ class ExpenseReportDetailScreen extends StatefulWidget {
   final Map<String, dynamic> postData;
 
   const ExpenseReportDetailScreen({
-    Key? key,
+    super.key,
     required this.postData,
-  }) : super(key: key);
+  });
 
   @override
   State<ExpenseReportDetailScreen> createState() => _ExpenseReportDetailScreenState();
@@ -153,7 +154,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         }
       }
     } catch (e) {
-      print('작성자 정보 로드 중 오류 발생: $e');
+      debugPrint('작성자 정보 로드 중 오류 발생: $e');
     } finally {
       if (mounted && _isLoading) {
         setState(() {
@@ -256,7 +257,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         });
       }
     } catch (e) {
-      print('댓글 로드 중 오류 발생: $e');
+      debugPrint('댓글 로드 중 오류 발생: $e');
     }
   }
   
@@ -327,7 +328,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         ),
       );
     } catch (e) {
-      print('댓글 작성 중 오류 발생: $e');
+      debugPrint('댓글 작성 중 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('댓글 작성 중 오류가 발생했습니다'),
@@ -715,7 +716,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
         ),
       );
     } catch (e) {
-      print('대댓글 작성 중 오류 발생: $e');
+      debugPrint('대댓글 작성 중 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('대댓글 작성 중 오류가 발생했습니다'),
@@ -943,7 +944,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
       await commentRef.update({'likes': likes});
       await _loadComments(); // 댓글 목록 새로고침
     } catch (e) {
-      print('좋아요 토글 중 오류 발생: $e');
+      debugPrint('좋아요 토글 중 오류 발생: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('좋아요 처리 중 오류가 발생했습니다')),
       );
@@ -1380,7 +1381,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           Row(
             children: [
               Text(
-                '${_authorName}님의 $displayMonth 소비 리포트', // displayMonth 사용
+                '$_authorName님의 $displayMonth 소비 리포트', // displayMonth 사용
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -1397,7 +1398,7 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
           
           // 파이 차트 - 중앙 배치
           Center(
-            child: Container(
+            child: SizedBox(
               height: 160,
               width: 160,
               child: _buildPieChart(reportData, categories, displayMonth, displayFormattedAmount), // displayMonth, displayFormattedAmount 전달
@@ -1549,14 +1550,14 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
             Icon(Icons.pie_chart, size: 64, color: Colors.grey[400]),
             const SizedBox(height: 8),
             Text(
-              '${displayMonth} 총 소비', // displayMonth 사용
+              '$displayMonth 총 소비', // displayMonth 사용
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
               ),
             ),
             Text(
-              '${displayFormattedAmount}원', // displayFormattedAmount 사용
+              '$displayFormattedAmount원', // displayFormattedAmount 사용
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1623,14 +1624,14 @@ class _ExpenseReportDetailScreenState extends State<ExpenseReportDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    '${displayMonth} 총 소비: ',
+                    '$displayMonth 총 소비: ',
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),
                   ),
                   Text(
-                    '${displayFormattedAmount}원',
+                    '$displayFormattedAmount원',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
