@@ -3914,7 +3914,7 @@ class _AssetDetailScreenState extends State<AssetDetailScreen> with SingleTicker
         // 총액 다시 계산
         _totalFixedExpenseAmount = _fixedExpensesList.fold(
           0.0,
-          (sum, item) => sum + (item['amount'] as double),
+          (total, item) => total + (item['amount'] as double),
         );
       });
 

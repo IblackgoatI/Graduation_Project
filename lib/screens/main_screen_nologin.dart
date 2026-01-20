@@ -1282,8 +1282,10 @@ class _MainScreenNotLoginState extends State<MainScreenNotLogin> with TickerProv
         final selectedMonth = selectedYearMonth % 100;
         
         // 총 지출 금액 계산
-        final totalExpense = selectedMonthData.fold(0.0, 
-          (sum, transaction) => sum + transaction.amount);
+        final totalExpense = selectedMonthData.fold(
+          0.0,
+          (total, transaction) => total + transaction.amount,
+        );
         
         // 카테고리별 지출 금액 계산
         Map<String, double> categoryExpenses = {};
