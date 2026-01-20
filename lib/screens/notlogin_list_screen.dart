@@ -576,8 +576,11 @@ class NotloginListScreenState extends State<NotloginListScreen> {
   }
 
   void _openDetailFilterBottomSheet(BuildContext context, List<FinancialTransaction> source) async {
-    // 기본: 전체 카테고리
-    List<String> categories = List<String>.from(allCategories);
+    // 기본: 전체 카테고리 (동적 로드)
+    final List<String> allCats = await getAllCategories();
+    final List<String> incomeCats = await getIncomeCategories();
+    final List<String> expenseCats = await getExpenseCategories();
+    List<String> categories = List<String>.from(allCats);
 
     final Set<String> tempSelectedCategories = Set<String>.from(_selectedCategories);
     int tempSelectedTypeIndex = _selectedTypeIndex;
@@ -635,11 +638,11 @@ class NotloginListScreenState extends State<NotloginListScreen> {
                                     tempSelectedTypeIndex = val;
                                     // 거래유형 변경 시 해당 유형의 카테고리만 표시
                                     if (val == 0) {
-                                      categories = List<String>.from(allCategories);
+                                      categories = List<String>.from(allCats);
                                     } else if (val == 1) {
-                                      categories = List<String>.from(incomeCategories);
+                                      categories = List<String>.from(incomeCats);
                                     } else {
-                                      categories = List<String>.from(expenseCategories);
+                                      categories = List<String>.from(expenseCats);
                                     }
                                     // 선택된 카테고리 중 현재 표시되지 않는 것들은 선택 해제
                                     tempSelectedCategories.removeWhere((cat) => !categories.contains(cat));
