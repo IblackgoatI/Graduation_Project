@@ -64,11 +64,11 @@ Future<List<String>> getAllCategories() async {
 }
 
 // 하위 호환성을 위한 상수 (deprecated)
-@deprecated
+@Deprecated('Use getIncomeCategories() instead.')
 const List<String> incomeCategories = defaultIncomeCategories;
 
-@deprecated
+@Deprecated('Use getExpenseCategories() instead.')
 const List<String> expenseCategories = defaultExpenseCategories;
 
-@deprecated
+@Deprecated('Use getAllCategories() instead.')
 const List<String> allCategories = defaultAllCategories;
